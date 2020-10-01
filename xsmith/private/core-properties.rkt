@@ -1683,12 +1683,6 @@ The second arm is a function that takes the type that the node has been assigned
           (hash #f #'(λ (node) (void)))
           (hash #f #'(λ (node)
                        (att-value 'xsmith_type node)
-                       ;; If the node is a reference, type check the definition too.
-                       (when (and (att-value '_xsmith_is-reference-node? node)
-                                  (not (att-value 'xsmith_is-hole? node)))
-                         (att-value '_xsmith_type-check-tree
-                                    (binding-ast-node
-                                     (att-value '_xsmith_resolve-reference node))))
                        (for ([c (ast-children node)])
                          (cond [(or (not (ast-node? c))
                                     (ast-bud-node? c))
