@@ -45,6 +45,7 @@
  strict-child-order?
  mutable-container-access
  io
+ required-child-reference
  lift-predicate
  lift-type->ast-binder-type
  binding-structure
@@ -1059,6 +1060,7 @@ It just reads the values of several other properties and produces the results fo
            _xsmith_satisfies-type-constraint?
            _xsmith_no-io-conflict?
            _xsmith_no-mutable-container-effect-conflict?
+           _xsmith_no-required-child-reference-conflict?
            _xsmith_nonzero-weight?
            #,@user-filters)))
     (define (helper filter-method-stx filter-failure-set!-id)
@@ -1967,10 +1969,12 @@ The second arm is a function that takes the type that the node has been assigned
     (list _xsmith_mutable-container-effects-info
           _xsmith_no-mutable-container-effect-conflict?)))
 
+(define-property required-child-reference)
 (define-property io
   #:reads
   (grammar)
   (property reference-info)
+  (property required-child-reference)
   #:appends
   (attribute _xsmith_effects/no-children) ;; effects directly caused by a node
   (attribute _xsmith_effects) ;; effects caused by a node and its children
@@ -1979,8 +1983,9 @@ The second arm is a function that takes the type that the node has been assigned
   (attribute _xsmith_function-application-effects)
   (attribute _xsmith_effect-constraints-for-child)
   (choice-method _xsmith_no-io-conflict?)
+  (choice-method _xsmith_no-required-child-reference-conflict?)
   #:transformer
-  (λ (this-prop-info grammar-info reference-info)
+  (λ (this-prop-info grammar-info reference-info required-child-reference-info)
     (define nodes (dict-keys grammar-info))
     (define io-info (for/hash ([node nodes])
                       (values node
@@ -2152,12 +2157,28 @@ The second arm is a function that takes the type that the node has been assigned
                                       (ast-parent (current-hole))
                                       (current-hole)))))]
            [(#f #f) #'(λ () #t)]))))
+    (define _xsmith_no-required-child-reference-conflict?-info
+      (for/hash ([n nodes])
+        (values
+         n
+         (syntax-parse (dict-ref required-child-reference-info n #'#f)
+           [#f #'(λ () #t)]
+           [#t
+            ;; If a node has a child that requires a variable reference,
+            ;; we should not choose it in situations where we can't choose
+            ;; any variable reference.
+            #'(λ () (or (not (ast-has-parent? (current-hole)))
+                        (not (memf (λ (e) (any-effect? e))
+                                   (att-value '_xsmith_effect-constraints-for-child
+                                              (ast-parent (current-hole))
+                                              (current-hole))))))]))))
     (list _xsmith_effects/no-children-info
           _xsmith_effects-info
           _xsmith_function-application-effects/no-children-info
           _xsmith_function-application-effects-info
           _xsmith_effect-constraints-for-child-info
-          _xsmith_no-io-conflict?-info)))
+          _xsmith_no-io-conflict?-info
+          _xsmith_no-required-child-reference-conflict?-info)))
 
 #|
 There are two attributes involved in rendering ASTs for pretty-printing:
