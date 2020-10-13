@@ -563,6 +563,7 @@
                       [index : Expression]
                       [newvalue : Expression])
                      #:prop mutable-container-access (write 'MutableArray)
+                     #:prop required-child-reference #t
                      #:prop type-info
                      [void-type (mutable-array-assignment-type-rhs
                                  index-and-length-type)]]))
@@ -694,6 +695,7 @@
                       [record : VariableReference]
                       [newvalue : Expression])
                      #:prop mutable-container-access (write 'MutableStructuralRecord)
+                     #:prop required-child-reference #t
                      #:prop type-info
                      [void-type mutable-structural-record-assignment-type-rhs]]))
                 #'())
