@@ -140,6 +140,7 @@
 (define generation-timeout-default #f)
 (define print-debug-default #f)
 (define verbose-default #f)
+(define output-file-default #f)
 
 
 
@@ -300,6 +301,7 @@
            (define generation-timeout generation-timeout-default)
            (define print-debug? print-debug-default)
            (define verbose? verbose-default)
+           (define output-file-name output-file-default)
            (define options (xsmith-options-defaults))
 
            (define command-line-to-print (current-command-line-arguments))
@@ -374,7 +376,7 @@
                    (set! given-seed (string->number seed)))
                 ("Set the random seed" "seed")]
                [("--output-file" "-o")
-                ,(λ (flag filename) (dict-set! options 'output-filename filename))
+                ,(λ (flag filename) (set! output-file-name filename))
                 ("Output generated program to <filename>" "filename")]
                [("--server")
                 ,(λ (flag run-as-server?)
@@ -514,6 +516,7 @@
             #:generation-timeout generation-timeout
             #:print-debug print-debug?
             #:verbose verbose?
+            #:output-file output-file-name
 
             #:command-line-to-print command-line-to-print))
 
@@ -589,6 +592,7 @@
                        (list '#:max-depth max-depth-arg)
                        (list '#:type-max-depth type-max-depth-arg)
                        (list '#:timeout timeout-arg)
+                       (list '#:output-file output-file-arg)
                        ))))
 
            (core-generate-function
@@ -611,6 +615,7 @@
             #:type-max-depth (arg type-max-depth-arg default-type-max-depth)
             #:generation-timeout (arg timeout-arg
                                       generation-timeout-default)
+            #:output-file (arg output-file-arg output-file-default)
 
             #:command-line-to-print command-line-to-print
             #:print-debug print-debug
@@ -640,6 +645,7 @@
                   #:max-depth max-depth
                   #:type-max-depth type-max-depth
                   #:generation-timeout generation-timeout
+                  #:output-file output-file
                   #:command-line-to-print command-line-to-print
                   #:print-debug print-debug-with-no-error?
                   #:verbose verbose?
@@ -673,12 +679,17 @@
                  (port->bytes (open-input-file seq-from-file))
                  (or given-seed (generate-random-seed))))
 
+           (define out-port (if output-file
+                                (open-output-file output-file)
+                                (current-output-port)))
+
            (define (generate-and-print!/xsmith-parameterized
                     #:random-source [random-input initial-random-source])
              (parameterize ([current-xsmith-max-depth max-depth]
                             [type-max-concretization-depth type-max-depth]
                             [current-xsmith-features features]
                             [xsmith-options options]
+                            [current-output-port out-port]
                             [xsmith-state (make-generator-state)]
                             [current-random-source (make-random-source random-input)])
                (let/ec abort
