@@ -239,13 +239,14 @@
 
 
          (define version-info
-           (format "~a~a, in Racket ~a"
+           (format "~a~a, in Racket ~a (vm-type ~a)"
                    (cond [(and 'fuzzer-name fuzzer-version)
                           (format "~a ~a, " 'fuzzer-name fuzzer-version)]
                          ['fuzzer-name (format "~a, " 'fuzzer-name)]
                          [else ""])
                    xsmith-version-string
-                   (version)))
+                   (version)
+                   (system-type 'vm)))
 
 
          ;; This is the old format the command-line function took it in.
