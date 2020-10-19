@@ -105,39 +105,53 @@
 
 ;; scope -> (listof binding)
 (define (visible-bindings scope)
-  (define (resolution-hash-fold lhash rhash)
-    (for/fold ([fhash lhash])
-              ([r (hash-values rhash)])
+  ;; I wrote this originally with hashes, but hash ordering is not deterministic.
+  ;; So I replaced every instance of "hash" with "alist" and nudged it into working.
+  (define (alist-values x) (map cdr x))
+  (define (alist-ref alist key fallback)
+    (define found (assq key alist))
+    (if found
+        (cdr found)
+        fallback))
+  (define (alist-set alist key newval)
+    (cons (cons key newval) alist))
+  (define alist list)
+  ;; Now that alist functions are out of the way, the actual implementation.
+  ;; Do I immediately remember what I was doing here?  Not really, that's why
+  ;; I just wanted to drop in "alist" instead of "hash".
+  (define (resolution-alist-fold lalist ralist)
+    (for/fold ([falist lalist])
+              ([r (alist-values ralist)])
               (let* ([name (binding-name (resolution-binding r))]
-                     [old-r (hash-ref fhash name #f)])
+                     [old-r (alist-ref falist name #f)])
                 (if (and old-r
                          (greater-visibility old-r r))
-                    fhash
-                    (hash-set fhash name r)))))
+                    falist
+                    (alist-set falist name r)))))
 
-  (define (visible-names-hash scope path-so-far)
+  (define (visible-names-alist scope path-so-far)
     (if (not scope)
-        (hash)
-        (let* ([parent-rs (visible-names-hash
+        (alist)
+        (let* ([parent-rs (visible-names-alist
                            (scope-parent scope) (cons 'parent path-so-far))]
                [import-rss (for/list ([import (scope-imports scope)])
-                             (visible-names-hash (module-scope
-                                                  (resolve-reference import))
-                                                 (cons 'import path-so-far)))]
+                             (visible-names-alist (module-scope
+                                                   (resolve-reference import))
+                                                  (cons 'import path-so-far)))]
                [resolutions-here
                 (map (λ (b) (resolution b (reverse
                                            (cons 'declaration path-so-far))))
                      (scope-bindings scope))]
                [valid-resolutions-here (filter well-formed? resolutions-here)]
-               [valid-here-hash (for/hash ([r valid-resolutions-here])
-                                  (values (binding-name (resolution-binding r))
-                                          r))])
-          (for/fold ([fhash (hash)])
-                    ([rhash (list* valid-here-hash parent-rs import-rss)])
-            (resolution-hash-fold fhash rhash)))))
+               [valid-here-alist (for/list ([r valid-resolutions-here])
+                                   (cons (binding-name (resolution-binding r))
+                                         r))])
+          (for/fold ([falist (alist)])
+                    ([ralist (list* valid-here-alist parent-rs import-rss)])
+            (resolution-alist-fold falist ralist)))))
 
   (map resolution-binding
-       (hash-values (visible-names-hash scope (list 'reference)))))
+       (alist-values (visible-names-alist scope (list 'reference)))))
 
 
 (define current-well-formedness-regexp (make-parameter #px"rp*i?d"))
