@@ -1085,7 +1085,16 @@ Perform error checking:
    (define (grammar-part-n-parents gp)
      (length (grammar-clause->parent-chain gp all-g-part-hash)))
    (with-syntax ([(g-part-sorted ...)
-                  (sort (syntax->list #'(g-part ...))
+                  ;; Because parts may have the same number of parents,
+                  ;; we should sort by names, then by number of parents.
+                  ;; Racket's sort is stable, so this will give us a
+                  ;; deterministic ordering.
+                  (sort (sort (syntax->list #'(g-part ...))
+                              string<?
+                              #:key (syntax-parser
+                                      [gc:grammar-clause
+                                       (symbol->string (syntax-e #'gc.node-name))])
+                              #:cache-keys? #t)
                         <
                         #:key grammar-part-n-parents
                         #:cache-keys? #t)])
