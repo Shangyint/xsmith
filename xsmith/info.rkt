@@ -31,7 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define name "xsmith")
-(define version "2.0.2")
+(define version "2.0.3")
 (define git-commit "$Format:%h$")
 
 (define scribblings '(("scribblings/xsmith.scrbl" () (library))))
