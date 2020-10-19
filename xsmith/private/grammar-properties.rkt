@@ -111,6 +111,7 @@ The other three keys map to hashes of rule-name -> node-name -> val-stx
 
 This function is only used in one place, so its interface is tightly bound with that use.  Maybe it ought to be improved.
 |#
+
 (define (grammar-property-transform grammar-prop-name-stx
                                     infos-hash
                                     spell-check-grammar-name)
