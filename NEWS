@@ -1,5 +1,17 @@
 -*- mode: Outline -*-
 
+* Version 2.0.2
+
+We resolved some reproducibility issues.  Xsmith now runs reproducibly
+between Racket CS and Racket BC, at least on the master branch of Racket.
+(Racket 7.9.0.3 after commit 8baf16c093295bde500c9a3b55857ad9c1d85348)
+
+We also improved some of the demo fuzzers.  The racket-kernel-fuzzer
+demo actually produces correct code (well, usually at least), and has
+started finding bugs.  The other demo fuzzers have not been rigorously
+tested yet, so they probably still need their printing adjusted to
+have most programs even remotely accepted.
+
 * Version 2.0.0
 
 Second public release.  Gripping news, eh?  Basically everything is much better.
