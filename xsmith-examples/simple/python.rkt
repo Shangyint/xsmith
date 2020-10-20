@@ -148,6 +148,26 @@
                                          (map (λ (cn) ($xsmith_render-node cn)) parameters)))
                               rparen
                               colon)
+                    ;; If any global variables are assigned to, they need a
+                    ;; declaration "global <varname>".
+                    (let* ([assignment-statements
+                            (att-value
+                             'xsmith_find-descendants
+                             n
+                             (λ (cn) (node-subtype? cn 'AssignmentStatement)))]
+                           [global-var-names
+                            (map
+                             (λ (assign-node) (ast-child 'name assign-node))
+                             (filter (λ (cn)
+                                       (define binding (att-value 'xsmith_binding cn))
+                                       (define def-node (binding-ast-node binding))
+                                       (node-subtype? (parent-node def-node)
+                                                      'ProgramWithBlock))
+                                     assignment-statements))])
+                      (apply
+                       v-append
+                       (map (λ (name) (h-append (text "global ") (text name)))
+                            global-var-names)))
                     ($xsmith_render-node body))))
            (h-append (text (ast-child 'name n))
                      space
