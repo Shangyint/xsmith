@@ -427,7 +427,8 @@
 
 (ag/single-arg string-downcase #:type string)
 (ag/single-arg string-foldcase #:type string)
-(ag/single-arg string-titlecase #:type string)
+;; String titlecase is buggy in RacketBC, but the fix is just to use CS instead, so I'm commenting it out of the fuzzer so I stop getting a deluge of string-titlecase bug reports.
+;(ag/single-arg string-titlecase #:type string)
 (ag/single-arg string-upcase #:type string)
 
 (ag/single-arg string-length #:type int #:ctype (Ectype string))
