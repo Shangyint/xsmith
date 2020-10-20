@@ -638,7 +638,7 @@
           (define min-second -10000000000)
           (define max-second 10000000000)
           (cond [(< x min-second) (seconds->date (modulo x min-second))]
-                [(> x max-second) (seconds->date (module x max-second))]
+                [(> x max-second) (seconds->date (modulo x max-second))]
                 [else (seconds->date x)])
           )
         (define-values (safe-car)
