@@ -135,6 +135,7 @@
 (define netstring-ignore-input-default #f)
 (define render-on-error-default #f)
 (define s-exp-on-error-default #f)
+(define s-exp-print-override-default #f)
 (define seq-to-file-default #f)
 (define seq-from-file-default #f)
 (define generation-timeout-default #f)
@@ -295,6 +296,7 @@
            (define netstring-ignore-input? netstring-ignore-input-default)
            (define render-on-error? render-on-error-default)
            (define s-exp-on-error? s-exp-on-error-default)
+           (define s-exp-print-override s-exp-print-override-default)
            (define seq-to-file seq-to-file-default)
            (define seq-from-file seq-from-file-default)
            (define max-depth default-max-depth)
@@ -427,6 +429,12 @@
                 (["Print an s-expression representation of the tree if an error is encountered"
                   "Defaults to false."]
                  "show-s-exp-on-error?")]
+               [("--s-exp-print-override")
+                ,(λ (flag s-exp-override)
+                   (set! s-exp-print-override
+                         (string->bool s-exp-override 's-exp-override)))
+                ["Print an s-expression representation of the tree instead of using the normal renderer."
+                 "Defaults to false."]]
                [("--print-debug")
                 ,(λ (flag print-debug)
                    (set! print-debug? (string->bool print-debug 'print-debug?)))
@@ -510,6 +518,7 @@
             #:netstring-ignore-input? netstring-ignore-input?
             #:render-on-error? render-on-error?
             #:s-exp-on-error? s-exp-on-error?
+            #:s-exp-print-override s-exp-print-override
             #:seq-to-file seq-to-file
             #:seq-from-file seq-from-file
             #:max-depth max-depth
@@ -542,6 +551,7 @@
                   #:server-path [server-path-arg not-given]
                   #:render-on-error [render-on-error-arg not-given]
                   #:s-exp-on-error [s-exp-on-error-arg not-given]
+                  #:s-exp-print-override [s-exp-print-override-arg not-given]
                   #:seq-to-file [seq-to-file-arg not-given]
                   #:seq-from-file [seq-from-file-arg not-given]
                   #:max-depth [max-depth-arg not-given]
@@ -588,6 +598,7 @@
                        (list '#:netstring-ignore-input netstring-ignore-input-arg)
                        (list '#:render-on-error render-on-error-arg)
                        (list '#:s-exp-on-error s-exp-on-error-arg)
+                       (list '#:s-exp-print-override s-exp-print-override-arg)
                        (list '#:seq-to-file seq-to-file-arg)
                        (list '#:seq-from-file seq-from-file-arg)
                        (list '#:max-depth max-depth-arg)
@@ -610,6 +621,7 @@
                                            netstring-ignore-input-default)
             #:render-on-error? (arg render-on-error-arg render-on-error-default)
             #:s-exp-on-error? (arg s-exp-on-error-arg s-exp-on-error-default)
+            #:s-exp-print-override (arg s-exp-print-override-arg s-exp-print-override-default)
             #:seq-to-file (arg seq-to-file-arg seq-to-file-default)
             #:seq-from-file (arg seq-from-file-arg seq-from-file-default)
             #:max-depth (arg max-depth-arg default-max-depth)
@@ -641,6 +653,7 @@
                   #:netstring-ignore-input? netstring-ignore-input?
                   #:render-on-error? render-on-error?
                   #:s-exp-on-error? s-exp-on-error?
+                  #:s-exp-print-override s-exp-print-override
                   #:seq-to-file seq-to-file
                   #:seq-from-file seq-from-file
                   #:max-depth max-depth
@@ -823,7 +836,14 @@
                    (capture-output!
                     (λ () (with-handlers ([(λ (e) #t)
                                            (λ (e) (set! error? e))])
-                            (ast->string ast)))))
+                            (if s-exp-print-override
+                                (with-output-to-string
+                                  (λ ()
+                                    (pretty-print
+                                     (att-value '_xsmith_to-s-expression ast)
+                                     (current-output-port)
+                                     1)))
+                                (ast->string ast))))))
                  (if error?
                      (begin
                        ;; Something went wrong during printing.
