@@ -627,11 +627,18 @@
               0
               (angle x)))
         (define (NE/seconds->date x)
+          (define (sd x)
+            ;; Don't use local time.
+            (seconds->date x #f))
+          ;; The range is apparently OS-dependent.  I binary searched the bounds on my machine, but that was probably not very useful.
           ;; The range is -67768040609715604 to 67768036191701999 inclusive, at least in racket 7.6-bc.
-          (define min-second -67768040609715604)
-          (define max-second 67768036191701999)
-          (cond [(< x min-second) (seconds->date min-second)]
-                [(> x max-second) (seconds->date max-second)]
+          ;(define min-second -67768040609715604)
+          ;(define max-second 67768036191701999)
+          ;; Hopefully these bounds should work for any setup, as it's only a few hundred years in either direction.
+          (define min-second -10000000000)
+          (define max-second 10000000000)
+          (cond [(< x min-second) (seconds->date (modulo x min-second))]
+                [(> x max-second) (seconds->date (module x max-second))]
                 [else (seconds->date x)])
           )
         (define-values (safe-car)
