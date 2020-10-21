@@ -258,6 +258,7 @@
                    [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
                          (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
                          (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                         (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
                          )]
                    ['xsmithserialnumber `((xsmithserialnumber
                                            ,(ast-child 'xsmithserialnumber n)))]
@@ -461,7 +462,8 @@ hole for the type.
                                        t-orig))]
                             [concretized
                              (if (settled-type? t)
-                                 t
+                                 ;; Well, let's unwrap any type variables.
+                                 (concretize-type t)
                                  (let ()
                                    (xd-printf
                                     "Concretizing binding ~a.  Type: ~v, "
@@ -496,11 +498,14 @@ hole for the type.
                  (map (λ (name) (dict-ref all-values-hash/seq-transformed name))
                       (list field-name ...)))
                (define all-values+xsmith-injected
-                 (append (list (ast-child 'xsmithserialnumber (current-hole)))
-                         (map (λ (name) (dict-ref field-dict name #f))
-                              (list 'xsmithliftdepth
-                                    'xsmithlifterwrapped))
-                         all-values-in-order))
+                 (append
+                  ;; for xsmithserialnumber
+                  (list (ast-child 'xsmithserialnumber (current-hole)))
+                  (map (λ (name) (dict-ref field-dict name #f))
+                       (list 'xsmithliftdepth
+                             'xsmithlifterwrapped))
+                  (list (ast-child 'xsmithcachedtype (current-hole)))
+                  all-values-in-order))
 
                (create-ast (current-racr-spec)
                            '#,node
@@ -1402,7 +1407,10 @@ few of these methods.
              (not (bud-node? (ast-child binder-type-field node)))
              (ast-child binder-type-field node))
         (att-value '_xsmith_my-type-constraint node)))
-  (define my-type (or my-type-constraint (fresh-type-variable)))
+  (define my-cached-type (ast-child 'xsmithcachedtype node))
+  (define my-type (or my-type-constraint my-cached-type (fresh-type-variable)))
+  (when my-cached-type
+    (unify! my-cached-type my-type))
   (when (and binder-type-field
              (not (att-value 'xsmith_is-hole? node))
              (not (bud-node? (ast-child binder-type-field node))))
@@ -1507,7 +1515,12 @@ few of these methods.
                               (att-value 'xsmith_type (parent-node node))))
               (raise e))])
           (unify! def-type my-type)))))
-  my-type)
+  (when (not my-cached-type)
+    ;; If the type hasn't been cached yet, let's cache it if possible.
+    (enqueue-inter-choice-transform
+     (λ () (when (settled-type? my-type)
+             (rewrite-terminal 'xsmithcachedtype node (concretize-type my-type))))))
+  (or my-cached-type my-type))
 
 #|
 The type-info property is two-armed.
@@ -1531,6 +1544,12 @@ The second arm is a function that takes the type that the node has been assigned
   ;_xsmith_children-type-dict -- returns a dict mapping nodes (or node field names) to types
   (attribute _xsmith_type-constraint-from-parent)
   (attribute xsmith_type)
+  ;; xsmith_type may return the value of xsmithcachedtype without running unification
+  ;; with the type provided by the parent, which is an important side-effect for
+  ;; type checking the whole tree.  Where type checking is performed in order to
+  ;; concretize types in other parts of the tree, _xsmith_type-full must be used
+  ;; in order to be sure all unification side-effects are performed.
+  (attribute _xsmith_type-full)
   (attribute _xsmith_type-check-tree)
   (choice-method _xsmith_satisfies-type-constraint?)
   ;_xsmith_satisfies-type-constraint? -- choice predicate -- tests if a hole's type and a choice object are compatible
@@ -1697,6 +1716,11 @@ The second arm is a function that takes the type that the node has been assigned
     (define xsmith_type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
+          (hash #f #'(λ (node) (let ([t (ast-child 'xsmithcachedtype node)])
+                                 (or t (att-value '_xsmith_type-full node)))))))
+    (define _xsmith_type-full-info
+      (if (dict-empty? this-prop-info)
+          (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
             (values n #`(λ (node)
                           (xsmith_type-info-func
@@ -1708,17 +1732,26 @@ The second arm is a function that takes the type that the node has been assigned
                            #,(dict-ref parameter?-hash n)))))))
     (define _xsmith_type-check-tree-info
       (if (dict-empty? this-prop-info)
-          (hash #f #'(λ (node) (void)))
-          (hash #f #'(λ (node)
-                       (att-value 'xsmith_type node)
-                       (for ([c (ast-children node)])
+          (hash #f #'(λ (node [fully-settled-parent? #t]) (void)))
+          (hash #f #'(λ (node [fully-settled-parent? #t])
+                       (define t (if fully-settled-parent?
+                                     (att-value 'xsmith_type node)
+                                     (att-value '_xsmith_type-full node)))
+                       (define cs (ast-children node))
+                       (define fully-settled?
+                         (and (settled-type? t)
+                              (for/and ([c cs])
+                                (settled-type? (att-value 'xsmith_type node)))))
+                       (for ([c cs])
                          (cond [(or (not (ast-node? c))
                                     (ast-bud-node? c))
                                 (void)]
                                [(ast-list-node? c)
                                 (for ([gc (ast-children c)])
-                                  (att-value '_xsmith_type-check-tree gc))]
-                               [else (att-value '_xsmith_type-check-tree c)]))))))
+                                  (att-value '_xsmith_type-check-tree gc
+                                             fully-settled?))]
+                               [else (att-value '_xsmith_type-check-tree c
+                                                fully-settled?)]))))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)
@@ -1781,6 +1814,7 @@ The second arm is a function that takes the type that the node has been assigned
      _xsmith_children-type-dict-info
      _xsmith_type-constraint-from-parent-info
      xsmith_type-info
+     _xsmith_type-full-info
      _xsmith_type-check-tree-info
      _xsmith_satisfies-type-constraint?-info
      _xsmith_reference-options!-info
