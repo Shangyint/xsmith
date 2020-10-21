@@ -96,10 +96,11 @@
 
 (define true-strings  '("true"  "t" "#t" "yes" "y"))
 (define false-strings '("false" "f" "#f" "no"  "n"))
-(define (string->bool bool-string var-name)
+(define (string->bool bool-string var-name [default #f])
   (define s (string-downcase bool-string))
   (cond [(member s true-strings) #t]
         [(member s false-strings) #f]
+        [default default]
         [else (error
                'string->bool
                (string-append
@@ -136,6 +137,7 @@
 (define render-on-error-default #f)
 (define s-exp-on-error-default #f)
 (define s-exp-print-override-default #f)
+(define s-exp-show-base-fields-default #f)
 (define seq-to-file-default #f)
 (define seq-from-file-default #f)
 (define generation-timeout-default #f)
@@ -297,6 +299,7 @@
            (define render-on-error? render-on-error-default)
            (define s-exp-on-error? s-exp-on-error-default)
            (define s-exp-print-override s-exp-print-override-default)
+           (define s-exp-show-base-fields s-exp-show-base-fields-default)
            (define seq-to-file seq-to-file-default)
            (define seq-from-file seq-from-file-default)
            (define max-depth default-max-depth)
@@ -435,6 +438,19 @@
                          (string->bool s-exp-override 's-exp-override)))
                 ["Print an s-expression representation of the tree instead of using the normal renderer."
                  "Defaults to false."]]
+               [("--s-exp-show-base-fields")
+                ,(λ (flag s-exp-show-base-fields-arg)
+                   (set! s-exp-show-base-fields
+                         (let* ([v-bool (string->bool s-exp-show-base-fields-arg
+                                                      's-exp-show-base-fields
+                                                      'no)]
+                                [v-sym (and (eq? 'no v-bool)
+                                            (string->symbol
+                                             s-exp-show-base-fields-arg))])
+                           (or v-sym v-bool))))
+                [["Show (hidden) base fields when printing s-exp representation (for debugging)"
+                  "t to show all fields, f for none, xsmithserialnumber for serial numbers"]
+                 "Defaults to false."]]
                [("--print-debug")
                 ,(λ (flag print-debug)
                    (set! print-debug? (string->bool print-debug 'print-debug?)))
@@ -519,6 +535,7 @@
             #:render-on-error? render-on-error?
             #:s-exp-on-error? s-exp-on-error?
             #:s-exp-print-override s-exp-print-override
+            #:s-exp-show-base-fields s-exp-show-base-fields
             #:seq-to-file seq-to-file
             #:seq-from-file seq-from-file
             #:max-depth max-depth
@@ -552,6 +569,7 @@
                   #:render-on-error [render-on-error-arg not-given]
                   #:s-exp-on-error [s-exp-on-error-arg not-given]
                   #:s-exp-print-override [s-exp-print-override-arg not-given]
+                  #:s-exp-show-base-fields [s-exp-show-base-fields-arg not-given]
                   #:seq-to-file [seq-to-file-arg not-given]
                   #:seq-from-file [seq-from-file-arg not-given]
                   #:max-depth [max-depth-arg not-given]
@@ -599,6 +617,7 @@
                        (list '#:render-on-error render-on-error-arg)
                        (list '#:s-exp-on-error s-exp-on-error-arg)
                        (list '#:s-exp-print-override s-exp-print-override-arg)
+                       (list '#:s-exp-show-base-fields s-exp-show-base-fields-arg)
                        (list '#:seq-to-file seq-to-file-arg)
                        (list '#:seq-from-file seq-from-file-arg)
                        (list '#:max-depth max-depth-arg)
@@ -621,7 +640,10 @@
                                            netstring-ignore-input-default)
             #:render-on-error? (arg render-on-error-arg render-on-error-default)
             #:s-exp-on-error? (arg s-exp-on-error-arg s-exp-on-error-default)
-            #:s-exp-print-override (arg s-exp-print-override-arg s-exp-print-override-default)
+            #:s-exp-print-override (arg s-exp-print-override-arg
+                                        s-exp-print-override-default)
+            #:s-exp-show-base-fields (arg s-exp-show-base-fields-arg
+                                          s-exp-show-base-fields-default)
             #:seq-to-file (arg seq-to-file-arg seq-to-file-default)
             #:seq-from-file (arg seq-from-file-arg seq-from-file-default)
             #:max-depth (arg max-depth-arg default-max-depth)
@@ -654,6 +676,7 @@
                   #:render-on-error? render-on-error?
                   #:s-exp-on-error? s-exp-on-error?
                   #:s-exp-print-override s-exp-print-override
+                  #:s-exp-show-base-fields s-exp-show-base-fields
                   #:seq-to-file seq-to-file
                   #:seq-from-file seq-from-file
                   #:max-depth max-depth
@@ -808,10 +831,12 @@
                      (when (and s-exp-on-error?
                                 (or error-root ast))
                        (printf "S-expression representation of program:\n")
-                       (pretty-print
-                        (att-value '_xsmith_to-s-expression (or error-root ast))
-                        (current-output-port)
-                        1)
+                       (parameterize ([current-s-exp-show-base-fields
+                                       s-exp-show-base-fields])
+                         (pretty-print
+                          (att-value '_xsmith_to-s-expression (or error-root ast))
+                          (current-output-port)
+                          1))
                        (printf "\n\n"))
                      (when (and render-on-error?
                                 error-root)
@@ -839,10 +864,13 @@
                             (if s-exp-print-override
                                 (with-output-to-string
                                   (λ ()
-                                    (pretty-print
-                                     (att-value '_xsmith_to-s-expression ast)
-                                     (current-output-port)
-                                     1)))
+                                    (parameterize
+                                        ([current-s-exp-show-base-fields
+                                          s-exp-show-base-fields])
+                                      (pretty-print
+                                       (att-value '_xsmith_to-s-expression ast)
+                                       (current-output-port)
+                                       1))))
                                 (ast->string ast))))))
                  (if error?
                      (begin

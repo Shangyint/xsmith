@@ -44,6 +44,8 @@
    make-generator-state
    xsmith-state
    (struct-out generator-state)
+   get-next-serial-number!
+   current-s-exp-show-base-fields
 
    expr->ast-list
    expr->ast-list
@@ -97,12 +99,17 @@
 (define xsmith-state (make-parameter #f))
 
 (struct generator-state
-  ((fresh-name-counter #:mutable))
+  ((fresh-name-counter #:mutable)
+   (serial-number-counter #:mutable))
   )
 
 (define (make-generator-state)
-  (generator-state 1))
+  (generator-state 1 1))
 
+(define (get-next-serial-number!)
+  (let ([n (generator-state-serial-number-counter (xsmith-state))])
+    (set-generator-state-serial-number-counter! (xsmith-state) (add1 n))
+    n))
 (define (fresh-int!)
   (let ([n (generator-state-fresh-name-counter (xsmith-state))])
     (set-generator-state-fresh-name-counter! (xsmith-state) (add1 n))
@@ -114,6 +121,7 @@
   ;; I keep using this idiom, but ->bool is clearer.
   (not (not v)))
 
+(define current-s-exp-show-base-fields (make-parameter #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RACR convenience functions

@@ -254,6 +254,15 @@
                    '_RACR-BUD-NODE_
                    (att-value '_xsmith_to-s-expression cn)))
              `(,node-name
+               ,@(match (current-s-exp-show-base-fields)
+                   [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
+                         (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
+                         (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                         )]
+                   ['xsmithserialnumber `((xsmithserialnumber
+                                           ,(ast-child 'xsmithserialnumber n)))]
+                   ;; We could put the other fields here, but I don't care to right now.
+                   [else '()])
                #,@(for/list ([gnfs gnfss])
                     (match gnfs
                       [(grammar-node-field-struct field-name #f #f _)
@@ -487,7 +496,8 @@ hole for the type.
                  (map (λ (name) (dict-ref all-values-hash/seq-transformed name))
                       (list field-name ...)))
                (define all-values+xsmith-injected
-                 (append (map (λ (name) (dict-ref field-dict name #f))
+                 (append (list (get-next-serial-number!))
+                         (map (λ (name) (dict-ref field-dict name #f))
                               (list 'xsmithliftdepth
                                     'xsmithlifterwrapped))
                          all-values-in-order))
