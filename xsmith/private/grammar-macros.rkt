@@ -1197,7 +1197,7 @@ Perform error checking:
                    ;; The base node has xsmithliftdepth and xsmithlifterwrapped fields injected
                    (format-id
                     #'spec
-                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped"
+                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped-xsmithcachedtype"
                     #'base-node-name)]
                   [(choice-name ...) (map node->choice
                                           (syntax->list #'(g-part.node-name ...)))]
@@ -1333,8 +1333,8 @@ Perform error checking:
                       (dict-ref hole-name-hash node-type)
                       (append
                        ;; This first list is for injected fields:
-                       ;; xsmithserialnumber, xsmithliftdepth, and xsmithlifterwrapped
-                       (list (get-next-serial-number!) #f #f)
+                       ;; xsmithserialnumber, xsmithliftdepth, xsmithlifterwrapped, xsmithcachedtype
+                       (list (get-next-serial-number!) #f #f #f)
                        (map (λ (x) (create-ast-bud))
                             (make-list (dict-ref node-attr-length-hash
                                                  node-type)
