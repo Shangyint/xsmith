@@ -1825,11 +1825,11 @@ TODO - when generating a record ref, I'll need to compare something like (record
 ;; range with bottom `#f` when in reality the type IS settled because
 ;; the top type of the range has no subtypes.
 
-(define (settled?/core t only-if-no-wrappers?)
-  (define (rec t) (settled?/core t only-if-no-wrappers?))
+(define (settled?/core t wrappers-allowed?)
+  (define (rec t) (settled?/core t wrappers-allowed?))
   (match t
     [(c-type-variable (list one-type) _ _)
-     (and only-if-no-wrappers? (rec one-type))]
+     (and wrappers-allowed? (rec one-type))]
     [(c-type-variable _ _ _) #f]
     [(base-type _ _ _) #t]
     [(base-type-range l r) (equal? l r)]
@@ -1848,9 +1848,9 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(generic-type _ _ inners _)
      (andmap rec inners)]))
 (define (settled? t)
-  (settled?/core t #f))
-(define (type-has-no-variables? t)
   (settled?/core t #t))
+(define (type-has-no-variables? t)
+  (settled?/core t #f))
 
 (define (highlight arg)
   (format "\033[31m~a\033[0m\n" arg))
@@ -1983,6 +1983,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
     ))
 
 (module+ test
+  (check-true (settled? (fresh-type-variable (base-type-range dog dog))))
   (check-true (at-least-as-settled (mk-base-type 'foo) (fresh-type-variable)))
   (check-true (at-least-as-settled (mk-base-type 'foo)
                                    (fresh-type-variable (mk-base-type 'foo)
