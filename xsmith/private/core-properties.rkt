@@ -496,7 +496,7 @@ hole for the type.
                  (map (λ (name) (dict-ref all-values-hash/seq-transformed name))
                       (list field-name ...)))
                (define all-values+xsmith-injected
-                 (append (list (get-next-serial-number!))
+                 (append (list (ast-child 'xsmithserialnumber (current-hole)))
                          (map (λ (name) (dict-ref field-dict name #f))
                               (list 'xsmithliftdepth
                                     'xsmithlifterwrapped))
