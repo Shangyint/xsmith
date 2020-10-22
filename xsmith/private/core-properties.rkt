@@ -2206,7 +2206,11 @@ called instead.
      (error 'render-node "cannot render list node")]
     [(att-value 'xsmith_is-hole? node)
      (att-value 'xsmith_render-hole node)]
-    [else (renderer node)]))
+    [else
+     ;; While printing, run one last full type pass over the tree to be sure
+     ;; nothing went wrong at any point.
+     (att-value '_xsmith_type-full node)
+     (renderer node)]))
 
 (define-property render-node-info
   #:appends
