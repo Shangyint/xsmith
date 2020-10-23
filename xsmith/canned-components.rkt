@@ -611,7 +611,7 @@
                         (for/hash ([c (ast-children (ast-child 'expressions n))]
                                    [f (ast-child 'fieldnames n)])
                           (values c
-                                  (dict-ref td f))))]]
+                                  (dict-ref td f (λ () (fresh-type-variable))))))]]
                     [ImmutableStructuralRecordReference
                      Expression
                      ([fieldname = (random-field-name)]
