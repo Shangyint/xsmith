@@ -238,8 +238,8 @@
                      (λ (n)
                        (and
                         (ast-bud-node? (ast-child 'arguments n))
-                        (not (att-value 'xsmith_is-hole?
-                                        (ast-child 'procedure n)))
+                        (att-value 'xsmith_no-holes-in-subtree?
+                                   (ast-child 'procedure n))
                         (λ () (rewrite-subtree
                                (ast-child 'arguments n)
                                (let* ([ft (att-value 'xsmith_type
