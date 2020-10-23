@@ -507,9 +507,12 @@ hole for the type.
                   (list (ast-child 'xsmithcachedtype (current-hole)))
                   all-values-in-order))
 
-               (create-ast (current-racr-spec)
-                           '#,node
-                           all-values+xsmith-injected))))))
+               (define result-node
+                 (create-ast (current-racr-spec)
+                             '#,node
+                             all-values+xsmith-injected))
+               (enqueue-re-type result-node)
+               result-node)))))
     (define _xsmith_current-hole-info
       (hash #f #'(λ () current-hole)))
     (list _xsmith_fresh-info _xsmith_field-names-info _xsmith_current-hole-info)))
@@ -1408,9 +1411,9 @@ few of these methods.
              (ast-child binder-type-field node))
         (att-value '_xsmith_my-type-constraint node)))
   (define my-cached-type (ast-child 'xsmithcachedtype node))
-  (define my-type (or my-type-constraint my-cached-type (fresh-type-variable)))
-  (when my-cached-type
-    (unify! my-cached-type my-type))
+  (define my-type (or my-cached-type (fresh-type-variable)))
+  (when my-type-constraint
+    (unify! my-type my-type-constraint))
   (when (and binder-type-field
              (not (att-value 'xsmith_is-hole? node))
              (not (bud-node? (ast-child binder-type-field node))))
@@ -1515,12 +1518,17 @@ few of these methods.
                               (att-value 'xsmith_type (parent-node node))))
               (raise e))])
           (unify! def-type my-type)))))
-  (when (not my-cached-type)
-    ;; If the type hasn't been cached yet, let's cache it if possible.
+  (when (or (not my-cached-type)
+            (not (type-has-no-variables? my-type)))
     (enqueue-inter-choice-transform
-     (λ () (when (settled-type? my-type)
-             (rewrite-terminal 'xsmithcachedtype node (concretize-type my-type))))))
-  (or my-cached-type my-type))
+     (λ ()
+       (define type-maybe-concretized
+         ;; Where possible, I'd rather store concretized versions of types.
+         (if (settled-type? my-type)
+             (concretize-type my-type)
+             my-type))
+       (rewrite-terminal 'xsmithcachedtype node type-maybe-concretized))))
+  my-type)
 
 #|
 The type-info property is two-armed.
@@ -1550,6 +1558,13 @@ The second arm is a function that takes the type that the node has been assigned
   ;; concretize types in other parts of the tree, _xsmith_type-full must be used
   ;; in order to be sure all unification side-effects are performed.
   (attribute _xsmith_type-full)
+  ;; The _xsmith_re-type attribute exists for when type-rules need to be re-run.
+  ;; The important thing here is that _xsmith_type-full will run the parent->child
+  ;; relationship function for the node's parent, which is what provides
+  ;; unification info not only between parent and child types but also between
+  ;; siblings.  When we re-run type rules, we actually have to re-run all siblings
+  ;; to be sure those sibling relationships are handled correctly.
+  (attribute _xsmith_re-type)
   (attribute _xsmith_type-check-tree)
   (choice-method _xsmith_satisfies-type-constraint?)
   ;_xsmith_satisfies-type-constraint? -- choice predicate -- tests if a hole's type and a choice object are compatible
@@ -1716,8 +1731,8 @@ The second arm is a function that takes the type that the node has been assigned
     (define xsmith_type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
-          (hash #f #'(λ (node) (let ([t (ast-child 'xsmithcachedtype node)])
-                                 (or t (att-value '_xsmith_type-full node)))))))
+          (hash #f #'(λ (node) (or (ast-child 'xsmithcachedtype node)
+                                   (att-value '_xsmith_type-full node))))))
     (define _xsmith_type-full-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1730,28 +1745,36 @@ The second arm is a function that takes the type that the node has been assigned
                            #,(dict-ref binder-type-field n)
                            #,(dict-ref binder-name-field n)
                            #,(dict-ref parameter?-hash n)))))))
+    (define _xsmith_re-type-info
+      (if (dict-empty? this-prop-info)
+          (hash #f #'(λ (node) default-base-type))
+          (hash #f #'(λ (node)
+                       (let ([p (parent-node node)])
+                         (if p
+                             (begin
+                               (for ([c (ast-children/flat p)])
+                                 (cond [(not (ast-node? c)) (void)]
+                                       [(ast-bud-node? c) (void)]
+                                       [else (att-value '_xsmith_type-full c)]))
+                               ;; This is probably unnecessary, but let's make
+                               ;; re-type still return the type, though it should
+                               ;; just be used as a side-effect.
+                               (att-value 'xsmith_type node))
+                             (att-value '_xsmith_type-full node)))))))
     (define _xsmith_type-check-tree-info
       (if (dict-empty? this-prop-info)
-          (hash #f #'(λ (node [fully-settled-parent? #t]) (void)))
-          (hash #f #'(λ (node [fully-settled-parent? #t])
-                       (define t (if fully-settled-parent?
-                                     (att-value 'xsmith_type node)
-                                     (att-value '_xsmith_type-full node)))
+          (hash #f #'(λ (node) (void)))
+          (hash #f #'(λ (node)
+                       (define t (att-value '_xsmith_type-full node))
                        (define cs (ast-children node))
-                       (define fully-settled?
-                         (and (settled-type? t)
-                              (for/and ([c cs])
-                                (settled-type? (att-value 'xsmith_type node)))))
                        (for ([c cs])
                          (cond [(or (not (ast-node? c))
                                     (ast-bud-node? c))
                                 (void)]
                                [(ast-list-node? c)
                                 (for ([gc (ast-children c)])
-                                  (att-value '_xsmith_type-check-tree gc
-                                             fully-settled?))]
-                               [else (att-value '_xsmith_type-check-tree c
-                                                fully-settled?)]))))))
+                                  (att-value '_xsmith_type-check-tree gc))]
+                               [else (att-value '_xsmith_type-check-tree c)]))))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)
@@ -1815,6 +1838,7 @@ The second arm is a function that takes the type that the node has been assigned
      _xsmith_type-constraint-from-parent-info
      xsmith_type-info
      _xsmith_type-full-info
+     _xsmith_re-type-info
      _xsmith_type-check-tree-info
      _xsmith_satisfies-type-constraint?-info
      _xsmith_reference-options!-info
@@ -1876,7 +1900,9 @@ The second arm is a function that takes the type that the node has been assigned
                    (at-least-as-settled hole-type type-constraint))
             (break!! #t)))
       (break?!)
-      (let parent-loop ([p (parent-node node-in-question)]
+      ;; Now that I always cache types, I should never need to do this walk.
+      (break!! #t)
+      #;(let parent-loop ([p (parent-node node-in-question)]
                         [child node-in-question])
         (define (resolve-types node)
           (match node
@@ -2338,8 +2364,13 @@ TODO - add proper documentation.
              k
              #'(λ (n)
                  (define procs (list edit-proc ...))
-                 (for/or ([p procs])
-                   (p n))))]))
+                 (define result-pre-wrap
+                   (for/or ([p procs])
+                     (p n)))
+                 (and result-pre-wrap
+                      ;; We return the node that was edited so that we can
+                      ;; automatically re-type it in the elaboration loop.
+                      (λ () (result-pre-wrap) n))))]))
        #f
        #'(λ (n) #f)))
     (define _xsmith_edit-walk-info
