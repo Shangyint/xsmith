@@ -2209,7 +2209,7 @@ called instead.
     [else
      ;; While printing, run one last full type pass over the tree to be sure
      ;; nothing went wrong at any point.
-     (att-value '_xsmith_type-full node)
+     ;(att-value '_xsmith_type-full node)
      (renderer node)]))
 
 (define-property render-node-info
