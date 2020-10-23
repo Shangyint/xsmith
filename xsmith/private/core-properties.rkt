@@ -1363,6 +1363,51 @@ few of these methods.
      (parent-node-type)))
   my-type-from-parent)
 
+(define ((type-debug-print-helper node) t1 t2)
+    (xd-printf "\n\n")
+    (xd-printf "error while unifying types:\n~a\nand\n~a\n" t1 t2)
+    (xd-printf "for node with serial number: ~a\n" (ast-child 'xsmithserialnumber node))
+    (xd-printf "for node of AST type: ~a\n" (ast-node-type node))
+    (xd-printf "with parent chain of AST types: ~v\n" (map ast-node-type
+                                                           (ancestor-nodes node)))
+    (xd-printf "(Note that type variables may have already been unified)\n"))
+
+(define (xsmith_type-info-func/parent-relation-only node
+                                                    reference-unify-target
+                                                    reference-field
+                                                    definition-type-field
+                                                    definition-name-field
+                                                    parameter?)
+  ;; Most arguments aren't necessary, I just copied it from the main type function
+  ;; to not have to think about it much.
+  (define my-cached-type (ast-child 'xsmithcachedtype node))
+  (if (not my-cached-type)
+      ;; This parent-relation-only function is supposed to be the fast path,
+      ;; but if a node doesn't yet have any type info, we should just do
+      ;; the slow path.
+      (att-value 'xsmith_type node)
+      (let ()
+        (define my-type my-cached-type)
+        (define my-type-from-parent
+          (att-value '_xsmith_type-constraint-from-parent node))
+        (with-handlers
+          ([(λ(x)#t)
+            (λ (e)
+              (xd-printf "Error in typing (in parent-relation-only part)\n")
+              ((type-debug-print-helper node)
+               'no-type-constraint-in-parent-relation-only-part
+               my-type-from-parent)
+              (xd-printf "error subtype-unifying my-type to my-type-from-parent\n")
+              (xd-printf "type-from-parent: ~v\n" my-type-from-parent)
+              (xd-printf "my-type: ~v\n" my-type)
+              (raise e))])
+          (if (and definition-type-field
+                   parameter?)
+              ;; Parameters are a special case.  These aren't meant to be subtypes,
+              ;; rather, they reflect the type annotation of the lambda term.
+              (unify! my-type my-type-from-parent)
+              (subtype-unify! my-type my-type-from-parent))))))
+
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
@@ -1421,14 +1466,7 @@ few of these methods.
     (unify! my-type (ast-child binder-type-field node)))
   (define my-type-from-parent
     (att-value '_xsmith_type-constraint-from-parent node))
-  (define (debug-print-1 t1 t2)
-    (xd-printf "\n\n")
-    (xd-printf "error while unifying types:\n~a\nand\n~a\n" t1 t2)
-    (xd-printf "for node with serial number: ~a\n" (ast-child 'xsmithserialnumber node))
-    (xd-printf "for node of AST type: ~a\n" (ast-node-type node))
-    (xd-printf "with parent chain of AST types: ~v\n" (map ast-node-type
-                                                           (ancestor-nodes node)))
-    (xd-printf "(Note that type variables may have already been unified)\n"))
+  (define debug-print-1 (type-debug-print-helper node))
   (with-handlers
     ([(λ(x)#t)
       (λ (e)
@@ -1565,6 +1603,7 @@ The second arm is a function that takes the type that the node has been assigned
   ;; siblings.  When we re-run type rules, we actually have to re-run all siblings
   ;; to be sure those sibling relationships are handled correctly.
   (attribute _xsmith_re-type)
+  (attribute _xsmith_type-parent-relation-only)
   (attribute _xsmith_type-check-tree)
   (choice-method _xsmith_satisfies-type-constraint?)
   ;_xsmith_satisfies-type-constraint? -- choice predicate -- tests if a hole's type and a choice object are compatible
@@ -1748,19 +1787,32 @@ The second arm is a function that takes the type that the node has been assigned
     (define _xsmith_re-type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
-          (hash #f #'(λ (node)
-                       (let ([p (parent-node node)])
-                         (if p
-                             (begin
-                               (for ([c (ast-children/flat p)])
-                                 (cond [(not (ast-node? c)) (void)]
-                                       [(ast-bud-node? c) (void)]
-                                       [else (att-value '_xsmith_type-full c)]))
-                               ;; This is probably unnecessary, but let's make
-                               ;; re-type still return the type, though it should
-                               ;; just be used as a side-effect.
-                               (att-value 'xsmith_type node))
-                             (att-value '_xsmith_type-full node)))))))
+          (hash
+           #f
+           #'(λ (node)
+               (let ([p (parent-node node)])
+                 (when p
+                   (for ([c (ast-children/flat p)])
+                     ;; For each sibling we potentially need to re-run the
+                     ;; parent-child relationship function.
+                     (cond [(not (ast-node? c)) (void)]
+                           [(ast-bud-node? c) (void)]
+                           [else
+                            (att-value '_xsmith_type-parent-relation-only c)])))
+                 ;; For the node itself, we need to re-run the full type function.
+                 (att-value '_xsmith_type-full node))))))
+    (define _xsmith_type-parent-relation-only-info
+      (if (dict-empty? this-prop-info)
+          (hash #f #'(λ (node) default-base-type))
+          (for/hash ([n nodes])
+            (values n #`(λ (node)
+                          (xsmith_type-info-func/parent-relation-only
+                           node
+                           #,(dict-ref node-reference-unify-target n)
+                           #,(dict-ref node-reference-field n)
+                           #,(dict-ref binder-type-field n)
+                           #,(dict-ref binder-name-field n)
+                           #,(dict-ref parameter?-hash n)))))))
     (define _xsmith_type-check-tree-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) (void)))
@@ -1839,6 +1891,7 @@ The second arm is a function that takes the type that the node has been assigned
      xsmith_type-info
      _xsmith_type-full-info
      _xsmith_re-type-info
+     _xsmith_type-parent-relation-only-info
      _xsmith_type-check-tree-info
      _xsmith_satisfies-type-constraint?-info
      _xsmith_reference-options!-info
