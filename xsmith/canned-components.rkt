@@ -938,9 +938,7 @@
                                  #'(λ (inner-type)
                                      (immutable (array-type inner-type)))]))
          (~optional (~seq #:loop-type-constructor loop-type-constructor-stx))
-         (~optional (~seq #:body-type-constructor body-type-constructor-stx)
-                    #:defaults ([body-type-constructor-stx
-                                 #'(λ (loop-type element-type) loop-type)]))
+         (~optional (~seq #:body-type-constructor body-type-constructor-stx))
          (~optional (~seq #:loop-variable-type-constructor
                           loop-variable-type-constructor-stx)
                     #:defaults ([loop-variable-type-constructor-stx
@@ -954,7 +952,13 @@
          (define collection-type-constructor collection-type-constructor-stx)
          (define loop-type-function (~? loop-type-constructor-stx
                                         collection-type-constructor-stx))
-         (define body-type-function body-type-constructor-stx)
+         (define body-type-function
+           (~? body-type-constructor-stx
+               (λ (loop-type elem-type)
+                 (define return-inner (fresh-type-variable))
+                 (define return-outer (loop-type-function return-inner))
+                 (unify! return-outer loop-type)
+                 return-inner)))
          (define loop-variable-type-constructor loop-variable-type-constructor-stx)
          (add-to-grammar
           component
