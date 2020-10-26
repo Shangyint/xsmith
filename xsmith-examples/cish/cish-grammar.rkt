@@ -468,7 +468,7 @@ Type definitions are in cish-utils.rkt
  ;[Expression [(fresh-type-variable) (no-child-types)]]
  [Expression [(error 'typing-expression) (no-child-types)]]
 
- [AssignmentExpression [(fresh-type-variable)
+ [AssignmentExpression [(fresh-type-variable int float bool (any-nominal-record-type))
                         (λ (n t) (hash 'Expression t))]]
  [FunctionApplicationExpression
   [(fresh-type-variable)
