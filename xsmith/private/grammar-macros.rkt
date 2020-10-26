@@ -54,7 +54,6 @@
  ;; In principle, any number of extra transformations could be queued up to
  ;; be performed between choice transformations.  But that's probably a bad idea.
  enqueue-inter-choice-transform
- enqueue-re-type
 
  (all-from-out "types.rkt")
 
@@ -151,12 +150,6 @@
   (enqueue-thunk inter-choice-transform-queue-box transform-thunk))
 (define (execute-inter-choice-transform-queue)
   (execute-queued-thunks inter-choice-transform-queue-box))
-
-(define re-type-queue-box (make-queue-box))
-(define (enqueue-re-type node)
-  (enqueue-thunk re-type-queue-box (λ () (att-value '_xsmith_re-type node))))
-(define (execute-re-type-queue)
-  (execute-queued-thunks re-type-queue-box))
 
 ;; These are for replacing nodes whole during refiner evaluation.
 (define refiner-replacement-transform-queue-box (make-queue-box))
@@ -540,15 +533,12 @@
                 (let ([replacement (att-value '_xsmith_hole->replacement n)])
                   (rewrite-subtree n replacement)
                   (execute-inter-choice-transform-queue)
-                  (execute-re-type-queue)
                   (let loop ()
                     (define edit (att-value '_xsmith_edit-walk root))
                     (when edit
-                      (let ([edited-node (edit)])
-                        (execute-inter-choice-transform-queue)
-                        (enqueue-re-type edited-node)
-                        (execute-re-type-queue)
-                        (loop))))
+                      (begin (edit)
+                             (execute-inter-choice-transform-queue)
+                             (loop))))
                   #t)]
                [else #f]))])
       (perform-rewrites root 'top-down fill-in)))
@@ -1207,7 +1197,7 @@ Perform error checking:
                    ;; The base node has xsmithliftdepth and xsmithlifterwrapped fields injected
                    (format-id
                     #'spec
-                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped-xsmithcachedtype"
+                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped"
                     #'base-node-name)]
                   [(choice-name ...) (map node->choice
                                           (syntax->list #'(g-part.node-name ...)))]
@@ -1338,20 +1328,17 @@ Perform error checking:
                                   "Not in the defined grammar: ~a, expected one of: ~a"
                                   node-type
                                   (dict-keys hole-name-hash))))
-                     (define new-hole
-                       (create-ast
-                        spec
-                        (dict-ref hole-name-hash node-type)
-                        (append
-                         ;; This first list is for injected fields:
-                         ;; xsmithserialnumber, xsmithliftdepth, xsmithlifterwrapped, xsmithcachedtype
-                         (list (get-next-serial-number!) #f #f #f)
-                         (map (λ (x) (create-ast-bud))
-                              (make-list (dict-ref node-attr-length-hash
-                                                   node-type)
-                                         #f)))))
-                     (enqueue-re-type new-hole)
-                     new-hole))
+                     (create-ast
+                      spec
+                      (dict-ref hole-name-hash node-type)
+                      (append
+                       ;; This first list is for injected fields:
+                       ;; xsmithserialnumber, xsmithliftdepth, and xsmithlifterwrapped
+                       (list (get-next-serial-number!) #f #f)
+                       (map (λ (x) (create-ast-bud))
+                            (make-list (dict-ref node-attr-length-hash
+                                                 node-type)
+                                       #f))))))
 
                  (splicing-syntax-parameterize
                      ([current-racr-spec (syntax-rules () [(_) spec])]
