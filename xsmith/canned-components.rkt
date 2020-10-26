@@ -83,6 +83,11 @@
     (hash 'array (mutable (array-type inner))
           'index index-and-length-type
           'newvalue inner)))
+(define (mutable-dictionary-assignment-type-rhs index-and-length-type dictionary-key-type dictionary-value-type)
+  (λ (n t)
+    (hash 'dictionary (mutable (dictionary-type dictionary-key-type dictionary-value-type))
+          'index index-and-length-type
+          'newValue dictionary-value-type)))
 
 (define (lambda-fresh-implementation cur-hole make-fresh-node-func)
   (let* ([type (att-value 'xsmith_type cur-hole)]
@@ -191,6 +196,8 @@
          (~optional (~seq #:ImmutableArray use-immutable-array:boolean))
          (~optional (~seq #:ImmutableList use-immutable-list:boolean))
          (~optional (~seq #:MutableDictionary use-mutable-dictionary:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentExpression
+                          use-mutable-dictionary-safe-assignment-expression:boolean))
          (~optional (~seq #:MutableStructuralRecord
                           use-mutable-structural-record:boolean))
          (~optional (~seq #:MutableStructuralRecordAssignmentExpression
@@ -612,6 +619,7 @@
                      ([dictionary : Expression]
                       [accessKey : Expression]
                       [defaultValue : Expression])
+                     #:prop choice-weight 10
                      #:prop mutable-container-access (read 'MutableDictionary)
                      #:prop type-info
                      [(dictionary-value-type)
@@ -621,7 +629,23 @@
                               'accessKey key-type
                               'defaultValue t))]]))
                 #'())
-
+         #,@(if (use? use-mutable-dictionary-safe-assignment-expression)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeAssignmentExpression
+                     Expression
+                     ([dictionary : VariableReference]
+                      [index : Expression]
+                      [newValue : Expression])
+                     #:prop mutable-container-access (write 'MutableDictionary)
+                     #:prop required-child-reference #t
+                     #:prop type-info
+                     [void-type
+                      (mutable-dictionary-assignment-type-rhs
+                       index-and-length-type
+                       (dictionary-key-type)
+                       (dictionary-value-type))]]))
+                #'())
 
          #,@(if (use? use-immutable-structural-record)
                 #'((add-to-grammar
@@ -780,6 +804,8 @@
          (~optional (~seq #:ExpressionStatement use-expression-statement:boolean))
          (~optional (~seq #:MutableArraySafeAssignmentStatement
                           use-mutable-array-safe-assignment-statement:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentStatement
+                          use-mutable-dictionary-safe-assignment-statement:boolean))
          (~optional (~seq #:MutableStructuralRecordAssignmentStatement
                           use-mutable-structural-record-assignment-statement:boolean))
          (~optional (~seq #:bool-type bool-type-e:expr)
@@ -787,6 +813,8 @@
          (~optional (~seq #:int-type int-type-e:expr)
                     #:defaults ([int-type-e #'int-type]))
          (~optional (~seq #:index-and-length-type index-and-length-type-e:expr))
+         (~optional (~seq #:dictionary-key-type dictionary-key-type-e:expr))
+         (~optional (~seq #:dictionary-value-type dictionary-value-type-e:expr))
          )
         ...
         )
@@ -794,6 +822,10 @@
          (define bool bool-type-e)
          (define int int-type-e)
          (define index-and-length-type (~? index-and-length-type-e int))
+         (define dictionary-key-type
+           (λ () (~? dictionary-key-type-e (fresh-type-variable bool int))))
+         (define dictionary-value-type
+           (λ () (~? dictionary-value-type-e (fresh-type-variable bool int))))
 
          #,@(if (use? use-named-function-definition)
                 #'((add-to-grammar
@@ -948,6 +980,22 @@
                         (hash 'array (mutable (array-type inner))
                               'index index-and-length-type
                               'newvalue inner))]]))
+                #'())
+         #,@(if (use? use-mutable-dictionary-safe-assignment-statement)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeAssignmentStatement
+                     Statement
+                     ([dictionary : VariableReference]
+                      [index : Expression]
+                      [newValue : Expression])
+                     #:prop mutable-container-access (write 'MutableDictionary)
+                     #:prop type-info
+                     [no-return-type
+                      (mutable-dictionary-assignment-type-rhs
+                       index-and-length-type
+                       (dictionary-key-type)
+                       (dictionary-value-type))]]))
                 #'())
          #,@(if (use? use-mutable-structural-record-assignment-statement)
                 #'((add-to-grammar
