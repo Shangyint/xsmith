@@ -609,7 +609,7 @@
                        (hash 'keys elem-count
                              'vals elem-count))
                      #:prop type-info
-                     [(mutable (fresh-dictionary-type))
+                     [(mutable (dictionary-type (dictionary-key-type) (dictionary-value-type)))
                       (λ (n t)
                         (define kt (dictionary-key-type))
                         (define vt (dictionary-value-type))
@@ -1142,7 +1142,6 @@
 (define-generic-type list-type ([type covariant]))
 (define (fresh-list-type) (list-type (fresh-type-variable)))
 (define-generic-type dictionary-type ([key-type covariant] [value-type covariant]))
-(define (fresh-dictionary-type) (dictionary-type (fresh-type-variable) (fresh-type-variable)))
 
 (define no-child-types (λ (n t) (hash)))
 
