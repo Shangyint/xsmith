@@ -1294,11 +1294,15 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(list (nominal-record-type fwd1 name1 super1 known-fields-1 lb-1 ub-1)
            (nominal-record-type fwd2 name2 super2 known-fields-2 lb-2 ub-2))
      (define subtype-changed? #f)
+     (define merged-keys (set-union (dict-keys known-fields-1)
+                                    (dict-keys known-fields-2)))
+     ;; TODO - I should actually do a check that #f fields can-unify.  Maybe just by calling `can-unify?` on the things to be squashed...
      (define new-kf-1
        ;; The subtype must have all the fields of the supertype, and may have more.
        ;; HOWEVER, shared fields of the subtype and supertype must be the same, NOT subtypes -- a subtype can only add more fields, not change (even subtyping) the other fields.
-       (for/hash ([field-name (set-union (dict-keys known-fields-1)
-                                         (dict-keys known-fields-2))])
+       (for/hash ([field-name (if (or name1 name2)
+                                  (set-remove merged-keys #f)
+                                  merged-keys)])
          (define fsub (dict-ref known-fields-1 field-name #f))
          (define fsup (dict-ref known-fields-2 field-name #f))
          (values
