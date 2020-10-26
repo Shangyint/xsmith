@@ -20,6 +20,7 @@
                        #:Booleans #t
                        #:Strings #t
                        #:MutableArray #t
+                       #:MutableDictionary #t
                        #:MutableStructuralRecord #t
                        )
 (add-basic-statements python-comp
@@ -341,6 +342,24 @@
                 (text "len") lparen array-var rparen
                 rbracket
                 space equals space ($xsmith_render-node (ast-child 'newvalue n)))))]
+
+ [MutableDictionarySafeLiteral
+  (λ (n)
+    (h-append lbrace
+              (comma-list (for/list ([key (ast-children (ast-child 'keys n))]
+                                     [val (ast-children (ast-child 'vals n))])
+                            (h-append ($xsmith_render-node key)
+                                      colon
+                                      space
+                                      ($xsmith_render-node val))))
+              rbrace))]
+ [MutableDictionarySafeReference
+  (λ (n)
+    (define dictionary-rendered ($xsmith_render-node (ast-child 'dictionary n)))
+    (h-append dictionary-rendered
+              lbracket
+              ($xsmith_render-node (ast-child 'accessKey n))
+              rbracket))]
 
  [MutableStructuralRecordLiteral
   (λ (n)
