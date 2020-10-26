@@ -967,6 +967,7 @@
            ([collection : collection-node-ast-type]
             [elemname : DefinitionNoRhs = (create-ast-bud)]
             [body : loop-body-ast-type = (create-ast-bud)])
+           #:prop binding-structure 'serial/all
            #:prop strict-child-order? #t
            #:prop edit
            ;; Fill in elemname after collection

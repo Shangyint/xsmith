@@ -1272,7 +1272,10 @@ Here is an example that randomly chooses any option available, that only lifts w
 @defform[#:kind "spec-property" #:id binding-structure binding-structure]{
 This property is used on nodes that can have binders as children.
 It determines the visibility of those binders to their siblings.
-Options are @racket['serial] (like @verb{let*} in scheme), @racket['parallel] (like @verb{let} in scheme), and @racket['recursive] (like @verb{letrec} in scheme).
+Options are @racket['serial] (like @verb{let*} in scheme), @racket['parallel] (like @verb{let} in scheme), @racket['recursive] (like @verb{letrec} in scheme), and @racket['serial/all].
+
+Each of @racket['serial], @racket['parallel], and @racket['recursive] allow all non-binder children to see the bindings provided by all binder children, and differ only in how the right-hand side of the binder nodes see the binders.
+The @racket['serial/all] flag is like @racket['serial], but each node can only see bindings in nodes declared before them in the grammar spec.  The @racket['serial/all] flag is useful for creating nodes whose non-binder children see different subsets of the binder nodes.
 
 If the property is not specified, @racket['serial] is assumed and used as a default.
 

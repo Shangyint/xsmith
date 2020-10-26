@@ -599,6 +599,20 @@ Helper function for _xsmith_scope-graph-child-scope-dict.
   (define cb-no-bindings (filter (λ (cb) (not (cdr cb))) cb-pairs))
   (define cb-with-bindings (filter (λ (cb) (cdr cb)) cb-pairs))
   (match serial/parallel/recursive-flag
+    ['serial/all
+     (define-values (scope
+                     child-dict-with-binders)
+       (for/fold ([incoming-scope parent-scope]
+                  [child-dict (hash)])
+                 ([cb-pair cb-pairs])
+         (define new-scope (scope incoming-scope
+                                  (if (cdr cb-pair)
+                                      (list (cdr cb-pair))
+                                      '())
+                                  '()))
+         (values new-scope
+                 (dict-set child-dict (car cb-pair) incoming-scope))))
+     scope]
     ['serial
      (define-values (scope-for-non-binding-children
                      child-dict-with-binders)
@@ -753,7 +767,8 @@ It just reads the values of several other properties and produces the results fo
                   #:literals (quote)
                   [(quote (~and flag:id (~or (~datum serial)
                                              (~datum parallel)
-                                             (~datum recursive))))
+                                             (~datum recursive)
+                                             (~datum serial/all))))
                    #''flag]
                   [#f #''serial]))))
     (define _xsmith_lift-predicate-info
