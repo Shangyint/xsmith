@@ -78,6 +78,17 @@
  #:body-ast-type Block
  #:bind-whole-collection? #t
  )
+
+(define (render-let varname rhs body)
+  (h-append (text "(lambda (")
+            varname
+            (text "): ")
+            body
+            (text ")(")
+            rhs
+            (text ")")
+            ))
+
 (add-property
  python-comp
  render-node-info
@@ -286,23 +297,27 @@
                    rbracket))]
  [MutableArraySafeReference
   (λ (n)
-    (define array-rendered ($xsmith_render-node (ast-child 'array n)))
-    (h-append array-rendered
-              lbracket
-              ($xsmith_render-node (ast-child 'index n))
-              (text " % ")
-              (text "len") lparen array-rendered rparen
-              rbracket))]
+    (define array-var (text (fresh-var-name "arr_")))
+    (render-let array-var
+                ($xsmith_render-node (ast-child 'array n))
+                (h-append array-var
+                          lbracket
+                          ($xsmith_render-node (ast-child 'index n))
+                          (text " % ")
+                          (text "len") lparen array-var rparen
+                          rbracket)))]
  [MutableArraySafeAssignmentStatement
   (λ (n)
-    (define array-rendered ($xsmith_render-node (ast-child 'array n)))
-    (h-append array-rendered
-              lbracket
-              ($xsmith_render-node (ast-child 'index n))
-              (text " % ")
-              (text "len") lparen array-rendered rparen
-              rbracket
-              space equals space ($xsmith_render-node (ast-child 'newvalue n))))]
+    (define array-var (text (fresh-var-name "arr_")))
+    (v-append
+     (h-append array-var (text " = ") ($xsmith_render-node (ast-child 'array n)))
+     (h-append  array-var
+                lbracket
+                ($xsmith_render-node (ast-child 'index n))
+                (text " % ")
+                (text "len") lparen array-var rparen
+                rbracket
+                space equals space ($xsmith_render-node (ast-child 'newvalue n)))))]
 
  [MutableStructuralRecordLiteral
   (λ (n)
