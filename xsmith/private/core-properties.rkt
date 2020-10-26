@@ -608,7 +608,7 @@ Helper function for _xsmith_scope-graph-child-scope-dict.
   (define cb-with-bindings (filter (λ (cb) (cdr cb)) cb-pairs))
   (match serial/parallel/recursive-flag
     ['serial/all
-     (define-values (return-scope
+     (define-values (final-scope
                      child-dict-with-binders)
        (for/fold ([incoming-scope parent-scope]
                   [child-dict (hash)])
@@ -620,7 +620,7 @@ Helper function for _xsmith_scope-graph-child-scope-dict.
                                   '()))
          (values new-scope
                  (dict-set child-dict (car cb-pair) incoming-scope))))
-     return-scope]
+     child-dict-with-binders]
     ['serial
      (define-values (scope-for-non-binding-children
                      child-dict-with-binders)
