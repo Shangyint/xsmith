@@ -940,7 +940,7 @@
          (~optional (~seq #:loop-type-constructor loop-type-constructor-stx))
          (~optional (~seq #:body-type-constructor body-type-constructor-stx)
                     #:defaults ([body-type-constructor-stx
-                                 #'(λ (loop-type element-type) element-type)]))
+                                 #'(λ (loop-type element-type) loop-type)]))
          (~optional (~seq #:loop-variable-type-constructor
                           loop-variable-type-constructor-stx)
                     #:defaults ([loop-variable-type-constructor-stx
