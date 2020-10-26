@@ -425,24 +425,26 @@
 (ag/char-pred char-upper-case?)
 (ag/char-pred char-whitespace?)
 
-(ag/single-arg string-downcase #:type string)
-(ag/single-arg string-foldcase #:type string)
-;; String titlecase is buggy in RacketBC, but the fix is just to use CS instead, so I'm commenting it out of the fuzzer so I stop getting a deluge of string-titlecase bug reports.
-;(ag/single-arg string-titlecase #:type string)
-(ag/single-arg string-upcase #:type string)
-
 (ag/single-arg string-length #:type int #:ctype (Ectype string))
 (ag/single-arg string-utf-8-length
                #:type int #:ctype (Ectype string))
 (ag/single-arg string-copy #:type mutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfc
-               #:type mutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfd
-               #:type mutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkc
-               #:type mutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkd
-               #:type mutable-string #:ctype (Ectype string))
+
+;; String casing and normalization functions rely on unicode data.  This has not all been implemented properly in Racket BC, and at this point a fix for BC is not going to happen.
+;(ag/single-arg string-downcase #:type string)
+;(ag/single-arg string-foldcase #:type string)
+;; String titlecase is buggy in RacketBC, but the fix is just to use CS instead, so I'm commenting it out of the fuzzer so I stop getting a deluge of string-titlecase bug reports.
+;(ag/single-arg string-titlecase #:type string)
+;(ag/single-arg string-upcase #:type string)
+
+;(ag/single-arg string-normalize-nfc
+;               #:type mutable-string #:ctype (Ectype string))
+;(ag/single-arg string-normalize-nfd
+;               #:type mutable-string #:ctype (Ectype string))
+;(ag/single-arg string-normalize-nfkc
+;               #:type mutable-string #:ctype (Ectype string))
+;(ag/single-arg string-normalize-nfkd
+;               #:type mutable-string #:ctype (Ectype string))
 
 (define-syntax-parser ag/converter
   [(_ name:id from:expr to:expr
@@ -502,6 +504,7 @@
 (ag/type-predicate evt?)
 (ag/type-predicate exn?)
 (ag/type-predicate hash?)
+;; TODO - maybe I should turn off `immutable?`, because eg. some string functions apparently don't guarantee whether their return is mutable or immutable.
 (ag/type-predicate immutable?)
 (ag/type-predicate integer?)
 (ag/type-predicate interned-char?)
@@ -564,12 +567,13 @@
 (ag/two-arg equal?
             #:type bool
             #:ctype (λ (n t) (hash 'l (fresh-type-variable) 'r (fresh-type-variable))))
-(ag/two-arg eqv?
-            #:type bool
-            #:ctype (λ (n t) (hash 'l (fresh-type-variable) 'r (fresh-type-variable))))
-(ag/two-arg eq?
-            #:type bool
-            #:ctype (λ (n t) (hash 'l (fresh-type-variable) 'r (fresh-type-variable))))
+;; Don't fuzz `eqv?` or `eq?`, because various operations may return fresh or cached/interned versions of the result -- eg. sometimes string functions may return a fresh string or the same one as a previous operation.  These aren't intended to be stable between implementations or versions for the return values of many functions.
+;(ag/two-arg eqv?
+;            #:type bool
+;            #:ctype (λ (n t) (hash 'l (fresh-type-variable) 'r (fresh-type-variable))))
+;(ag/two-arg eq?
+;            #:type bool
+;            #:ctype (λ (n t) (hash 'l (fresh-type-variable) 'r (fresh-type-variable))))
 (ag/two-arg make-polar
             #:type number
             ;; TODO - should be real real, once I fix the numeric tower
