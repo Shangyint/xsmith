@@ -716,17 +716,12 @@
                  (port->bytes (open-input-file seq-from-file))
                  (or given-seed (generate-random-seed))))
 
-           (define out-port (if output-file
-                                (open-output-file output-file)
-                                (current-output-port)))
-
            (define (generate-and-print!/xsmith-parameterized
                     #:random-source [random-input initial-random-source])
              (parameterize ([current-xsmith-max-depth max-depth]
                             [type-max-concretization-depth type-max-depth]
                             [current-xsmith-features features]
                             [xsmith-options options]
-                            [current-output-port out-port]
                             [xsmith-state (make-generator-state)]
                             [current-random-source (make-random-source random-input)])
                (let/ec abort
@@ -956,7 +951,7 @@
                                   '()
                                   (λ (op)
                                     (write-bytes
-                                     (string->bytes/utf-8 (get-output-string out))
+                                     (get-output-bytes out)
                                      op)))))
                     (eprintf "Starting server...\n")
                     (eprintf "Visit: http://localhost:~a~a\n" server-port server-path)
@@ -1026,8 +1021,8 @@
                                              (raise e))])
                     (server-loop))]
                  [else
-                  (if (dict-ref options 'output-filename #f)
-                      (call-with-output-file (dict-ref options 'output-filename)
+                  (if output-file
+                      (call-with-output-file output-file
                         #:exists 'replace
                         (lambda (out)
                           (parameterize ([current-output-port out])
