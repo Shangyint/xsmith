@@ -27,8 +27,8 @@
                        #:MutableArray #t
                        #:MutableDictionary #t
                        #:MutableStructuralRecord #t
-                       #:dictionary-key-type dictionary-key-type
-                       #:dictionary-value-type dictionary-value-type
+                       #:dictionary-key-type (dictionary-key-type)
+                       #:dictionary-value-type (dictionary-value-type)
                        )
 (add-basic-statements python-comp
                       #:ProgramWithBlock #t
@@ -42,8 +42,8 @@
                       #:MutableArraySafeAssignmentStatement #t
                       #:MutableDictionarySafeAssignmentStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
-                      #:dictionary-key-type dictionary-key-type
-                      #:dictionary-value-type dictionary-value-type
+                      #:dictionary-key-type (dictionary-key-type)
+                      #:dictionary-value-type (dictionary-value-type)
                       )
 
 (define nest-step 4)
