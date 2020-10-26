@@ -637,8 +637,8 @@
           ;; Hopefully these bounds should work for any setup, as it's only a few hundred years in either direction.
           (define min-second -10000000000)
           (define max-second 10000000000)
-          (cond [(< x min-second) (sd (modulo x min-second))]
-                [(> x max-second) (sd (modulo x max-second))]
+          (cond [(< x min-second) (sd (modulo (truncate x) min-second))]
+                [(> x max-second) (sd (modulo (truncate x) max-second))]
                 [else (sd x)])
           )
         (define-values (safe-car)
