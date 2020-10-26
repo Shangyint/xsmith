@@ -166,19 +166,42 @@
                              'xsmith_find-descendants
                              n
                              (λ (cn) (node-subtype? cn 'AssignmentStatement)))]
+                           [global-var-nodes
+                            (filter (λ (cn)
+                                      (define binding (att-value 'xsmith_binding cn))
+                                      (define def-node (binding-ast-node binding))
+                                      (define ancestor-types
+                                        (map ast-node-type
+                                             (ancestor-nodes def-node)))
+                                      (not (memq 'NamedFunctionDefinition
+                                                 ancestor-types)))
+                                    assignment-statements)]
                            [global-var-names
                             (map
                              (λ (assign-node) (ast-child 'name assign-node))
-                             (filter (λ (cn)
-                                       (define binding (att-value 'xsmith_binding cn))
-                                       (define def-node (binding-ast-node binding))
-                                       (node-subtype? (parent-node def-node)
-                                                      'ProgramWithBlock))
-                                     assignment-statements))])
+                             global-var-nodes)]
+                           [nonlocal-var-nodes
+                            (filter (λ (cn)
+                                      (define binding (att-value 'xsmith_binding cn))
+                                      (define def-node (binding-ast-node binding))
+                                      (define ancestor-types
+                                        (map ast-node-type
+                                             (ancestor-nodes def-node)))
+                                      (and (not (memq n (ancestor-nodes def-node)))
+                                           (memq 'NamedFunctionDefinition
+                                                 ancestor-types)))
+                                    assignment-statements)]
+                           [nonlocal-var-names
+                            (map
+                             (λ (assign-node) (ast-child 'name assign-node))
+                             nonlocal-var-nodes)])
                       (apply
                        v-append
-                       (map (λ (name) (h-append (text "global ") (text name)))
-                            global-var-names)))
+                       (append
+                        (map (λ (name) (h-append (text "global ") (text name)))
+                             global-var-names)
+                        (map (λ (name) (h-append (text "nonlocal ") (text name)))
+                             nonlocal-var-names))))
                     ($xsmith_render-node body))))
            (h-append (text (ast-child 'name n))
                      space
