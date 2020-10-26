@@ -12,6 +12,11 @@
 
 (define-basic-spec-component python-comp)
 
+(define dictionary-key-type
+  (λ () (fresh-type-variable int-type bool-type string-type)))
+(define dictionary-value-type
+  (λ () (fresh-type-variable int-type bool-type string-type)))
+
 (add-basic-expressions python-comp
                        #:VariableReference #t
                        #:ProcedureApplication #t
@@ -22,6 +27,8 @@
                        #:MutableArray #t
                        #:MutableDictionary #t
                        #:MutableStructuralRecord #t
+                       #:dictionary-key-type dictionary-key-type
+                       #:dictionary-value-type dictionary-value-type
                        )
 (add-basic-statements python-comp
                       #:ProgramWithBlock #t
@@ -35,6 +42,8 @@
                       #:MutableArraySafeAssignmentStatement #t
                       #:MutableDictionarySafeAssignmentStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
+                      #:dictionary-key-type dictionary-key-type
+                      #:dictionary-value-type dictionary-value-type
                       )
 
 (define nest-step 4)
@@ -416,6 +425,7 @@
    (λ()bool-type)
    (λ()string-type)
    (λ()(mutable (array-type (fresh-type-variable))))
+   (λ()(mutable (dictionary-type (dictionary-key-type) (dictionary-value-type))))
    (λ()(mutable (fresh-structural-record-type)))
    ))
 
