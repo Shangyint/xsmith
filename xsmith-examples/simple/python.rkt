@@ -80,9 +80,9 @@
  )
 
 (define (render-let varname rhs body)
-  (h-append (text "(lambda (")
+  (h-append (text "(lambda ")
             varname
-            (text "): ")
+            (text ": ")
             body
             (text ")(")
             rhs
