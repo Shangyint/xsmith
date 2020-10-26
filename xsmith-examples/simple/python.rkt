@@ -33,6 +33,7 @@
                       #:AssignmentStatement #t
                       #:NullStatement #t
                       #:MutableArraySafeAssignmentStatement #t
+                      #:MutableDictionarySafeAssignmentStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
                       )
 
@@ -365,6 +366,22 @@
               space
               ($xsmith_render-node (ast-child 'defaultValue n))
               rparen))]
+ [MutableDictionarySafeAssignmentStatement
+  (λ (n)
+    (define dict-var (text (fresh-var-name "dict_")))
+    (v-append
+     (h-append dict-var
+               (text " = ")
+               ($xsmith_render-node (ast-child 'dictionary n)))
+     (h-append dict-var
+               lbracket
+               (text "list") lparen dict-var (text ".keys()") rparen
+               lbracket
+               ($xsmith_render-node (ast-child 'index n))
+               (text " % ")
+               (text "len") lparen dict-var (text ".keys()") rparen
+               rbracket
+               rbracket)))]
 
  [MutableStructuralRecordLiteral
   (λ (n)
