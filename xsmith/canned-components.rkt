@@ -21,6 +21,7 @@
  immutable
  array-type
  list-type
+ dictionary-type
  )
 
 (require
@@ -222,9 +223,11 @@
          (define int int-type-e)
          (define index-and-length-type (~? index-and-length-type-e int))
          (define dictionary-key-type
-           (λ () (~? dictionary-key-type-e (fresh-type-variable bool int))))
+           (~? dictionary-key-type-e
+               (λ () (fresh-type-variable bool int))))
          (define dictionary-value-type
-           (λ () (~? dictionary-value-type-e (fresh-type-variable bool int))))
+           (~? dictionary-value-type-e
+               (λ () (fresh-type-variable bool int))))
          ;;; Optional components
          #,@(if (use? use-variable-reference)
                 #'((add-to-grammar
@@ -823,9 +826,11 @@
          (define int int-type-e)
          (define index-and-length-type (~? index-and-length-type-e int))
          (define dictionary-key-type
-           (λ () (~? dictionary-key-type-e (fresh-type-variable bool int))))
+           (~? dictionary-key-type-e
+               (λ () (fresh-type-variable bool int))))
          (define dictionary-value-type
-           (λ () (~? dictionary-value-type-e (fresh-type-variable bool int))))
+           (~? dictionary-value-type-e
+               (λ () (fresh-type-variable bool int))))
 
          #,@(if (use? use-named-function-definition)
                 #'((add-to-grammar
