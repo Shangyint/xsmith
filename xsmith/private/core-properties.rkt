@@ -258,6 +258,7 @@
                    [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
                          (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
                          (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                         (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
                          )]
                    ['xsmithserialnumber `((xsmithserialnumber
                                            ,(ast-child 'xsmithserialnumber n)))]
@@ -461,7 +462,8 @@ hole for the type.
                                        t-orig))]
                             [concretized
                              (if (settled-type? t)
-                                 t
+                                 ;; Well, let's unwrap any type variables.
+                                 (concretize-type t)
                                  (let ()
                                    (xd-printf
                                     "Concretizing binding ~a.  Type: ~v, "
@@ -496,15 +498,21 @@ hole for the type.
                  (map (λ (name) (dict-ref all-values-hash/seq-transformed name))
                       (list field-name ...)))
                (define all-values+xsmith-injected
-                 (append (list (ast-child 'xsmithserialnumber (current-hole)))
-                         (map (λ (name) (dict-ref field-dict name #f))
-                              (list 'xsmithliftdepth
-                                    'xsmithlifterwrapped))
-                         all-values-in-order))
+                 (append
+                  ;; for xsmithserialnumber
+                  (list (ast-child 'xsmithserialnumber (current-hole)))
+                  (map (λ (name) (dict-ref field-dict name #f))
+                       (list 'xsmithliftdepth
+                             'xsmithlifterwrapped))
+                  (list (ast-child 'xsmithcachedtype (current-hole)))
+                  all-values-in-order))
 
-               (create-ast (current-racr-spec)
-                           '#,node
-                           all-values+xsmith-injected))))))
+               (define result-node
+                 (create-ast (current-racr-spec)
+                             '#,node
+                             all-values+xsmith-injected))
+               (enqueue-re-type result-node)
+               result-node)))))
     (define _xsmith_current-hole-info
       (hash #f #'(λ () current-hole)))
     (list _xsmith_fresh-info _xsmith_field-names-info _xsmith_current-hole-info)))
@@ -1355,6 +1363,51 @@ few of these methods.
      (parent-node-type)))
   my-type-from-parent)
 
+(define ((type-debug-print-helper node) t1 t2)
+    (xd-printf "\n\n")
+    (xd-printf "error while unifying types:\n~a\nand\n~a\n" t1 t2)
+    (xd-printf "for node with serial number: ~a\n" (ast-child 'xsmithserialnumber node))
+    (xd-printf "for node of AST type: ~a\n" (ast-node-type node))
+    (xd-printf "with parent chain of AST types: ~v\n" (map ast-node-type
+                                                           (ancestor-nodes node)))
+    (xd-printf "(Note that type variables may have already been unified)\n"))
+
+(define (xsmith_type-info-func/parent-relation-only node
+                                                    reference-unify-target
+                                                    reference-field
+                                                    definition-type-field
+                                                    definition-name-field
+                                                    parameter?)
+  ;; Most arguments aren't necessary, I just copied it from the main type function
+  ;; to not have to think about it much.
+  (define my-cached-type (ast-child 'xsmithcachedtype node))
+  (if (not my-cached-type)
+      ;; This parent-relation-only function is supposed to be the fast path,
+      ;; but if a node doesn't yet have any type info, we should just do
+      ;; the slow path.
+      (att-value 'xsmith_type node)
+      (let ()
+        (define my-type my-cached-type)
+        (define my-type-from-parent
+          (att-value '_xsmith_type-constraint-from-parent node))
+        (with-handlers
+          ([(λ(x)#t)
+            (λ (e)
+              (xd-printf "Error in typing (in parent-relation-only part)\n")
+              ((type-debug-print-helper node)
+               'no-type-constraint-in-parent-relation-only-part
+               my-type-from-parent)
+              (xd-printf "error subtype-unifying my-type to my-type-from-parent\n")
+              (xd-printf "type-from-parent: ~v\n" my-type-from-parent)
+              (xd-printf "my-type: ~v\n" my-type)
+              (raise e))])
+          (if (and definition-type-field
+                   parameter?)
+              ;; Parameters are a special case.  These aren't meant to be subtypes,
+              ;; rather, they reflect the type annotation of the lambda term.
+              (unify! my-type my-type-from-parent)
+              (subtype-unify! my-type my-type-from-parent))))))
+
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
@@ -1402,7 +1455,10 @@ few of these methods.
              (not (bud-node? (ast-child binder-type-field node)))
              (ast-child binder-type-field node))
         (att-value '_xsmith_my-type-constraint node)))
-  (define my-type (or my-type-constraint (fresh-type-variable)))
+  (define my-cached-type (ast-child 'xsmithcachedtype node))
+  (define my-type (or my-cached-type (fresh-type-variable)))
+  (when my-type-constraint
+    (unify! my-type my-type-constraint))
   (when (and binder-type-field
              (not (att-value 'xsmith_is-hole? node))
              (not (bud-node? (ast-child binder-type-field node))))
@@ -1410,14 +1466,7 @@ few of these methods.
     (unify! my-type (ast-child binder-type-field node)))
   (define my-type-from-parent
     (att-value '_xsmith_type-constraint-from-parent node))
-  (define (debug-print-1 t1 t2)
-    (xd-printf "\n\n")
-    (xd-printf "error while unifying types:\n~a\nand\n~a\n" t1 t2)
-    (xd-printf "for node with serial number: ~a\n" (ast-child 'xsmithserialnumber node))
-    (xd-printf "for node of AST type: ~a\n" (ast-node-type node))
-    (xd-printf "with parent chain of AST types: ~v\n" (map ast-node-type
-                                                           (ancestor-nodes node)))
-    (xd-printf "(Note that type variables may have already been unified)\n"))
+  (define debug-print-1 (type-debug-print-helper node))
   (with-handlers
     ([(λ(x)#t)
       (λ (e)
@@ -1507,6 +1556,16 @@ few of these methods.
                               (att-value 'xsmith_type (parent-node node))))
               (raise e))])
           (unify! def-type my-type)))))
+  (when (or (not my-cached-type)
+            (not (type-has-no-variables? my-type)))
+    (enqueue-inter-choice-transform
+     (λ ()
+       (define type-maybe-concretized
+         ;; Where possible, I'd rather store concretized versions of types.
+         (if (settled-type? my-type)
+             (concretize-type my-type)
+             my-type))
+       (rewrite-terminal 'xsmithcachedtype node type-maybe-concretized))))
   my-type)
 
 #|
@@ -1531,7 +1590,20 @@ The second arm is a function that takes the type that the node has been assigned
   ;_xsmith_children-type-dict -- returns a dict mapping nodes (or node field names) to types
   (attribute _xsmith_type-constraint-from-parent)
   (attribute xsmith_type)
-  (attribute _xsmith_type-check-tree)
+  ;; xsmith_type may return the value of xsmithcachedtype without running unification
+  ;; with the type provided by the parent, which is an important side-effect for
+  ;; type checking the whole tree.  Where type checking is performed in order to
+  ;; concretize types in other parts of the tree, _xsmith_type-full must be used
+  ;; in order to be sure all unification side-effects are performed.
+  (attribute _xsmith_type-full)
+  ;; The _xsmith_re-type attribute exists for when type-rules need to be re-run.
+  ;; The important thing here is that _xsmith_type-full will run the parent->child
+  ;; relationship function for the node's parent, which is what provides
+  ;; unification info not only between parent and child types but also between
+  ;; siblings.  When we re-run type rules, we actually have to re-run all siblings
+  ;; to be sure those sibling relationships are handled correctly.
+  (attribute _xsmith_re-type)
+  (attribute _xsmith_type-parent-relation-only)
   (choice-method _xsmith_satisfies-type-constraint?)
   ;_xsmith_satisfies-type-constraint? -- choice predicate -- tests if a hole's type and a choice object are compatible
   (choice-method _xsmith_reference-options!)
@@ -1697,6 +1769,11 @@ The second arm is a function that takes the type that the node has been assigned
     (define xsmith_type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
+          (hash #f #'(λ (node) (or (ast-child 'xsmithcachedtype node)
+                                   (att-value '_xsmith_type-full node))))))
+    (define _xsmith_type-full-info
+      (if (dict-empty? this-prop-info)
+          (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
             (values n #`(λ (node)
                           (xsmith_type-info-func
@@ -1706,19 +1783,35 @@ The second arm is a function that takes the type that the node has been assigned
                            #,(dict-ref binder-type-field n)
                            #,(dict-ref binder-name-field n)
                            #,(dict-ref parameter?-hash n)))))))
-    (define _xsmith_type-check-tree-info
+    (define _xsmith_re-type-info
       (if (dict-empty? this-prop-info)
-          (hash #f #'(λ (node) (void)))
-          (hash #f #'(λ (node)
-                       (att-value 'xsmith_type node)
-                       (for ([c (ast-children node)])
-                         (cond [(or (not (ast-node? c))
-                                    (ast-bud-node? c))
-                                (void)]
-                               [(ast-list-node? c)
-                                (for ([gc (ast-children c)])
-                                  (att-value '_xsmith_type-check-tree gc))]
-                               [else (att-value '_xsmith_type-check-tree c)]))))))
+          (hash #f #'(λ (node) default-base-type))
+          (hash
+           #f
+           #'(λ (node)
+               (let ([p (parent-node node)])
+                 (when p
+                   (for ([c (ast-children/flat p)])
+                     ;; For each sibling we potentially need to re-run the
+                     ;; parent-child relationship function.
+                     (cond [(not (ast-node? c)) (void)]
+                           [(ast-bud-node? c) (void)]
+                           [else
+                            (att-value '_xsmith_type-parent-relation-only c)])))
+                 ;; For the node itself, we need to re-run the full type function.
+                 (att-value '_xsmith_type-full node))))))
+    (define _xsmith_type-parent-relation-only-info
+      (if (dict-empty? this-prop-info)
+          (hash #f #'(λ (node) default-base-type))
+          (for/hash ([n nodes])
+            (values n #`(λ (node)
+                          (xsmith_type-info-func/parent-relation-only
+                           node
+                           #,(dict-ref node-reference-unify-target n)
+                           #,(dict-ref node-reference-field n)
+                           #,(dict-ref binder-type-field n)
+                           #,(dict-ref binder-name-field n)
+                           #,(dict-ref parameter?-hash n)))))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)
@@ -1781,7 +1874,9 @@ The second arm is a function that takes the type that the node has been assigned
      _xsmith_children-type-dict-info
      _xsmith_type-constraint-from-parent-info
      xsmith_type-info
-     _xsmith_type-check-tree-info
+     _xsmith_type-full-info
+     _xsmith_re-type-info
+     _xsmith_type-parent-relation-only-info
      _xsmith_satisfies-type-constraint?-info
      _xsmith_reference-options!-info
      xsmith_get-reference!-info
@@ -1792,20 +1887,6 @@ The second arm is a function that takes the type that the node has been assigned
 (define (can-unify-node-type-with-type?! node-in-question type-constraint
                                          #:break-when-more-settled?
                                          [break-when-more-settled? #t])
-  #|
-  We need to call `can-unify?`, but we do type checking lazily.
-  This means that the node type may need to unify with a cousin node's type
-  to get all of its constraints, and `can-unify` may give us the wrong answer
-  if we haven't done that unification.
-
-  So we need to walk some of the tree to unify.  But we don't want to walk the
-  whole tree.  So we check as we go whether the type is sufficiently settled
-  to always give a correct answer, and break the loop when it is.
-
-  We start by going to sibling nodes, and when any type shares variables with
-  the node-in-question type, we recur down its subtree as far as variables are shared.
-  After each sibling we go up the parent chain and repeat.
-  |#
   (when (not (ast-node? node-in-question))
     (error 'can-unify-node-type-with-type?!
            "given non-node value: ~v" node-in-question))
@@ -1817,121 +1898,11 @@ The second arm is a function that takes the type that the node has been assigned
            "given non-type value: ~v" type-constraint))
   ;; The name hole-type is now wrong, given that it's now a predicate for arbitrary nodes.  But I'm leaving it.
   (define hole-type (att-value 'xsmith_type node-in-question))
-  (define hole? (att-value 'xsmith_is-hole? node-in-question))
 
-  ;;; Begin traversal
-  (define maybe-can-unify?
-    (let/cc break!!
-      (define binding-nodes-started '())
-      (define binding-nodes-finished '())
-      (define parent-nodes-done '())
-      (define/memo (->tv-list x)
-        (type->type-variable-list x))
-      (define (relevant? other-type)
-        (contains-type-variables? other-type
-                                  ;(type->type-variable-list hole-type)
-                                  (->tv-list hole-type)
-                                  ))
-
-      (define (break?!)
-        (when (settled-type? hole-type)
-          (break!! #t))
-        (when (not (can-unify? hole-type type-constraint))
-          (break!! #f))
-        (when (and break-when-more-settled?
-                   (at-least-as-settled hole-type type-constraint))
-            (break!! #t)))
-      (break?!)
-      (let parent-loop ([p (parent-node node-in-question)]
-                        [child node-in-question])
-        (define (resolve-types node)
-          (match node
-            [(? (λ (n) (not (ast-node? n)))) (void)]
-            [(? ast-list-node?) (for-each resolve-types (ast-children node))]
-            [(? ast-bud-node?) (void)]
-            [else
-             (att-value '_xsmith_type-check-tree node)
-             #;(att-value 'xsmith_type node)]))
-        #;(define (sibling-loop nodes)
-          (for ([n nodes]) (resolve-types n))
-          ;; When we check the type of a new thing it may unify variables,
-          ;; so we've maybe made progress.
-          (break?!)
-          (define (rec nodes)
-            (if (null? nodes)
-                (void)
-                (let ([n (car nodes)]
-                      [ns (cdr nodes)])
-                  (cond [(not (ast-node? n))
-                         (rec ns)]
-                        [(eq? n child)
-                         (rec ns)]
-                        [(ast-list-node? n)
-                         (rec (append (ast-children n)
-                                      ns))]
-                        [(ast-bud-node? n)
-                         (rec ns)]
-                        [(att-value 'xsmith_is-hole? n)
-                         (rec ns)]
-                        [(memq n binding-nodes-finished)
-                         (rec ns)]
-                        [else
-                         (define n-type (att-value 'xsmith_type n))
-                         ;; If the node is a binder, mark it so we don't look at it
-                         ;; repeatedly when we hit references to it.
-                         (when (att-value 'xsmith_definition-binding n)
-                           (set! binding-nodes-finished
-                                 (cons n binding-nodes-finished))
-                           (parent-loop (ast-parent n) n))
-
-                         ;; If the node is a reference, the definition site
-                         ;; may have nodes that will affect the type.
-                         (when (att-value '_xsmith_is-reference-node? n)
-                           (let ([binding-node (binding-ast-node
-                                                (att-value
-                                                 '_xsmith_resolve-reference n))])
-                             (when (not (memq binding-node binding-nodes-started))
-                               (set! binding-nodes-started
-                                     (cons binding-node binding-nodes-started))
-                               (sibling-loop (list binding-node)))))
-
-                         ;; Check children nodes if they are relevant
-                         (when (relevant? n-type)
-                           (sibling-loop (ast-children n)))
-                         (rec ns)]))))
-          (rec nodes))
-        (when (not (memq p parent-nodes-done))
-          (set! parent-nodes-done (cons p parent-nodes-done))
-          (and p (att-value 'xsmith_type p))
-          (when (and (eq? node-in-question child) (not hole?))
-            ;; IE this is the first iteration.
-            ;; The children of the original node may have relevant data that they
-            ;; add to the parent.
-            ;(sibling-loop (ast-children node-in-question))
-            (att-value '_xsmith_type-check-tree node-in-question)
-            )
-          (and p
-               ;(sibling-loop (ast-children p))
-               (att-value '_xsmith_type-check-tree p)
-               )
-          (when (and p
-                     (ast-has-parent? p)
-                     (or
-                      ;; If the current node (child) includes relevant variables,
-                      ;; its siblings may too even if the parent doesn't.
-                      (relevant? (att-value 'xsmith_type child))
-                      ;; If the parent includes relevant variables its siblings
-                      ;; or ancestors might as well.
-                      (relevant? (att-value 'xsmith_type p))))
-            (parent-loop (parent-node p) p))))))
-  ;;; End traversal
-
-  ;; The hole type is now either maximally unified or sufficiently settled
-  ;; that no more unification can change the result of this predicate.
-  (and maybe-can-unify?
-       (can-unify? hole-type type-constraint)))
+  (can-unify? hole-type type-constraint))
 
 (define (force-type-exploration-for-node! node)
+  ;; This function is now basically a no-op, which is a good improvement.
   (can-unify-node-type-with-type?! node (fresh-type-variable)
                                    #:break-when-more-settled? #f))
 
@@ -2304,8 +2275,13 @@ TODO - add proper documentation.
              k
              #'(λ (n)
                  (define procs (list edit-proc ...))
-                 (for/or ([p procs])
-                   (p n))))]))
+                 (define result-pre-wrap
+                   (for/or ([p procs])
+                     (p n)))
+                 (and result-pre-wrap
+                      ;; We return the node that was edited so that we can
+                      ;; automatically re-type it in the elaboration loop.
+                      (λ () (result-pre-wrap) n))))]))
        #f
        #'(λ (n) #f)))
     (define _xsmith_edit-walk-info
