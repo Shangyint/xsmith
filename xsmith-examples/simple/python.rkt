@@ -353,13 +353,18 @@
                                       space
                                       ($xsmith_render-node val))))
               rbrace))]
- [MutableDictionarySafeReference
+ [MutableDictionarySafeReferenceWithDefault
   (λ (n)
     (define dictionary-rendered ($xsmith_render-node (ast-child 'dictionary n)))
     (h-append dictionary-rendered
-              lbracket
+              dot
+              (text "get")
+              lparen
               ($xsmith_render-node (ast-child 'accessKey n))
-              rbracket))]
+              comma
+              space
+              ($xsmith_render-node (ast-child 'defaultValue n))
+              rparen))]
 
  [MutableStructuralRecordLiteral
   (λ (n)

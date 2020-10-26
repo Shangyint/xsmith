@@ -607,17 +607,19 @@
                         (subtype-unify! dt t)
                         (hash 'keys kt
                               'vals vt))]]
-                    [MutableDictionarySafeReference
+                    [MutableDictionarySafeReferenceWithDefault
                      Expression
                      ([dictionary : Expression]
-                      [accessKey : Expression])
+                      [accessKey : Expression]
+                      [defaultValue : Expression])
                      #:prop mutable-container-access (read 'MutableDictionary)
                      #:prop type-info
                      [(dictionary-value-type)
                       (λ (n t)
                         (define key-type (dictionary-key-type))
                         (hash 'dictionary (mutable (dictionary-type key-type t))
-                              'accessKey key-type))]]))
+                              'accessKey key-type
+                              'defaultValue t))]]))
                 #'())
 
 
