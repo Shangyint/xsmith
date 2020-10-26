@@ -190,6 +190,7 @@
                           use-mutable-array-safe-assignment-expression:boolean))
          (~optional (~seq #:ImmutableArray use-immutable-array:boolean))
          (~optional (~seq #:ImmutableList use-immutable-list:boolean))
+         (~optional (~seq #:MutableDictionary use-mutable-dictionary:boolean))
          (~optional (~seq #:MutableStructuralRecord
                           use-mutable-structural-record:boolean))
          (~optional (~seq #:MutableStructuralRecordAssignmentExpression
@@ -203,6 +204,8 @@
          (~optional (~seq #:int-type int-type-e:expr)
                     #:defaults ([int-type-e #'int-type]))
          (~optional (~seq #:index-and-length-type index-and-length-type-e:expr))
+         (~optional (~seq #:dictionary-key-type dictionary-key-type-e:expr))
+         (~optional (~seq #:dictionary-value-type dictionary-value-type-e:expr))
          )
         ...
         )
@@ -211,6 +214,10 @@
          (define number number-type-e)
          (define int int-type-e)
          (define index-and-length-type (~? index-and-length-type-e int))
+         (define dictionary-key-type
+           (λ () (~? dictionary-key-type-e (fresh-type-variable bool int))))
+         (define dictionary-value-type
+           (λ () (~? dictionary-value-type-e (fresh-type-variable bool int))))
          ;;; Optional components
          #,@(if (use? use-variable-reference)
                 #'((add-to-grammar
@@ -574,6 +581,43 @@
                      #:prop type-info
                      [void-type (mutable-array-assignment-type-rhs
                                  index-and-length-type)]]))
+                #'())
+
+
+         #,@(if (use? use-mutable-dictionary)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeLiteral
+                     Expression
+                     ([keys : Expression *]
+                      [vals : Expression *])
+                     #:prop wont-over-deepen #t
+                     #:prop choice-weight 1
+                     #:prop fresh
+                     ;; Ensure dictionaries are never empty.
+                     (let ([elem-count (add1 (random array-max-length))])
+                       (hash 'keys elem-count
+                             'vals elem-count))
+                     #:prop type-info
+                     [(mutable (fresh-dictionary-type))
+                      (λ (n t)
+                        (define kt (dictionary-key-type))
+                        (define vt (dictionary-value-type))
+                        (define dt (mutable (dictionary-type kt vt)))
+                        (subtype-unify! dt t)
+                        (hash 'keys kt
+                              'vals vt))]]
+                    [MutableDictionarySafeReference
+                     Expression
+                     ([dictionary : Expression]
+                      [accessKey : Expression])
+                     #:prop mutable-container-access (read 'MutableDictionary)
+                     #:prop type-info
+                     [(dictionary-value-type)
+                      (λ (n t)
+                        (define key-type (dictionary-key-type))
+                        (hash 'dictionary (mutable (dictionary-type key-type t))
+                              'accessKey key-type))]]))
                 #'())
 
 
@@ -1042,6 +1086,8 @@
 (define (fresh-array-type) (array-type (fresh-type-variable)))
 (define-generic-type list-type ([type covariant]))
 (define (fresh-list-type) (list-type (fresh-type-variable)))
+(define-generic-type dictionary-type ([key-type covariant] [value-type covariant]))
+(define (fresh-dictionary-type) (dictionary-type (fresh-type-variable) (fresh-type-variable)))
 
 (define no-child-types (λ (n t) (hash)))
 
