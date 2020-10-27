@@ -58,6 +58,11 @@
             body-expr
             (text " end") rparen
             lparen binding-expr rparen rparen))
+(define (lua-render-let-return-void varname binding-expr body-expr)
+  (h-append lparen lparen (text (format "function(~a) " varname))
+            body-expr
+            (text " end") rparen
+            lparen binding-expr rparen rparen))
 
 (add-property
  lua-comp
@@ -208,10 +213,10 @@
                                 rparen))]
 
  [MutableArrayLiteral
-  (λ (n) (h-append lbrace
+  (λ (n) (h-append lparen lbrace
                    (comma-list (map (λ (cn) ($xsmith_render-node cn))
                                     (ast-children (ast-child 'expressions n))))
-                   rbrace))]
+                   rbrace rparen))]
  [MutableArraySafeReference
   ;; Lua's array index should start at 1.  And we should define a modulus function, one of the many... frustrating parts of lua is that there wasn't a built-in modulus operator until recently.  So to fuzz older versions we need to define a function for it.
   (λ (n)
@@ -225,26 +230,28 @@
  [MutableArraySafeAssignmentStatement
   (λ (n)
     (define array-rendered ($xsmith_render-node (ast-child 'array n)))
-    (lua-render-let 'array array-rendered
-                    (h-append (text "array")
-                              lbracket (text "modulo") lparen
-                              ($xsmith_render-node (ast-child 'index n))
-                              comma space (text "#") (text "array")
-                              rparen (text " + 1") rbracket
-                              space equals space
-                              ($xsmith_render-node (ast-child 'newvalue n))))
+    (h-append (text "expression_statement_dummy_var = ")
+              (lua-render-let-return-void
+               'array array-rendered
+               (h-append (text "array")
+                         lbracket (text "modulo") lparen
+                         ($xsmith_render-node (ast-child 'index n))
+                         comma space (text "#") (text "array")
+                         rparen (text " + 1") rbracket
+                         space equals space
+                         ($xsmith_render-node (ast-child 'newvalue n)))))
     )]
 
  [MutableStructuralRecordLiteral
   (λ (n)
-    (h-append lbrace
+    (h-append lparen lbrace
               (comma-list (map (λ (fieldname expression-node)
                                  (h-append (text (format "~a" fieldname))
                                            equals
                                            ($xsmith_render-node expression-node)))
                                (ast-child 'fieldnames n)
                                (ast-children (ast-child 'expressions n))))
-              rbrace))]
+              rbrace rparen))]
  [MutableStructuralRecordReference
   (λ (n) (h-append ($xsmith_render-node (ast-child 'record n))
                    lbracket dquote
