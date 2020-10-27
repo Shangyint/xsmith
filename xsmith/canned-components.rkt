@@ -84,11 +84,15 @@
     (hash 'array (mutable (array-type inner))
           'index index-and-length-type
           'newvalue inner)))
-(define (mutable-dictionary-assignment-type-rhs index-and-length-type dictionary-key-type dictionary-value-type)
+(define (mutable-dictionary-assignment-type-rhs index-and-length-type
+                                                dictionary-key-type-thunk
+                                                dictionary-value-type-thunk)
   (λ (n t)
-    (hash 'dictionary (mutable (dictionary-type dictionary-key-type dictionary-value-type))
+    (define vt (dictionary-value-type-thunk))
+    (hash 'dictionary (mutable (dictionary-type (dictionary-key-type-thunk)
+                                                vt))
           'index index-and-length-type
-          'newValue dictionary-value-type)))
+          'newValue vt)))
 
 (define (lambda-fresh-implementation cur-hole make-fresh-node-func)
   (let* ([type (att-value 'xsmith_type cur-hole)]
@@ -646,8 +650,8 @@
                      [void-type
                       (mutable-dictionary-assignment-type-rhs
                        index-and-length-type
-                       (dictionary-key-type)
-                       (dictionary-value-type))]]))
+                       dictionary-key-type
+                       dictionary-value-type)]]))
                 #'())
 
          #,@(if (use? use-immutable-structural-record)
@@ -999,8 +1003,8 @@
                      [no-return-type
                       (mutable-dictionary-assignment-type-rhs
                        index-and-length-type
-                       (dictionary-key-type)
-                       (dictionary-value-type))]]))
+                       dictionary-key-type
+                       dictionary-value-type)]]))
                 #'())
          #,@(if (use? use-mutable-structural-record-assignment-statement)
                 #'((add-to-grammar
