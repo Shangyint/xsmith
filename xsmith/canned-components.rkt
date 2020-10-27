@@ -826,10 +826,10 @@
          (define int int-type-e)
          (define index-and-length-type (~? index-and-length-type-e int))
          (define dictionary-key-type
-           (~? dictionary-key-type-e
+           (~? (λ () dictionary-key-type-e)
                (λ () (fresh-type-variable bool int))))
          (define dictionary-value-type
-           (~? dictionary-value-type-e
+           (~? (λ () dictionary-value-type-e)
                (λ () (fresh-type-variable bool int))))
 
          #,@(if (use? use-named-function-definition)
