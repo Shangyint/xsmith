@@ -6,8 +6,11 @@
  racr
  xsmith/racr-convenience
  xsmith/canned-components
- pprint
+ (except-in pprint empty)
+ racket/format
  racket/string
+ racket/match
+ racket/list
  )
 
 (define-basic-spec-component python-comp)
