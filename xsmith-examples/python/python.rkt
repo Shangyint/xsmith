@@ -11,9 +11,16 @@
  racket/string
  racket/match
  racket/list
- )
+ syntax/parse/define
+ (for-syntax
+  racket/base
+  syntax/parse
+  ))
 
 (define-basic-spec-component python-comp)
+
+;; TODO - types - add characters, tuples, sets, iterables, what else?
+;;        Note that tuples are just (product-type (list ...)), but I need to define grammar nodes for literals, projection, etc.  Maybe I need safe projection for empty tuples...
 
 (define dictionary-key-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
@@ -178,7 +185,7 @@
                                     rparen))]
  [StringToByteString Expression (Expression)
                      #:prop type-info
-                     [byte-string-type (λ (n t) (hash 'Expression string))]
+                     [byte-string-type (λ (n t) (hash 'Expression string-type))]
                      #:prop render-node-info
                      (λ (n) (h-append lparen
                                       ($xsmith_render-node (ast-child 'Expression n))
@@ -225,6 +232,200 @@
                                              c))])))))
 
 
+;;;; Helpers to add a bunch of built-in functions.
+;; NE stands for "no exceptions", IE safe versions of things.
+;; It's shorter than the word "safe", and it will be repeated a lot...
+(define NE? #t)
+(define-for-syntax (racr-ize-id id)
+  (datum->syntax id
+                 (string->symbol
+                  (string-titlecase (symbol->string (syntax->datum id))))))
+(define-syntax-parser ag [(_ arg ...) #'(add-to-grammar python-comp arg ...)])
+(define-syntax-parser ap [(_ arg ...) #'(add-property python-comp arg ...)])
+(define-syntax-parser ag/single-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number-type)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression (Expression)
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (define name (symbol->string (if NE? 'NE-name 'name)))
+                      (h-append (text name)
+                                (text "(")
+                                ($xsmith_render-node (ast-child 'Expression n))
+                                (text ")")))])])
+(define-syntax-parser Ectype
+  [(_ etype:expr)
+   #'(λ (n t) (hash 'Expression etype))])
+
+(define-syntax-parser ag/two-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number-type)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression ([l : Expression]
+                                [r : Expression])
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (define name (symbol->string (if NE? 'NE-name 'name)))
+                      (h-append (text name)
+                                (text "(")
+                                ($xsmith_render-node (ast-child 'l n))
+                                (text ", ")
+                                ($xsmith_render-node (ast-child 'r n))
+                                (text ")")))])])
+(define-syntax-parser E2ctype
+  [(_ etypel:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'r etyper))])
+
+(define-syntax-parser ag/three-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number-type)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression ([l : Expression]
+                                [m : Expression]
+                                [r : Expression])
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (define name (symbol->string (if NE? 'NE-name 'name)))
+                      (h-append (text name)
+                                (text "(")
+                                ($xsmith_render-node (ast-child 'l n))
+                                (text ", ")
+                                ($xsmith_render-node (ast-child 'm n))
+                                (text ", ")
+                                ($xsmith_render-node (ast-child 'r n))
+                                (text ")")))])])
+(define-syntax-parser E3ctype
+  [(_ etypel:expr etypem:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
+
+;;;; built-in functions from https://docs.python.org/3/library/functions.html
+(ag/single-arg abs)
+;; TODO - all()
+;; TODO - any()
+;; TODO - ascii()
+(ag/single-arg bin #:type string-type #:ctype (Ectype int-type))
+(ag/single-arg bool #:type bool-type #:ctype (Ectype (fresh-type-variable)))
+;; TODO - breakpoint()
+;; TODO - bytearray()
+;; TODO - bytes()
+(ag/single-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
+(ag/single-arg chr #:NE-name NE_chr #:type string-type #:ctype (Ectype int-type))
+;; TODO - classmethod()
+;; TODO - compile()
+;; TODO - complex actually allows floats as args, but I need to expand the numeric tower before I do that.
+(ag/two-arg complex #:type number-type #:ctype (E2ctype int-type int-type))
+;; TODO - delattr()
+;; TODO - dict()
+;; TODO - dir()
+;; TODO - divmod() -- this one will be easy, but I need to add tuple operations
+;; TODO - enumerate()
+;; TODO - eval()
+;; TODO - exec()
+;; TODO - filter() -- I need to change safe array access to allow empty arrays.  Note that this returns an iterable, not an array!
+;; The float function can actually take a string or an int, but the string has to be a number string...
+(ag/single-arg float #:type number-type #:ctype (Ectype int-type))
+;; TODO - format() -- this will probably be fine if limited to default (empty) format spec and given a value in a limited set of types.  Arbitrary types will raise problems of eg. how function X is printed.
+;; TODO - frozenset()
+;; TODO - getattr()
+;; TODO - globals()
+;; TODO - hasattr()
+;; TODO - hash()
+;; TODO - help()
+(ag/single-arg hex #:type string-type #:ctype (Ectype int-type))
+;; TODO - id()
+;; TODO - __import__()
+;; TODO - input()
+;; TODO - int()
+;; TODO - isinstance()
+;; TODO - issubclass()
+;; TODO - iter()
+;; TODO - len() -- this should be easy, and could replace various other length forms I've defined, but I'll wait until I add more types.
+;; TODO - list()
+;; TODO - locals()
+
+;; Map is actually variadic, but xsmith doesn't really support variadic types.
+;; I could define multiple instances, though.
+;; Note that this accepts and returns an iterable, not an array!
+;; But for now I'll just use lists instead with a wrapper.
+(ag/two-arg listmap
+            #:type (mutable (array-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define return-elem (fresh-type-variable))
+                      (define return-array (mutable (array-type return-elem)))
+                      (unify! t return-array)
+                      (define arg-elem (fresh-type-variable))
+                      (define arg-array (mutable (array-type arg-elem)))
+                      (hash 'l (function-type (product-type (list arg-elem))
+                                              return-elem)
+                            'r arg-array)))
+;; TODO - max()
+;; TODO - memoryview()
+;; TODO - min()
+;; TODO - next()
+;; TODO - object()
+(ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
+;; TODO - open()
+;; TODO - ord() -- need to add a character type to the type system, also switch chr() to use it.
+(ag/two-arg pow #:racr-name PowTwo
+            #:type int-type
+            #:ctype (E2ctype int-type int-type))
+(ag/three-arg pow #:racr-name PowThree
+              #:type int-type
+              #:ctype (E3ctype int-type int-type int-type))
+;; TODO - print()
+;; TODO - property()
+;; TODO - range()
+;; TODO - repr()
+;; TODO - reversed()
+;; TODO - round()
+;; TODO - set()
+;; TODO - setattr()
+;; TODO - slice()
+;; TODO - sorted()
+;; TODO - staticmethod()
+;; TODO - str()
+;; TODO - sum()
+;; TODO - super()
+;; TODO - tuple()
+;; TODO - type()
+;; TODO - vars()
+;; TODO - zip()
+
+(define header-definitions-block
+  "
+def safe_divide(a,b):
+  a if (b == 0) else (a / b)
+def NE_chr(x):
+  chr(x % 0x10FFFF)
+def listmap(f, ls):
+  list(map(f, ls))
+")
+
 ;;;; Render nodes from add-basic-statements/expressions
 (add-property
  python-comp
@@ -235,7 +436,7 @@
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
      (text "FAKEBLOCK = True")
-     (text "safe_divide = lambda a, b: a if (b == 0) else (a / b)")
+     (text header-definitions-block)
      (vb-concat
       (list*
        (text "")
@@ -536,11 +737,11 @@
 
 (define-xsmith-interface-functions
   [python-comp]
-  #:fuzzer-name simple-python
+  #:fuzzer-name python
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render python-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "# ~a" l)) lines)
                                          "\n")))
 
-(module+ main (simple-python-command-line))
+(module+ main (python-command-line))
