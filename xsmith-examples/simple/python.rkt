@@ -19,6 +19,7 @@
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define dictionary-value-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
+(define byte-string-type (base-type 'btye-string))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -47,6 +48,13 @@
   (if (random-bool)
       (random-char)
       (random-char-in-range (range 0 128))))
+
+(define (random-byte-list-length) (random 30))
+(define (random-byte) (random 256))
+(define (random-byte-string)
+  (bytes->immutable-bytes (apply bytes
+                                 (map (λ (x) (random-byte))
+                                      (make-list (random-byte-list-length) #f)))))
 
 (add-basic-expressions python-comp
                        #:VariableReference #t
@@ -149,6 +157,35 @@
                              (ast-children (ast-child 'statements body))))))))
      line))])
 
+(define no-child-types (λ (n t) (hash)))
+
+(add-to-grammar
+ python-comp
+ [ByteStringLiteral Expression ([v = (random-byte-string)])
+                    #:prop type-info [byte-string-type no-child-types]
+                    #:prop choice-weight 1
+                    #:prop render-node-info
+                    (λ (n) (text (python-byte-string-format (ast-child 'v n))))]
+ [ByteStringAppend Expression ([l : Expression] [r : Expression])
+                   #:prop type-info [byte-string-type (λ (n t) (hash 'l t 'r t))]
+                   #:prop render-node-info (binary-op-renderer (text "+"))]
+ [ByteStringLength Expression (Expression)
+                   #:prop type-info
+                   [int-type (λ (n t) (hash 'Expression byte-string-type))]
+                   #:prop render-node-info
+                   (λ (n) (h-append (text "len") lparen
+                                    ($xsmith_render-node (ast-child 'Expression n))
+                                    rparen))]
+ [StringToByteString Expression (Expression)
+                     #:prop type-info
+                     [byte-string-type (λ (n t) (hash 'Expression string))]
+                     #:prop render-node-info
+                     (λ (n) (h-append lparen
+                                      ($xsmith_render-node (ast-child 'Expression n))
+                                      rparen
+                                      (text ".encode('UTF-8')")))]
+ )
+
 (define (render-let varname rhs body)
   (h-append (text "(lambda ")
             varname
@@ -173,8 +210,19 @@
                    [else (format "\\U~a" (~r #:base 16
                                              #:min-width 8
                                              #:pad-string "0"
-                                             ci))]))))
-  )
+                                             ci))])))))
+(define (python-byte-string-format str)
+  ;; IE to what Python's parser expects
+  (format "b\"~a\""
+          (apply
+           string-append
+           (for/list ([c (bytes->list str)])
+             (cond [(< 31 c 126) (string (integer->char c))]
+                   ;; \xNN allows arbitrary hex characters
+                   [else (format "\\x~a" (~r #:base 16
+                                             #:min-width 2
+                                             #:pad-string "0"
+                                             c))])))))
 
 
 ;;;; Render nodes from add-basic-statements/expressions
