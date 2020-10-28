@@ -17,13 +17,43 @@
 (define dictionary-value-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
 
+(define (biased-random-int)
+  ;; The random function returns word-sized integers.
+  ;; I want more variety, like bigints.
+  (match (random 6)
+    [0 (random-int)]
+    [1 (+ (* (random-int) (random-int)) (random-int))]
+    [2 (+ (* (random-int) (random-int) (random-int)) (random-int))]
+    [3 (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))]
+    [4 (random 255)]
+    [5 (random 10)]
+    ))
+
+(define (biased-random-string)
+  (match (random 3)
+    [0 (random-string)]
+    [1 (random-string-from-char-producing-proc
+        (λ () (random-char-in-range (range 0 128))))]
+    [2 (random-string-from-char-producing-proc biased-random-char)]))
+
+(define (biased-random-char)
+  ;; Random-char very rarely generates ascii, which is more common.
+  ;; More saliently, low-value characters are interned in Racket and
+  ;; high-value characters are not.  So I want to be sure to generate
+  ;; both to have some variety.
+  (if (random-bool)
+      (random-char)
+      (random-char-in-range (range 0 128))))
+
 (add-basic-expressions python-comp
                        #:VariableReference #t
                        #:ProcedureApplication #t
                        #:LambdaWithExpression #t
                        #:Numbers #t
+                       #:int-literal-value (biased-random-int)
                        #:Booleans #t
                        #:Strings #t
+                       #:string-literal-value (biased-random-string)
                        #:MutableArray #t
                        #:MutableDictionary #t
                        #:MutableStructuralRecord #t
@@ -89,21 +119,8 @@
  #:body-ast-type Block
  #:bind-whole-collection? #t
  )
-
-(define (render-let varname rhs body)
-  (h-append (text "(lambda ")
-            varname
-            (text ": ")
-            body
-            (text ")(")
-            rhs
-            (text ")")
-            ))
-
 (add-property
- python-comp
- render-node-info
-
+ python-comp render-node-info
  [LoopOverArray
   (λ (n)
     (define cd (ast-child 'collection n))
@@ -127,7 +144,40 @@
                              (ast-children (ast-child 'definitions body)))
                         (map (λ (cn) ($xsmith_render-node cn))
                              (ast-children (ast-child 'statements body))))))))
-     line))]
+     line))])
+
+(define (render-let varname rhs body)
+  (h-append (text "(lambda ")
+            varname
+            (text ": ")
+            body
+            (text ")(")
+            rhs
+            (text ")")
+            ))
+
+(define (python-string-format str)
+  ;; IE to what Python's parser expects
+  (format "\"~a\""
+          (apply
+           string-append
+           (for/list ([c (string->list str)])
+             ;; What's a good cutoff here?  I'm not sure.
+             ;; But for arbitrary unicode, you can use \Uxxxxxxxx with hex digits.
+             (define ci (char->integer c))
+             (if (< ci 500)
+                 (string c)
+                 (format "\\U~a" (~r #:base 16
+                                     #:min-width 8
+                                     #:pad-string "0"
+                                     ci))))))
+  )
+
+
+;;;; Render nodes from add-basic-statements/expressions
+(add-property
+ python-comp
+ render-node-info
 
  [ProgramWithBlock
   (λ (n)
@@ -317,7 +367,7 @@
                               ($xsmith_render-node (ast-child 'r n))
                               rparen))]
 
- [StringLiteral (λ (n) (text (format "\"~a\"" (ast-child 'v n))))]
+ [StringLiteral (λ (n) (text (python-string-format (ast-child 'v n))))]
  [StringAppend (binary-op-renderer (text "+"))]
  [StringLength (λ (n) (h-append (text "len")
                                 lparen
