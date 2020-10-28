@@ -178,7 +178,7 @@
                                     rparen))]
  [StringToByteString Expression (Expression)
                      #:prop type-info
-                     [byte-string-type (λ (n t) (hash 'Expression string))]
+                     [byte-string-type (λ (n t) (hash 'Expression string-type))]
                      #:prop render-node-info
                      (λ (n) (h-append lparen
                                       ($xsmith_render-node (ast-child 'Expression n))
