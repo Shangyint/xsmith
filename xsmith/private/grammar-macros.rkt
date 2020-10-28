@@ -194,10 +194,12 @@
                    (component:grammar-component ...)]))
   (define-syntax-class grammar-clause-with-inline-props
     (pattern
-     [node-name:id (~and parent (~or parent-name:id #f))
-                   (component:grammar-component ...)
-                   prop:grammar-inline-prop-clause ...]
-     #:attr grammar-clause #'(node-name parent (component ...))))
+     (~and whole-stx
+           [node-name:id (~and parent (~or parent-name:id #f))
+                         (component:grammar-component ...)
+                         prop:grammar-inline-prop-clause ...])
+     #:attr grammar-clause (syntax/loc #'whole-stx
+                             (node-name parent (component ...)))))
 
   (struct grammar-node-field-struct
     (name type kleene-star? init-expr)
