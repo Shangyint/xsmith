@@ -6,8 +6,11 @@
  racr
  xsmith/racr-convenience
  xsmith/canned-components
- pprint
+ (except-in pprint empty)
  racket/string
+ racket/list
+ racket/match
+ racket/format
  )
 
 (define-basic-spec-component lua-comp)
@@ -17,8 +20,10 @@
                        #:VariableReference #t
                        #:ProcedureApplication #t
                        #:Numbers #t
+                       #:int-literal-value (biased-random-int)
                        #:Booleans #t
                        #:Strings #t
+                       #:string-literal-value (random-byte-string)
                        #:MutableArray #t
                        #:MutableStructuralRecord #t
                        )
@@ -32,6 +37,28 @@
                       #:MutableArraySafeAssignmentStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
                       )
+
+
+(define (random-byte-list-length) (random 30))
+(define (random-byte) (random 256))
+(define (random-byte-string)
+  (bytes->immutable-bytes (apply bytes
+                                 (map (λ (x) (random-byte))
+                                      (make-list (random-byte-list-length) #f)))))
+
+(define (biased-random-int)
+  ;; The random function returns word-sized integers.
+  ;; I want more variety, like bigints.
+  ;; Lua, however, only has IEEE double floats.
+  (match (random 6)
+    [0 (random-int)]
+    [1 (+ (* (random-int) (random-int)) (random-int))]
+    [2 (+ (* (random-int) (random-int) (random-int)) (random-int))]
+    [3 (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))]
+    [4 (random 255)]
+    [5 (random 10)]
+    ))
+
 
 (add-property
  lua-comp
@@ -63,6 +90,19 @@
             body-expr
             (text " end") rparen
             lparen binding-expr rparen rparen))
+
+(define (lua-string-format byte-string)
+  (format "\"~a\""
+          (apply string-append
+                 (for/list ([b byte-string])
+                   (if (and (< 31 b 127)
+                            (not (string-contains? "\"'[]\\"
+                                                   (string (integer->char b)))))
+                       (string (integer->char b))
+                       (format "\\x~a" (~r #:base 16
+                                           #:min-width 2
+                                           #:pad-string "0"
+                                           b)))))))
 
 (add-property
  lua-comp
@@ -205,7 +245,7 @@
                               ($xsmith_render-node (ast-child 'r n))
                               rparen))]
 
- [StringLiteral (λ (n) (text (format "\"~a\"" (ast-child 'v n))))]
+ [StringLiteral (λ (n) (text (lua-string-format (ast-child 'v n))))]
  [StringAppend (binary-op-renderer (text ".."))]
  [StringLength (λ (n) (h-append (text "string.len")
                                 lparen
