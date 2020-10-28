@@ -53,9 +53,25 @@
   (random-ref fieldname-options))
 (define (arg-length)
   (random 6))
-(define (random-string-literal)
-  (random-ref (list "foo" "bar" "baz" "quux")))
 (define variable-reference-weight 15)
+
+
+(define (random-string/ascii)
+  (random-string-from-char-producing-proc
+   (λ () (random-char-in-range (range 0 128)))))
+(define (random-string/ascii-no-null)
+  (random-string-from-char-producing-proc
+   (λ () (random-char-in-range (range 1 128)))))
+(define (random-string/ascii-no-control)
+  (random-string-from-char-producing-proc
+   (λ () (random-char-in-range (range 32 127)))))
+
+(define (random-char/ascii)
+  (random-char-in-range (range 0 128)))
+(define (random-char/ascii-no-null)
+  (random-char-in-range (range 1 128)))
+(define (random-char/ascii-no-control)
+  (random-char-in-range (range 32 127)))
 
 
 
@@ -215,6 +231,12 @@
                     #:defaults ([number-type-e #'number-type]))
          (~optional (~seq #:int-type int-type-e:expr)
                     #:defaults ([int-type-e #'int-type]))
+         (~optional (~seq #:string-literal-value string-literal-value-e:expr)
+                    #:defaults ([string-literal-value-e
+                                 #'(random-string/ascii-no-nul)]))
+         (~optional (~seq #:int-literal int-literal-value-e:expr)
+                    #:defaults ([int-literal-value-e
+                                 #'(random-int)]))
          (~optional (~seq #:index-and-length-type index-and-length-type-e:expr))
          (~optional (~seq #:dictionary-key-type dictionary-key-type-e:expr))
          (~optional (~seq #:dictionary-value-type dictionary-value-type-e:expr))
@@ -309,8 +331,7 @@
                                    #:prop may-be-generated #f
                                    #:prop choice-weight 1]
                     [IntLiteral NumberLiteral ()
-                                ;; TODO - better random integer
-                                #:prop fresh (hash 'v (random 200000))]
+                                #:prop fresh (hash 'v int-literal-value-e)]
                     [Plus Expression ([l : Expression] [r : Expression])]
                     [Minus Expression ([l : Expression] [r : Expression])]
                     [Times Expression ([l : Expression] [r : Expression])]
@@ -398,8 +419,7 @@
                     component
                     [StringLiteral
                      Expression
-                     ;; TODO - better fresh string literals
-                     ([v = (random-string-literal)])
+                     ([v = string-literal-value-e])
                      #:prop choice-weight 1]
                     [StringAppend Expression ([l : Expression] [r : Expression])]
                     [StringLength Expression (Expression)])
