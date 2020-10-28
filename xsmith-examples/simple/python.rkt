@@ -536,11 +536,11 @@
 
 (define-xsmith-interface-functions
   [python-comp]
-  #:fuzzer-name python
+  #:fuzzer-name simple-python
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render python-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "# ~a" l)) lines)
                                          "\n")))
 
-(module+ main (python-command-line))
+(module+ main (simple-python-command-line))

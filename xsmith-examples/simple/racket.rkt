@@ -296,11 +296,11 @@
 
 (define-xsmith-interface-functions
   [racket-comp]
-  #:fuzzer-name racket
+  #:fuzzer-name simple-racket
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithSequence
   #:format-render racket-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format ";; ~a" l)) lines)
                                          "\n")))
 
-(module+ main (racket-command-line))
+(module+ main (simple-racket-command-line))

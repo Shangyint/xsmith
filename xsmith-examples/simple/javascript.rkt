@@ -235,11 +235,11 @@
 
 (define-xsmith-interface-functions
   [javascript-comp]
-  #:fuzzer-name javascript
+  #:fuzzer-name simple-javascript
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render javascript-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "// ~a" l)) lines)
                                          "\n")))
 
-(module+ main (javascript-command-line))
+(module+ main (simple-javascript-command-line))

@@ -323,11 +323,11 @@
 
 (define-xsmith-interface-functions
   [lua-comp]
-  #:fuzzer-name lua
+  #:fuzzer-name simple-lua
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render lua-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "-- ~a" l)) lines)
                                          "\n")))
 
-(module+ main (lua-command-line))
+(module+ main (simple-lua-command-line))
