@@ -162,7 +162,7 @@
                               (att-value 'xsmith_render-node (ast-child 'r n))
                               rparen))]
 
- [StringLiteral (λ (n) (text (format "\"~a\"" (ast-child 'v n))))]
+ [StringLiteral (λ (n) (text (format "~v" (ast-child 'v n))))]
  [StringAppend (binary-op-renderer (text "+"))]
  [StringLength (λ (n) (h-append lparen
                                 (att-value 'xsmith_render-node (ast-child 'Expression n))
