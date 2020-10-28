@@ -233,7 +233,7 @@
                     #:defaults ([int-type-e #'int-type]))
          (~optional (~seq #:string-literal-value string-literal-value-e:expr)
                     #:defaults ([string-literal-value-e
-                                 #'(random-string/ascii-no-null)]))
+                                 #'(random-string/ascii-no-control)]))
          (~optional (~seq #:int-literal-value int-literal-value-e:expr)
                     #:defaults ([int-literal-value-e
                                  #'(random-int)]))
