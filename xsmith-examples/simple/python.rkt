@@ -165,15 +165,15 @@
           (apply
            string-append
            (for/list ([c (string->list str)])
-             ;; What's a good cutoff here?  I'm not sure.
-             ;; But for arbitrary unicode, you can use \Uxxxxxxxx with hex digits.
              (define ci (char->integer c))
-             (if (< ci 500)
-                 (string c)
-                 (format "\\U~a" (~r #:base 16
-                                     #:min-width 8
-                                     #:pad-string "0"
-                                     ci))))))
+             (cond [(equal? c #\\) "\\\\"]
+                   [(equal? c #\") "\\"]
+                   [(< 31 ci 126) (string c)]
+                   ;; For arbitrary unicode, you can use \Uxxxxxxxx with hex digits.
+                   [else (format "\\U~a" (~r #:base 16
+                                             #:min-width 8
+                                             #:pad-string "0"
+                                             ci))]))))
   )
 
 
