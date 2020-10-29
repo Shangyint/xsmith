@@ -39,6 +39,18 @@
         1
         ))
 
+(define-syntax (random-expr stx)
+  (syntax-parse stx
+    [(_ e ...+)
+     (define/syntax-parse count
+       (datum->syntax #'here (length (syntax->list #'(e ...)))))
+     (define/syntax-parse (index ...)
+       (for/list ([e-stx (syntax->list #'(e ...))]
+                  [i (in-naturals)])
+         (datum->syntax #'here i)))
+     #'(match (random (add1 count))
+         [index e] ...)]))
+
 (define (biased-random-char)
   ;; Random-char very rarely generates ascii, which is more common.
   ;; More saliently, low-value characters are interned in Racket and
@@ -48,23 +60,23 @@
       (random-char)
       (random-char-in-range (range 0 128))))
 (define (biased-random-string)
-  (match (random 3)
-    [0 (random-string)]
-    [1 (random-string-from-char-producing-proc
-        (λ () (random-char-in-range (range 0 128))))]
-    [2 (random-string-from-char-producing-proc biased-random-char)]))
+  (random-expr
+   (random-string)
+   (random-string-from-char-producing-proc
+    (λ () (random-char-in-range (range 0 128))))
+   (random-string-from-char-producing-proc biased-random-char)))
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
   ;; I want more variety, like bigints.
-  (match (random 7)
-    [0 (random-int)]
-    [1 (+ (* (random-int) (random-int)) (random-int))]
-    [2 (+ (* (random-int) (random-int) (random-int)) (random-int))]
-    [3 (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))]
-    [4 (random-byte)]
-    [5 (random 10)]
-    [6 (random-ref interesting-integers)]
-    ))
+  (random-expr
+   (random-int)
+   (+ (* (random-int) (random-int)) (random-int))
+   (+ (* (random-int) (random-int) (random-int)) (random-int))
+   (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))
+   (random-byte)
+   (random 10)
+   (random-ref interesting-integers)
+   ))
 (define (biased-random-nat)
   (abs (biased-random-int)))
 (define (random-byte) (random 256))
