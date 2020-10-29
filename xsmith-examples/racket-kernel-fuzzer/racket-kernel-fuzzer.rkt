@@ -1,7 +1,7 @@
 #lang clotho
 
 (require
- xsmith
+ (except-in xsmith module)
  racr
  xsmith/racr-convenience
  xsmith/canned-components
@@ -695,6 +695,177 @@
 ;;;;; Rendering for basic expressions (IE add-basic-expression)
 ;;;;; Mostly this is from the simple/racket fuzzer.
 
+(define-syntax (define-quoted-and-pass-through stx)
+  ;; To be able to test that my submodule of wrappers compiles at compile time,
+  ;; rather than waiting until I compile a generated test.
+  (syntax-parse stx
+    [(_ name inner)
+     #'(begin
+         (define name 'inner)
+         inner)]))
+
+(define-quoted-and-pass-through wrapper-submodule
+  (module wrappers-and-helpers racket/base
+    (provide (all-defined-out))
+    (require
+     racket/match
+     racket/format
+     racket/string
+     )
+    (define-values (NE/)
+      (λ (arg1 . args)
+        (if (null? args)
+            (if (eq? arg1 0)
+                0
+                (/ arg1))
+            (apply / arg1 (map (λ (x) (if (eq? 0 x) 1 x)) args)))))
+    ;; TODO - add safe/NoException wrappers
+    (define-values (NE/atan-2)
+      (λ (x y)
+        (if (equal? x 0)
+            0
+            (if (equal? y 0)
+                0
+                (atan x y)))))
+    (define-values (NE/atan-1)
+      (λ (x)
+        (if (equal? x 0+1i)
+            0
+            (if (equal? x 0-1i)
+                0
+                (atan x)))))
+    (define (NE/angle x)
+      (if (equal? 0 x)
+          0
+          (angle x)))
+    (define (NE/bytes-ref bytes index)
+      (define l (bytes-length bytes))
+      (bytes-ref bytes (modulo index l)))
+    (define (NE/string-ref string index)
+      (define l (string-length string))
+      (string-ref string (modulo index l)))
+    (define (NE/bytes-set! bytes index new)
+      (define l (bytes-length bytes))
+      (bytes-set! bytes (modulo index l) new))
+    (define (NE/string-set! string index new)
+      (define l (string-length string))
+      (string-set! string (modulo index l) new))
+    (define (NE/seconds->date x)
+      (define (sd x)
+        ;; Don't use local time.
+        (seconds->date x #f))
+      ;; The range is apparently OS-dependent.  I binary searched the bounds on my machine, but that was probably not very useful.
+      ;; The range is -67768040609715604 to 67768036191701999 inclusive, at least in racket 7.6-bc.
+      ;(define min-second -67768040609715604)
+      ;(define max-second 67768036191701999)
+      ;; Hopefully these bounds should work for any setup, as it's only a few hundred years in either direction.
+      (define min-second -10000000000)
+      (define max-second 10000000000)
+      (cond [(< x min-second) (sd (modulo (truncate x) min-second))]
+            [(> x max-second) (sd (modulo (truncate x) max-second))]
+            [else (sd x)])
+      )
+    (define-values (safe-car)
+      (λ (list fallback)
+        (if (null? list)
+            fallback
+            (car list))))
+    (define-values (safe-cdr)
+      (λ (list fallback)
+        (if (null? list)
+            fallback
+            (cdr list))))
+    (define (NE/vector-ref vec index)
+      (vector-ref vec (modulo index (vector-length vec))))
+    (define-values (immutable-vector-set)
+      (λ (vec index-raw val)
+        (define-values (index) (modulo index-raw (vector-length vec)))
+        (vector->immutable-vector
+         (build-vector (vector-length vec)
+                       (λ (i) (if (equal? i index)
+                                  val
+                                  (vector-ref vec i)))))))
+    (define (NE/vector-set! vec index val)
+      (vector-set! vec (modulo index (vector-length vec)) val))
+
+    (define (my-format/hash-inner the-hash)
+      (define (hash-sort-lt l r)
+        (match (list l r)
+          [(list (? number?) (? number?)) (< l r)]
+          [(list (? string?) (? string?)) (string<? l r)]
+          [(list (? symbol?) (? symbol?)) (string<? (symbol->string l)
+                                                    (symbol->string r))]
+          [(list (? keyword?) (? keyword?)) (string<? (keyword->string l)
+                                                      (keyword->string r))]
+          [else (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
+      (string-join
+       (for/list ([k (sort (hash-keys the-hash) hash-sort-lt)])
+         (format "[~a . ~a]"
+                 (my-format k)
+                 (my-format (hash-ref the-hash k))))))
+    (define (format-round x)
+      (if (or (equal? x +inf.0)
+              (equal? x -inf.0)
+              (equal? x +nan.0))
+          x
+          (~a #:max-width +inf.0 (inexact->exact (round x)))))
+    (define (my-format val)
+      (define (mutable? x)
+        (not (immutable? x)))
+      (match val
+        [(list v ...) (format "(~a)" (string-join (map my-format v)))]
+        [(and (? immutable?) (vector v ...))
+         (format "#{vector-immutable ~a}" (string-join (map my-format v)))]
+        [(vector v ...)
+         (format "#{vector-mutable ~a}" (string-join (map my-format v)))]
+        [(and (? immutable?) (? hash?) (? hash-eq?))
+         (format "#{immutable-hasheq ~a}" (my-format/hash-inner val))]
+        [(and (? immutable?) (? hash?) (? hash-eqv?))
+         (format "#{immutable-hasheqv ~a}" (my-format/hash-inner val))]
+        [(and (? immutable?) (? hash?) (? hash-equal?))
+         (format "#{immutable-hashequal ~a}" (my-format/hash-inner val))]
+        [(and (? mutable?) (? hash?) (? hash-eq?))
+         (format "#{mutable-hasheq ~a}" (my-format/hash-inner val))]
+        [(and (? mutable?) (? hash?) (? hash-eqv?))
+         (format "#{mutable-hasheqv ~a}" (my-format/hash-inner val))]
+        [(and (? mutable?) (? hash?) (? hash-equal?))
+         (format "#{mutable-hashequal ~a}" (my-format/hash-inner val))]
+        [(and (? immutable?) (box v))
+         (format "#{immutable-box ~a}" (my-format v))]
+        [(and (? mutable?) (box v))
+         (format "#{mutable-box ~a}" (my-format v))]
+        [(? procedure?)
+         ;; Different versions of Racket can have different results for
+         ;; `object-name`, so let's just print all procedures equally.
+         (format "#<procedure>")]
+        [(and (? number?)
+              (? exact?)
+              (or (? integer?) (? rational?)))
+         (~a val)]
+        ;; For floating point numbers, let's round them to ameliorate minor
+        ;; differences...
+        [(? real?) (format-round val)]
+        ;; For complex numbers, let's round both parts.
+        [(? number?) (format "#{complex ~a ~a}"
+                             (format-round (real-part val))
+                             (format-round (imag-part val)))]
+        [(or (? void?)
+             (? string?)
+             (? bytes?)
+             (? symbol?)
+             (? keyword?)
+             #t #f
+             (? char?)
+             ;; Dates are structs, but they can only contain atomic data.
+             ;; So we don't need to worry about applying a specialized
+             ;; printer recursively.
+             (? date?)
+             )
+         (~v val)]))
+    (define (my-print x)
+      (println (my-format x)))
+    ))
+
 (add-property
  racket-comp
  render-node-info
@@ -704,166 +875,7 @@
     `(
       ;; I'm sick of trying to write wrappers in #lang kernel.
       ;; Let's use a submodule in racket/base instead.
-      (module wrappers-and-helpers racket/base
-        (provide (all-defined-out))
-        (require
-         racket/match
-         racket/format
-         racket/string
-         )
-        (define-values (NE/)
-          (λ (arg1 . args)
-            (if (null? args)
-                (if (eq? arg1 0)
-                    0
-                    (/ arg1))
-                (apply / arg1 (map (λ (x) (if (eq? 0 x) 1 x)) args)))))
-        ;; TODO - add safe/NoException wrappers
-        (define-values (NE/atan-2)
-          (λ (x y)
-            (if (equal? x 0)
-                0
-                (if (equal? y 0)
-                    0
-                    (atan x y)))))
-        (define-values (NE/atan-1)
-          (λ (x)
-            (if (equal? x 0+1i)
-                0
-                (if (equal? x 0-1i)
-                    0
-                    (atan x)))))
-        (define (NE/angle x)
-          (if (equal? 0 x)
-              0
-              (angle x)))
-        (define (NE/bytes-ref bytes index)
-          (define l (bytes-length bytes))
-          (bytes-ref bytes (modulo index l)))
-        (define (NE/string-ref string index)
-          (define l (string-length string))
-          (string-ref string (modulo index l)))
-        (define (NE/bytes-set! bytes index new)
-          (define l (bytes-length bytes))
-          (bytes-set! bytes (modulo index l) new))
-        (define (NE/string-set! string index new)
-          (define l (string-length string))
-          (string-set! string (modulo index l) new))
-        (define (NE/seconds->date x)
-          (define (sd x)
-            ;; Don't use local time.
-            (seconds->date x #f))
-          ;; The range is apparently OS-dependent.  I binary searched the bounds on my machine, but that was probably not very useful.
-          ;; The range is -67768040609715604 to 67768036191701999 inclusive, at least in racket 7.6-bc.
-          ;(define min-second -67768040609715604)
-          ;(define max-second 67768036191701999)
-          ;; Hopefully these bounds should work for any setup, as it's only a few hundred years in either direction.
-          (define min-second -10000000000)
-          (define max-second 10000000000)
-          (cond [(< x min-second) (sd (modulo (truncate x) min-second))]
-                [(> x max-second) (sd (modulo (truncate x) max-second))]
-                [else (sd x)])
-          )
-        (define-values (safe-car)
-          (λ (list fallback)
-            (if (null? list)
-                fallback
-                (car list))))
-        (define-values (safe-cdr)
-          (λ (list fallback)
-            (if (null? list)
-                fallback
-                (cdr list))))
-        (define (NE/vector-ref vec index)
-          (vector-ref vec (modulo index (vector-length vec))))
-        (define-values (immutable-vector-set)
-          (λ (vec index-raw val)
-            (define-values (index) (modulo index-raw (vector-length vec)))
-            (vector->immutable-vector
-             (build-vector (vector-length vec)
-                           (λ (i) (if (equal? i index)
-                                      val
-                                      (vector-ref vec i)))))))
-        (define (NE/vector-set! vec index val)
-          (vector-set! vec (modulo index (vector-length vec)) val))
-
-        (define (my-format/hash-inner the-hash)
-          (define (hash-sort-lt l r)
-            (match (list l r)
-              [(list (? number?) (? number?)) (< l r)]
-              [(list (? string?) (? string?)) (string<? l r)]
-              [(list (? symbol?) (? symbol?)) (string<? (symbol->string l)
-                                                        (symbol->string r))]
-              [(list (? keyword?) (? keyword?)) (string<? (keyword->string l)
-                                                          (keyword->string r))]
-              [else (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
-          (string-join
-           (for/list ([k (sort (hash-keys the-hash) hash-sort-lt)])
-             (format "[~a . ~a]"
-                     (my-format k)
-                     (my-format (hash-ref the-hash k))))))
-        (define (format-round x)
-          (if (or (equal? x +inf.0)
-                  (equal? x -inf.0)
-                  (equal? x +nan.0))
-              x
-              (~a #:max-width +inf.0 (inexact->exact (round x)))))
-        (define (my-format val)
-          (define (mutable? x)
-            (not (immutable? x)))
-          (match val
-            [(list v ...) (format "(~a)" (string-join (map my-format v)))]
-            [(and (? immutable?) (vector v ...))
-             (format "#{vector-immutable ~a}" (string-join (map my-format v)))]
-            [(vector v ...)
-             (format "#{vector-mutable ~a}" (string-join (map my-format v)))]
-            [(and (? immutable?) (? hash?) (? hash-eq?))
-             (format "#{immutable-hasheq ~a}" (my-format/hash-inner val))]
-            [(and (? immutable?) (? hash?) (? hash-eqv?))
-             (format "#{immutable-hasheqv ~a}" (my-format/hash-inner val))]
-            [(and (? immutable?) (? hash?) (? hash-equal?))
-             (format "#{immutable-hashequal ~a}" (my-format/hash-inner val))]
-            [(and (? mutable?) (? hash?) (? hash-eq?))
-             (format "#{mutable-hasheq ~a}" (my-format/hash-inner val))]
-            [(and (? mutable?) (? hash?) (? hash-eqv?))
-             (format "#{mutable-hasheqv ~a}" (my-format/hash-inner val))]
-            [(and (? mutable?) (? hash?) (? hash-equal?))
-             (format "#{mutable-hashequal ~a}" (my-format/hash-inner val))]
-            [(and (? immutable?) (box v))
-             (format "#{immutable-box ~a}" (my-format v))]
-            [(and (? mutable?) (box v))
-             (format "#{mutable-box ~a}" (my-format v))]
-            [(? procedure?)
-             ;; Different versions of Racket can have different results for
-             ;; `object-name`, so let's just print all procedures equally.
-             (format "#<procedure>")]
-            [(and (? number?)
-                  (? exact?)
-                  (or (? integer?) (? rational?)))
-             (~a val)]
-            ;; For floating point numbers, let's round them to ameliorate minor
-            ;; differences...
-            [(? real?) (format-round val)]
-            ;; For complex numbers, let's round both parts.
-            [(? number?) (format "#{complex ~a ~a}"
-                                 (format-round (real-part val))
-                                 (format-round (imag-part val)))]
-            [(or (? void?)
-                 (? string?)
-                 (? bytes?)
-                 (? symbol?)
-                 (? keyword?)
-                 #t #f
-                 (? char?)
-                 ;; Dates are structs, but they can only contain atomic data.
-                 ;; So we don't need to worry about applying a specialized
-                 ;; printer recursively.
-                 (? date?)
-                 )
-             (~v val)]))
-        (define (my-print x)
-          (println (my-format x)))
-        )
+      ,wrapper-submodule
       (#%require (submod "." wrappers-and-helpers))
       ,@(render-children 'definitions n)
       (define-values (program-result) ,(render-child 'ExpressionSequence n))
