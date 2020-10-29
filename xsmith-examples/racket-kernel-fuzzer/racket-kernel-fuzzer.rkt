@@ -71,7 +71,6 @@
   (random-expr
    (random-int)
    (+ (* (random-int) (random-int)) (random-int))
-   (+ (* (random-int) (random-int) (random-int)) (random-int))
    (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))
    (random-byte)
    (random 10)
