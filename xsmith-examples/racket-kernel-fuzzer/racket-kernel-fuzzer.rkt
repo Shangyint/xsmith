@@ -25,6 +25,20 @@
 (define (moreargs-default)
   (random 5))
 
+(define bc-max-fixnum (- (expt 2 62) 1))
+(define bc-min-fixnum (- (expt 2 62)))
+(define cs-max-fixnum (- (expt 2 60) 1))
+(define cs-min-fixnum (- (expt 2 60)))
+(define interesting-integers
+  (list bc-max-fixnum bc-min-fixnum cs-max-fixnum cs-min-fixnum
+        ;; are the smallest bignums interesting, or just the biggest fixnums?
+        (add1 bc-max-fixnum) (sub1 bc-min-fixnum)
+        (add1 cs-max-fixnum) (sub1 cs-min-fixnum)
+        0
+        -1
+        1
+        ))
+
 (define (biased-random-char)
   ;; Random-char very rarely generates ascii, which is more common.
   ;; More saliently, low-value characters are interned in Racket and
@@ -42,13 +56,14 @@
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
   ;; I want more variety, like bigints.
-  (match (random 6)
+  (match (random 7)
     [0 (random-int)]
     [1 (+ (* (random-int) (random-int)) (random-int))]
     [2 (+ (* (random-int) (random-int) (random-int)) (random-int))]
     [3 (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))]
-    [4 (random 255)]
+    [4 (random-byte)]
     [5 (random 10)]
+    [6 (random-ref interesting-integers)]
     ))
 (define (biased-random-nat)
   (abs (biased-random-int)))
