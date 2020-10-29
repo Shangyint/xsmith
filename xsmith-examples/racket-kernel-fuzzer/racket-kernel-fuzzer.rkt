@@ -740,7 +740,7 @@
                  ;; printer recursively.
                  (? date?)
                  )
-             (~a val)]))
+             (~v val)]))
         (define (my-print x)
           (println (my-format x)))
         )
