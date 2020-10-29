@@ -50,6 +50,15 @@
     [4 (random 255)]
     [5 (random 10)]
     ))
+(define (biased-random-nat)
+  (abs (biased-random-int)))
+(define (random-byte) (random 256))
+(define (random-byte-string-length) (random 30))
+(define (random-byte-string)
+  (bytes->immutable-bytes
+   (list->bytes
+    (for/list ([i (in-range (random-byte-string-length))])
+      (random-byte)))))
 
 (define-generic-type box-type ([type covariant]))
 (define bool (base-type 'bool #:leaf? #f))
@@ -59,12 +68,16 @@
 (define real (base-type 'real complex #:leaf? #f))
 (define rational (base-type 'rational real #:leaf? #f))
 (define int (base-type 'int rational #:leaf? #f))
-(define nat (base-type 'nat int #:leaf? #t))
+(define nat (base-type 'nat int #:leaf? #f))
+(define byte (base-type 'byte nat #:leaf? #t))
 
 (define char (base-type 'char bool))
 (define string (base-type 'string bool #:leaf? #f))
 (define mutable-string (base-type 'mutable-string string))
 (define immutable-string (base-type 'immutable-string string))
+(define bytes (base-type 'bytes bool #:leaf? #f))
+(define mutable-bytes (base-type 'mutable-bytes bytes))
+(define immutable-bytes (base-type 'immutable-bytes bytes))
 (define symbol (base-type 'symbol bool))
 (define keyword (base-type 'keyword bool))
 (define date (base-type 'date bool #:leaf? #f))
@@ -108,7 +121,7 @@
 
 (define-for-syntax (racr-ize-symbol sym)
   ;; Turn common racket identifiers into something RACR can deal with.
-  (define split-chars (string->list "-<>?!*+/=18"))
+  (define split-chars (string->list "-<>?!*+/=0123456789"))
 
   (define-values (parts-rev dividers-rev)
     (let ()
@@ -139,8 +152,18 @@
              ["/" "With"]
              ["?" "P"]
              ["!" "Bang"]
+             ["0" "Zero"]
              ["1" "One"]
+             ["2" "Two"]
+             ["3" "Three"]
+             ["4" "Four"]
+             ["5" "Five"]
+             ["6" "Six"]
+             ["7" "Seven"]
              ["8" "Eight"]
+             ["9" "Nine"]
+             ["224-" "TwoTwentyFour"]
+             ["256-" "TwoFiftySix"]
              ["*" "Star"]
              ["*?" "StarP"]
              ["*-" "Star"]
@@ -177,6 +200,71 @@
 (define-syntax-parser ag [(_ arg ...) #'(add-to-grammar racket-comp arg ...)])
 (define-syntax-parser ap [(_ arg ...) #'(add-property racket-comp arg ...)])
 
+(define-syntax-parser ag/single-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression (Expression)
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n) `(,(if NE? 'NE-name 'name)
+                             ,(render-child 'Expression n)))])])
+(define-syntax-parser Ectype
+  [(_ etype:expr)
+   #'(λ (n t) (hash 'Expression etype))])
+
+(define-syntax-parser ag/two-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression ([l : Expression]
+                                [r : Expression])
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n) `(,(if NE? 'NE-name 'name)
+                             ,(render-child 'l n)
+                             ,(render-child 'r n)))])])
+(define-syntax-parser E2ctype
+  [(_ etypel:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'r etyper))])
+
+(define-syntax-parser ag/three-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number)]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression ([l : Expression]
+                                [m : Expression]
+                                [r : Expression])
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info
+                    (λ (n) `(,(if NE? 'NE-name 'name)
+                             ,(render-child 'l n)
+                             ,(render-child 'm n)
+                             ,(render-child 'r n)))])])
+(define-syntax-parser E3ctype
+  [(_ etypel:expr etypem:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
 
 (ag
  [EmptyListLiteral Expression ()
@@ -189,6 +277,11 @@
                        #:prop type-info [mutable-string no-child-types]
                        #:prop render-node-info (λ (n)
                                                  `(string-copy ,(ast-child 'v n)))]
+ [MutableBytesLiteral Expression ([v = (random-byte-string)])
+                      #:prop choice-weight 1
+                      #:prop type-info [mutable-bytes no-child-types]
+                      #:prop render-node-info (λ (n)
+                                                `(bytes-copy ,(ast-child 'v n)))]
  [DateLiteral Expression ([v = (random-int)])
               #:prop choice-weight 1
               #:prop type-info [date* no-child-types]
@@ -206,13 +299,30 @@
                #:prop type-info [type no-child-types]
                #:prop render-node-info (λ (n) `(quote ,(ast-child 'v n)))])])
 (ag/atomic-literal IntLiteral int (biased-random-int))
+(ag/atomic-literal NatLiteral nat (biased-random-nat))
+(ag/atomic-literal ByteLiteral byte (random-byte))
 ;; TODO - rational, real, complex literals.  Also, be sure I'm sometimes generating +/- infinity and NAN.
 ;; TODO - maybe also bias generation to make some special values more common, such as size boundary or bignum boundary numbers, null our boundary characters, NAN, etc, to be more likely for them to collide in weird ways.
 (ag/atomic-literal CharLiteral char (biased-random-char))
 (ag/atomic-literal BoolLiteral exact-bool (random-bool))
 (ag/atomic-literal ImmutableStringLiteral immutable-string (biased-random-string))
+(ag/atomic-literal ImmutableBytesLiteral immutable-bytes (random-byte-string))
 (ag/atomic-literal SymbolLiteral symbol (string->symbol (biased-random-string)))
 (ag/atomic-literal KeywordLiteral keyword (string->keyword (biased-random-string)))
+
+;; Limit make-string length to a byte to prevent making ginormous strings.
+(ag/single-arg make-string #:racr-name MakeStringOne
+               #:type mutable-string
+               #:ctype (Ectype byte))
+(ag/two-arg make-string #:racr-name MakeStringTwo
+            #:type mutable-string
+            #:ctype (E2ctype byte char))
+(ag/single-arg make-bytes #:racr-name MakeBytesOne
+               #:type mutable-bytes
+               #:ctype (Ectype byte))
+(ag/two-arg make-bytes #:racr-name MakeBytesTwo
+            #:type mutable-bytes
+            #:ctype (E2ctype byte byte))
 
 (define-syntax-parser ag/variadic
   [(_ racket-name:id min-args:expr
@@ -248,8 +358,12 @@
 (ag/variadic append 0 #:type (immutable (list-type (fresh-type-variable))))
 (ag/variadic string 0 #:type string
              #:ctype (λ (n t) (hash 'minargs char 'moreargs char)))
+(ag/variadic bytes 0 #:type bytes
+             #:ctype (λ (n t) (hash 'minargs byte 'moreargs byte)))
 (ag/variadic string-append 0 #:type mutable-string
              #:ctype (λ (n t) (hash 'minargs string 'moreargs string)))
+(ag/variadic bytes-append 0 #:type mutable-bytes
+             #:ctype (λ (n t) (hash 'minargs bytes 'moreargs bytes)))
 
  ;; The numerical comparison operators require at least 1 argument.  I'm not sure why they don't accept 0 args -- eg. as a predicate that an empty list is sorted.
 (define-syntax-parser ag/number-compare
@@ -303,48 +417,17 @@
 (ag/string-compare StringCIEqual 'string-ci=?)
 (ag/string-compare StringCIGreaterThan 'string-ci>?)
 (ag/string-compare StringCIGreaterThanEqual 'string-ci>=?)
+(define-syntax-parser ag/bytes-compare
+  [(_ name:id symbol:expr)
+   #'(ag [name VariadicExpression ()
+               #:prop fresh (hash 'minargs 1)
+               #:prop type-info
+               [bool (λ (n t) (hash 'minargs bytes 'moreargs bytes))]
+               #:prop render-node-info (render-variadic symbol)])])
+(ag/bytes-compare BytesLessThan 'bytes<?)
+(ag/bytes-compare BytesEqual 'bytes=?)
+(ag/bytes-compare BytesGreaterThan 'bytes>?)
 
-(define-syntax-parser ag/single-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
-      ...)
-   #'(ag [racr-name Expression (Expression)
-                    #:prop type-info [type ctype]
-                    #:prop render-node-info
-                    (λ (n) `(,(if NE? 'NE-name 'name)
-                             ,(render-child 'Expression n)))])])
-(define-syntax-parser Ectype
-  [(_ etype:expr)
-   #'(λ (n t) (hash 'Expression etype))])
-
-(define-syntax-parser ag/two-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
-      ...)
-   #'(ag [racr-name Expression ([l : Expression]
-                                [r : Expression])
-                    #:prop type-info [type ctype]
-                    #:prop render-node-info
-                    (λ (n) `(,(if NE? 'NE-name 'name)
-                             ,(render-child 'l n)
-                             ,(render-child 'r n)))])])
-(define-syntax-parser E2ctype
-  [(_ etypel:expr etyper:expr)
-   #'(λ (n t) (hash 'l etypel 'r etyper))])
 
 (ag/single-arg abs #:type real)
 (ag/single-arg cos #:type number #:ctype (Ectype real))
@@ -386,6 +469,8 @@
 (ag/single-arg exact-positive-integer? #:type bool #:ctype (Ectype number))
 (ag/single-arg exact-nonnegative-integer? #:type bool #:ctype (Ectype number))
 (ag/single-arg inexact-real? #:type bool #:ctype (Ectype number))
+(ag/single-arg positive? #:type bool #:ctype (Ectype real))
+(ag/single-arg negative? #:type bool #:ctype (Ectype real))
 (ag/single-arg exact->inexact #:type number)
 (ag/single-arg inexact->exact #:type number)
 
@@ -426,9 +511,25 @@
 (ag/char-pred char-whitespace?)
 
 (ag/single-arg string-length #:type int #:ctype (Ectype string))
+(ag/single-arg bytes-length #:type int #:ctype (Ectype bytes))
 (ag/single-arg string-utf-8-length
                #:type int #:ctype (Ectype string))
 (ag/single-arg string-copy #:type mutable-string #:ctype (Ectype string))
+(ag/single-arg bytes-copy #:type mutable-bytes #:ctype (Ectype bytes))
+
+(ag/single-arg sha1-bytes #:type bytes #:ctype (Ectype bytes))
+(ag/single-arg sha224-bytes #:type bytes #:ctype (Ectype bytes))
+(ag/single-arg sha256-bytes #:type bytes #:ctype (Ectype bytes))
+
+(ag/two-arg bytes-ref #:NE-name NE/bytes-ref #:type byte #:ctype (E2ctype bytes int))
+(ag/two-arg string-ref #:NE-name NE/string-ref #:type char #:ctype (E2ctype string int))
+;; For most languages I would probably need read/write of mutable strings to be annotated with effect-read-mutable-container (or write), but because Racket guarantees order of evaluation, I'm not going to worry about it here.
+(ag/three-arg bytes-set! #:NE-name NE/bytes-set!
+              #:type void-type
+              #:ctype (E3ctype bytes int byte))
+(ag/three-arg string-set! #:NE-name NE/string-set!
+              #:type void-type
+              #:ctype (E3ctype string int char))
 
 ;; String casing and normalization functions rely on unicode data.  This has not all been implemented properly in Racket BC, and at this point a fix for BC is not going to happen.
 ;(ag/single-arg string-downcase #:type string)
@@ -452,6 +553,7 @@
                  #:defaults ([NE-name #'name])))
    #'(ag/single-arg name #:type to #:ctype (Ectype from) #:NE-name NE-name)])
 (ag/converter char->integer char int)
+(ag/converter number->string number string)
 (ag/converter string->symbol string symbol)
 (ag/converter string->uninterned-symbol string symbol)
 (ag/converter string->unreadable-symbol string symbol)
@@ -459,7 +561,12 @@
 (ag/converter string->keyword string keyword)
 (ag/converter keyword->string keyword string)
 (ag/converter string->list string (immutable (list-type char)))
+(ag/converter bytes->list bytes (immutable (list-type byte)))
+(ag/converter list->string (immutable (list-type char)) string)
+(ag/converter list->bytes (immutable (list-type byte)) bytes)
+(ag/converter string->bytes/utf-8 string bytes)
 (ag/converter string->immutable-string string immutable-string)
+(ag/converter bytes->immutable-bytes bytes immutable-bytes)
 ;; TODO - should be real instead of int
 ;; TODO - needs a second boolean arg for whether it's local time (the default #t is local) -- or maybe I should always use UTC?
 (ag/converter seconds->date real date* #:NE-name NE/seconds->date)
@@ -630,6 +737,18 @@
           (if (equal? 0 x)
               0
               (angle x)))
+        (define (NE/bytes-ref bytes index)
+          (define l (bytes-length bytes))
+          (bytes-ref bytes (modulo index l)))
+        (define (NE/string-ref string index)
+          (define l (string-length string))
+          (string-ref string (modulo index l)))
+        (define (NE/bytes-set! bytes index new)
+          (define l (bytes-length bytes))
+          (bytes-set! bytes (modulo index l) new))
+        (define (NE/string-set! string index new)
+          (define l (string-length string))
+          (string-set! string (modulo index l) new))
         (define (NE/seconds->date x)
           (define (sd x)
             ;; Don't use local time.
@@ -731,6 +850,7 @@
                                  (format-round (imag-part val)))]
             [(or (? void?)
                  (? string?)
+                 (? bytes?)
                  (? symbol?)
                  (? keyword?)
                  #t #f
@@ -893,6 +1013,7 @@
    (λ()int)
    (λ()char)
    (λ()string)
+   (λ()bytes)
    (λ()symbol)
    (λ()keyword)
    (λ() (immutable (list-type (fresh-type-variable))))
