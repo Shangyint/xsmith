@@ -526,10 +526,10 @@
 ;; For most languages I would probably need read/write of mutable strings to be annotated with effect-read-mutable-container (or write), but because Racket guarantees order of evaluation, I'm not going to worry about it here.
 (ag/three-arg bytes-set! #:NE-name NE/bytes-set!
               #:type void-type
-              #:ctype (E3ctype bytes int byte))
+              #:ctype (E3ctype mutable-bytes int byte))
 (ag/three-arg string-set! #:NE-name NE/string-set!
               #:type void-type
-              #:ctype (E3ctype string int char))
+              #:ctype (E3ctype mutable-string int char))
 
 ;; String casing and normalization functions rely on unicode data.  This has not all been implemented properly in Racket BC, and at this point a fix for BC is not going to happen.
 ;(ag/single-arg string-downcase #:type string)
