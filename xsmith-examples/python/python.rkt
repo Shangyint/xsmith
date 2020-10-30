@@ -518,7 +518,7 @@
 ;; TODO - enumerate()
 ;; TODO - eval()
 ;; TODO - exec()
-(ag/two-arg filter
+#;(ag/two-arg filter
             #:type (immutable (sequence-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
@@ -556,7 +556,8 @@
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
 ;; I could define multiple instances, though.
-(ag/two-arg map
+;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
+#;(ag/two-arg map
             #:type (immutable (sequence-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
