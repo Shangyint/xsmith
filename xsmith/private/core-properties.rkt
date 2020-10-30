@@ -1720,6 +1720,10 @@ The second arm is a function that takes the type that the node has been assigned
              (define my-type (att-value 'xsmith_type node))
              (define my-type->child-type-dict
                #,(dict-ref node-child-dict-funcs n))
+             (when (not (procedure? my-type->child-type-dict))
+               (error 'type-info "bad value for right side of type-info for node type ~v, expected procedure (-> node type type-hash), got ~v"
+                      (ast-node-type node)
+                      my-type->child-type-dict))
              (define child-types
                (my-type->child-type-dict node my-type))
              (when (not (dict? child-types))
