@@ -34,6 +34,11 @@
 (define byte-string-type (base-type 'btye-string))
 (define tuple-max-length 6)
 (define-generic-type sequence-type ([type covariant]))
+(define-generic-type iterable-type ([type covariant]))
+(define (fresh-iterable inner)
+  (fresh-type-variable
+   (mutable (iterable-type inner))
+   (immutable (iterable-type inner))))
 (define (fresh-sequence inner)
   (fresh-type-variable
    (mutable (sequence-type inner))
@@ -294,19 +299,68 @@
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
 
- [SequenceToImmutableSequence Expression ([seq : Expression])
+ [ISequenceToIterable Expression ([Expression])
+                      #:prop depth-increase 0
+                      #:prop wont-over-deepen #t
+                      #:prop type-info
+                      [(immutable (iterable-type (fresh-type-variable)))
+                       (λ (n t)
+                         (define inner (fresh-type-variable))
+                         (unify! t (immutable (iterable-type inner)))
+                         (hash 'Expression (immutable (sequence-type inner))))]
+                      #:prop render-node-info pass-through-render]
+ [MSequenceToIterable Expression ([Expression])
+                      #:prop depth-increase 0
+                      #:prop wont-over-deepen #t
+                      #:prop type-info
+                      [(mutable (iterable-type (fresh-type-variable)))
+                       (λ (n t)
+                         (define inner (fresh-type-variable))
+                         (unify! t (mutable (iterable-type inner)))
+                         (hash 'Expression (mutable (sequence-type inner))))]
+                      #:prop render-node-info pass-through-render]
+ [IterableToImmutableSequence Expression (Expression)
                               #:prop depth-increase 0
                               #:prop wont-over-deepen #t
                               #:prop type-info
                               [(immutable (sequence-type (fresh-type-variable)))
                                (λ (n t)
                                  (define inner (fresh-type-variable))
-                                 (unify! (immutable (sequence-type inner)) t)
-                                 (hash 'seq (fresh-sequence inner)))]
+                                 (unify! t (immutable (sequence-type inner)))
+                                 (hash 'Expression (fresh-iterable inner)))]
                               #:prop render-node-info
-                              (λ (n) (h-append (text "tuple(")
-                                               ($xsmith_render-node (ast-child 'seq n))
-                                               (text ")")))]
+                              (λ (n) (h-append
+                                      (text "tuple(")
+                                      ($xsmith_render-node (ast-child 'Expression n))
+                                      (text ")")))]
+ [SequenceToImmutableSequence Expression (Expression)
+                              #:prop depth-increase 0
+                              #:prop wont-over-deepen #t
+                              #:prop type-info
+                              [(immutable (sequence-type (fresh-type-variable)))
+                               (λ (n t)
+                                 (define inner (fresh-type-variable))
+                                 (unify! t (immutable (sequence-type inner)))
+                                 (hash 'Expression (fresh-sequence inner)))]
+                              #:prop render-node-info
+                              (λ (n) (h-append
+                                      (text "tuple(")
+                                      ($xsmith_render-node (ast-child 'Expression n))
+                                      (text ")")))]
+ [IterableToMutableSequence Expression (Expression)
+                            #:prop depth-increase 0
+                            #:prop wont-over-deepen #t
+                            #:prop type-info
+                            [(mutable (sequence-type (fresh-type-variable)))
+                             (λ (n t)
+                               (define inner (fresh-type-variable))
+                               (unify! t (mutable (sequence-type inner)))
+                               (hash 'Expression (fresh-iterable inner)))]
+                            #:prop render-node-info
+                            (λ (n) (h-append
+                                    (text "list(")
+                                    ($xsmith_render-node (ast-child 'Expression n))
+                                    (text ")")))]
  [MutableArrayToSequence Expression (Expression)
                          #:prop depth-increase 0
                          #:prop wont-over-deepen #t
@@ -314,7 +368,7 @@
                          [(mutable (sequence-type (fresh-type-variable)))
                           (λ (n t)
                             (define inner (fresh-type-variable))
-                            (unify! (mutable (sequence-type inner)) t)
+                            (unify! t (mutable (sequence-type inner)))
                             (hash 'Expression (mutable (array-type inner))))]
                          #:prop render-node-info pass-through-render]
  [DictKeys Expression (Expression)
@@ -518,13 +572,13 @@
 ;; TODO - enumerate()
 ;; TODO - eval()
 ;; TODO - exec()
-#;(ag/two-arg filter
-            #:type (immutable (sequence-type (fresh-type-variable)))
+(ag/two-arg filter
+            #:type (immutable (iterable-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-array (immutable (sequence-type arg-elem)))
+                      (define return-array (immutable (iterable-type arg-elem)))
                       (unify! t return-array)
-                      (define arg-array (fresh-sequence arg-elem))
+                      (define arg-array (fresh-iterable arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
                             'r arg-array)))
@@ -551,33 +605,33 @@
                #:ctype (λ (n t)
                          (define inner (fresh-type-variable))
                          (unify! (mutable (array-type inner)) t)
-                         (hash 'Expression (fresh-sequence inner))))
+                         (hash 'Expression (fresh-iterable inner))))
 ;; TODO - locals()
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
 ;; I could define multiple instances, though.
 ;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
-#;(ag/two-arg map
-            #:type (immutable (sequence-type (fresh-type-variable)))
+(ag/two-arg map
+            #:type (immutable (iterable-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-array (immutable (sequence-type return-elem)))
+                      (define return-array (immutable (iterable-type return-elem)))
                       (unify! t return-array)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-sequence arg-elem))
+                      (define arg-array (fresh-iterable arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
 (ag/two-arg max #:NE-name NE_max
             ;; with fallback for when it gets an empty sequence
             #:type (fresh-comparable-type)
-            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
+            #:ctype (λ (n t) (hash 'l (fresh-iterable t)
                                    'r t)))
 ;; TODO - memoryview()
 (ag/two-arg min #:NE-name NE_min
             ;; with fallback for when it gets an empty sequence
             #:type (fresh-comparable-type)
-            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
+            #:ctype (λ (n t) (hash 'l (fresh-iterable t)
                                    'r t)))
 ;; TODO - next()
 ;; TODO - object()
@@ -596,12 +650,12 @@
 ;; TODO - property()
 ;; TODO - range()
 ;; TODO - repr()
-(ag/single-arg reversed #:type (immutable (sequence-type (fresh-type-variable))))
+(ag/single-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
 (ag/single-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
 ;; TODO - setattr()
 ;; TODO - slice()
-(ag/single-arg sorted #:type (immutable (sequence-type (fresh-comparable-type))))
+(ag/single-arg sorted #:type (immutable (iterable-type (fresh-comparable-type))))
 ;; TODO - staticmethod()
 ;; TODO - str()
 ;; TODO - sum()
