@@ -249,6 +249,19 @@
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
 
+ [SequenceToImmutableSequence Expression ([seq : Expression])
+                              #:prop depth-increase 0
+                              #:prop wont-over-deepen #t
+                              #:prop type-info
+                              [(immutable (sequence-type (fresh-type-variable)))
+                               (λ (n t)
+                                 (define inner (fresh-type-variable))
+                                 (unify! (immutable (sequence-type inner)) t)
+                                 (hash 'seq (fresh-sequence inner)))]
+                              #:prop render-node-info
+                              (λ (n) (h-append (text "tuple(")
+                                               ($xsmith_render-node (ast-child 'seq n))
+                                               (text ")")))]
  [MutableArrayToSequence Expression ([arr : Expression])
                          #:prop depth-increase 0
                          #:prop wont-over-deepen #t
