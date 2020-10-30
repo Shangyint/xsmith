@@ -557,20 +557,21 @@
               #:type void-type
               #:ctype (E3ctype mutable-string int char))
 
-(ag/single-arg string-downcase #:type string)
-(ag/single-arg string-foldcase #:type string)
+;; It seems to be inconsistent whether these return mutable or immutable strings.
+(ag/single-arg string-downcase #:type immutable-string #:ctype (Ectype string))
+(ag/single-arg string-foldcase #:type immutable-string #:ctype (Ectype string))
 ;; String titlecase is buggy in RacketBC, but the fix is just to use CS instead, so I'm commenting it out of the fuzzer so I stop getting a deluge of string-titlecase bug reports.
-;(ag/single-arg string-titlecase #:type string)
-(ag/single-arg string-upcase #:type string)
+;(ag/single-arg string-titlecase #:type immutable-string #:ctype (Ectype string))
+(ag/single-arg string-upcase #:type immutable-string #:ctype (Ectype string))
 
 (ag/single-arg string-normalize-nfc
-               #:type mutable-string #:ctype (Ectype string))
+               #:type immutable-string #:ctype (Ectype string))
 (ag/single-arg string-normalize-nfd
-               #:type mutable-string #:ctype (Ectype string))
+               #:type immutable-string #:ctype (Ectype string))
 (ag/single-arg string-normalize-nfkc
-               #:type mutable-string #:ctype (Ectype string))
+               #:type immutable-string #:ctype (Ectype string))
 (ag/single-arg string-normalize-nfkd
-               #:type mutable-string #:ctype (Ectype string))
+               #:type immutable-string #:ctype (Ectype string))
 
 (define-syntax-parser ag/converter
   [(_ name:id from:expr to:expr
