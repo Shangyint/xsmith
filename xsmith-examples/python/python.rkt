@@ -393,10 +393,12 @@
 (ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
 ;; TODO - ord() -- need to add a character type to the type system, also switch chr() to use it.
-(ag/two-arg pow #:racr-name PowTwo
+;; The pow function can take a long time and a lot of memory
+;; (IE enough to hang the process) when given very large numbers...
+#;(ag/two-arg pow #:racr-name PowTwo
             #:type int-type
             #:ctype (E2ctype int-type int-type))
-(ag/three-arg pow #:racr-name PowThree
+#;(ag/three-arg pow #:racr-name PowThree
               #:type int-type
               #:ctype (E3ctype int-type int-type int-type))
 ;; TODO - print()
