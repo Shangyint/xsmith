@@ -565,11 +565,17 @@
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
-(ag/single-arg max #:type (fresh-comparable-type)
-               #:ctype (λ (n t) (hash 'Expression (fresh-sequence t))))
+(ag/two-arg max #:NE-name NE_max
+            ;; with fallback for when it gets an empty sequence
+            #:type (fresh-comparable-type)
+            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
+                                   'r t)))
 ;; TODO - memoryview()
-(ag/single-arg min #:type (fresh-comparable-type)
-               #:ctype (λ (n t) (hash 'Expression (fresh-sequence t))))
+(ag/two-arg min #:NE-name NE_min
+            ;; with fallback for when it gets an empty sequence
+            #:type (fresh-comparable-type)
+            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
+                                   'r t)))
 ;; TODO - next()
 ;; TODO - object()
 (ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
@@ -614,6 +620,16 @@ def NE_ord(x):
     return 0
   else:
     return ord(x[0])
+def NE_max(seq, fallback):
+  if 0 == len(seq):
+    return fallback
+  else:
+    return max(seq)
+def NE_min(seq, fallback):
+  if 0 == len(seq):
+    return fallback
+  else:
+    return min(seq)
 def NE_divmod(x,y):
   if 0 == y:
     return (x,y)
