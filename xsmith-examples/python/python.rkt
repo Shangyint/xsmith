@@ -38,6 +38,15 @@
   (fresh-type-variable
    (mutable (sequence-type inner))
    (immutable (sequence-type inner))))
+(define (fresh-comparable-type)
+  ;; TODO - lots of things are comparable (eg. lt/gt work on them) in python,
+  ;; but I'm not sure which ones I should include for fuzzing.
+  (fresh-type-variable real-type
+                       string-type
+                       byte-string-type
+                       char-type
+                       bool-type
+                       ))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -338,8 +347,7 @@
  [GreaterThan Expression ([l : Expression] [r : Expression])])
 (define numeric-bin-op-subtype (λ (n t) (hash 'l t 'r t)))
 (define (comparison-child-types n t)
-  ;; TODO - which types does python allow to be compared?
-  (define ct (fresh-type-variable real-type string-type bool-type))
+  (define ct (fresh-comparable-type))
   (hash 'l ct 'r ct))
 (add-property
  python-comp type-info
