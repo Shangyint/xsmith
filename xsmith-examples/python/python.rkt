@@ -27,6 +27,11 @@
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define byte-string-type (base-type 'btye-string))
 (define tuple-max-length 6)
+(define-generic-type sequence-type ([type covariant]))
+(define (fresh-sequence inner)
+  (fresh-type-variable
+   (mutable (sequence-type inner))
+   (immutable (sequence-type inner))))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -243,6 +248,39 @@
                  #:prop render-node-info
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
+
+ [MutableArrayToSequence Expression ([arr : Expression])
+                         #:prop depth-increase 0
+                         #:prop type-info
+                         [(mutable (sequence-type (fresh-type-variable)))
+                          (λ (n t)
+                            (define inner (fresh-type-variable))
+                            (unify! (mutable (sequence-type inner)) t)
+                            (hash 'arr (mutable (array-type inner))))]
+                         #:prop render-node-info
+                         (λ (n) ($xsmith_render-node (ast-child 'arr)))]
+ [SequenceToMutableArray Expression ([seq : Expression])
+                         #:prop type-info
+                         [(mutable (array-type (fresh-type-variable)))
+                          (λ (n t)
+                            (define inner (fresh-type-variable))
+                            (unify! (mutable (array-type inner)) t)
+                            (hash 'seq (fresh-sequence inner)))]
+                         #:prop render-node-info
+                         (λ (n) (h-append (text "list(")
+                                          ($xsmith_render-node (ast-child 'seq n))
+                                          (text ")")))]
+ [DictKeys Expression ([dict : Expression])
+           #:prop type-info
+           ;; I'm not sure about the mutability of this...
+           [(immutable (sequence-type (dictionary-key-type)))
+            (λ (n t)
+              (define kt (dictionary-key-type))
+              (unify! (immutable (sequence-type kt)) t)
+              (hash 'dict (mutable (dictionary-type kt (dictionary-value-type)))))]
+           #:prop render-node-info
+           (λ (n) (h-append ($xsmith_render-node (ast-child 'dict n))
+                            (text ".keys()")))]
  )
 
 (define (render-let varname rhs body)
@@ -426,16 +464,14 @@
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
 ;; I could define multiple instances, though.
-;; Note that this accepts and returns an iterable, not an array!
-;; But for now I'll just use lists instead with a wrapper.
-(ag/two-arg listmap
-            #:type (mutable (array-type (fresh-type-variable)))
+(ag/two-arg map
+            #:type (immutable (sequence-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-array (mutable (array-type return-elem)))
+                      (define return-array (immutable (sequence-type return-elem)))
                       (unify! t return-array)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (mutable (array-type arg-elem)))
+                      (define arg-array (fresh-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
@@ -486,8 +522,6 @@ def NE_divmod(x,y):
     return (x,y)
   else:
     return divmod(x,y)
-def listmap(f, ls):
-  return list(map(f, ls))
 def list_safe_reference(array, index, fallback):
   if not (len(array) == 0):
     return array[index % len(array)]
