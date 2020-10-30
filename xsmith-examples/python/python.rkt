@@ -422,11 +422,11 @@
   "
 FAKEBLOCK = True
 def safe_divide(a,b):
-  a if (b == 0) else (a / b)
+  return a if (b == 0) else (a / b)
 def NE_chr(x):
-  chr(x % 0x10FFFF)
+  return chr(abs(x) % 0x10FFFF)
 def listmap(f, ls):
-  list(map(f, ls))
+  return list(map(f, ls))
 def list_safe_reference(array, index, fallback):
   if not (len(array) == 0):
     return array[index % len(array)]
