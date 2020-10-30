@@ -212,23 +212,29 @@
   (λ (n) `(vector-immutable ,@(render-children 'expressions n)))]
  [MutableArraySafeReference
   (λ (n)
-    (define array-rendered (render-child 'array n))
-    `(vector-ref ,array-rendered
-                 (modulo ,(render-child 'index n)
-                         (vector-length ,array-rendered))))]
+    `(let ([vec ,(render-child 'array n)])
+       (if (eq? 0 (vector-length vec))
+           ,(render-child 'fallback n)
+           (vector-ref vec
+                       (modulo ,(render-child 'index n)
+                               (vector-length vec))))))]
  [ImmutableArraySafeReference
   (λ (n)
     `(let ([vec ,(render-child 'array n)])
-       (vector-ref vec
-                   (modulo ,(render-child 'index n)
-                           (vector-length vec)))))]
+       (if (eq? 0 (vector-length vec))
+           ,(render-child 'fallback n)
+           (vector-ref vec
+                       (modulo ,(render-child 'index n)
+                               (vector-length vec))))))]
  [MutableArraySafeAssignmentExpression
   (λ (n)
-    (define array-rendered (render-child 'array n))
-    `(vector-set! ,array-rendered
-                  (modulo ,(render-child 'index n)
-                          (vector-length ,array-rendered))
-                  ,(render-child 'newvalue n)))]
+    `(let ([vec ,(render-child 'array n)])
+       (if (eq? 0 (vector-length vec))
+           (void)
+           (vector-set! vec
+                        (modulo ,(render-child 'index n)
+                                (vector-length vec))
+                        ,(render-child 'newvalue n)))))]
  [ImmutableArraySafeSet
   (λ (n)
     `(immutable-vector-set ,(render-child 'array n)

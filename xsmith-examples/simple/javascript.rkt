@@ -48,6 +48,26 @@
   (apply h-append
          (apply-infix (h-append comma space)
                       doc-list)))
+(define header-definitions-block
+  "
+safe_divide = function(a,b){return b == 0 ? a : a / b}
+array_safe_reference = function(array, index, fallback){
+  if (array.length == 0) {
+    return fallback;
+  } else {
+    return array[index % array.length];
+  }
+}
+array_safe_assignment = function(array, index, newvalue){
+  if (array.length == 0) {
+    return;
+  } else {
+    array[index % array.length] = newvalue
+    return;
+  }
+}
+
+")
 
 (add-property
  javascript-comp
@@ -57,7 +77,7 @@
   (λ (n)
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
-     (text "safe_divide = function(a,b){return b == 0 ? a : a / b}")
+     (text header-definitions-block)
      (vb-concat
       (list*
        (text "")
@@ -176,24 +196,22 @@
                    rbracket))]
  [MutableArraySafeReference
   (λ (n)
-    (define array-rendered (att-value 'xsmith_render-node (ast-child 'array n)))
-    (h-append array-rendered
-              lbracket
+    (h-append (text "array_safe_reference(")
+              (att-value 'xsmith_render-node (ast-child 'array n))
+              (text ", ")
               (att-value 'xsmith_render-node (ast-child 'index n))
-              space (text "%") space
-              array-rendered (text ".length")
-              rbracket))]
+              (text ", ")
+              (att-value 'xsmith_render-node (ast-child 'fallback n))
+              (text ")")))]
  [MutableArraySafeAssignmentStatement
   (λ (n)
-    (define array-rendered (att-value 'xsmith_render-node (ast-child 'array n)))
-    (h-append array-rendered
-              lbracket
+    (h-append (text "array_safe_assignment(")
+              (att-value 'xsmith_render-node (ast-child 'array n))
+              (text ", ")
               (att-value 'xsmith_render-node (ast-child 'index n))
-              space (text "%") space
-              array-rendered (text ".length")
-              rbracket
-              space equals space (att-value 'xsmith_render-node (ast-child 'newvalue n))
-              semi))]
+              (text ", ")
+              (att-value 'xsmith_render-node (ast-child 'newvalue n))
+              (text ")")))]
 
  [MutableStructuralRecordLiteral
   (λ (n)

@@ -104,6 +104,30 @@
                                            #:pad-string "0"
                                            b)))))))
 
+(define header-definitions-block
+  "
+modulo = function(a, b) return a - math.floor(a/b)*b end
+safe_divide = function(a, b) return (b == 0) and a or (a / b) end
+function mutable_array_safe_reference(array, index, fallback)
+  if (#array == 0) then
+    return fallback
+  else
+    return array[modulo(index, #array) + 1]
+  end
+end
+function mutable_array_safe_assignment(array, index, newvalue)
+  if (#array == 0) then
+    return
+  else
+    array[modulo(index, #array) + 1] = newvalue
+    return
+  end
+end
+
+expression_statement_dummy_var = 0;
+
+")
+
 (add-property
  lua-comp
  render-node-info
@@ -115,9 +139,7 @@
      ;; TODO - this definition maybe needs to change based on lua version.  Is there a way to do conditional evaluation based on which lua implementation I'm in?
      ;; This modulo definition is from the Lua reference manual:
      ;; http://www.lua.org/manual/5.2/manual.html#3.4.1
-     (text "modulo = function(a, b) return a - math.floor(a/b)*b end")
-     (text "safe_divide = function(a, b) return (b == 0) and a or (a / b) end")
-     (text "expression_statement_dummy_var = 0;")
+     (text header-definitions-block)
      (vb-concat
       (list*
        (text "")
@@ -260,27 +282,22 @@
  [MutableArraySafeReference
   ;; Lua's array index should start at 1.  And we should define a modulus function, one of the many... frustrating parts of lua is that there wasn't a built-in modulus operator until recently.  So to fuzz older versions we need to define a function for it.
   (λ (n)
-    (define array-rendered ($xsmith_render-node (ast-child 'array n)))
-    (lua-render-let 'array array-rendered
-                    (h-append (text "array")
-                              lbracket (text "modulo") lparen
-                              ($xsmith_render-node (ast-child 'index n))
-                              comma space (text "#") (text "array")
-                              rparen (text " + 1") rbracket)))]
+    (h-append (text "mutable_array_safe_reference(")
+              ($xsmith_render-node (ast-child 'array n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'fallback n))
+              (text ")")))]
  [MutableArraySafeAssignmentStatement
   (λ (n)
-    (define array-rendered ($xsmith_render-node (ast-child 'array n)))
-    (h-append (text "expression_statement_dummy_var = ")
-              (lua-render-let-return-void
-               'array array-rendered
-               (h-append (text "array")
-                         lbracket (text "modulo") lparen
-                         ($xsmith_render-node (ast-child 'index n))
-                         comma space (text "#") (text "array")
-                         rparen (text " + 1") rbracket
-                         space equals space
-                         ($xsmith_render-node (ast-child 'newvalue n)))))
-    )]
+    (h-append (text "mutable_array_safe_assignment(")
+              ($xsmith_render-node (ast-child 'array n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'newvalue n))
+              (text ")")))]
 
  [MutableStructuralRecordLiteral
   (λ (n)

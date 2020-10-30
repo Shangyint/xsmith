@@ -224,6 +224,23 @@
                                              #:pad-string "0"
                                              c))])))))
 
+(define header-definitions-block
+  "
+FAKEBLOCK = True
+def safe_divide(a,b):
+  a if (b == 0) else (a / b)
+def list_safe_reference(array, index, fallback):
+  if not (len(array) == 0):
+    return array[index % len(array)]
+  else:
+    return fallback
+def list_safe_assignment(array, index, newvalue):
+  if not (len(array) == 0):
+    array[index % len(array)] = newvalue
+def dict_safe_assignment(dict, index, newvalue):
+  if not (len(dict) == 0):
+    dict[index % len(dict.keys())] = newvalue
+")
 
 ;;;; Render nodes from add-basic-statements/expressions
 (add-property
@@ -234,8 +251,7 @@
   (λ (n)
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
-     (text "FAKEBLOCK = True")
-     (text "safe_divide = lambda a, b: a if (b == 0) else (a / b)")
+     (text header-definitions-block)
      (vb-concat
       (list*
        (text "")
@@ -432,27 +448,22 @@
                    rbracket))]
  [MutableArraySafeReference
   (λ (n)
-    (define array-var (text (fresh-var-name "arr_")))
-    (render-let array-var
-                ($xsmith_render-node (ast-child 'array n))
-                (h-append array-var
-                          lbracket
-                          ($xsmith_render-node (ast-child 'index n))
-                          (text " % ")
-                          (text "len") lparen array-var rparen
-                          rbracket)))]
+    (h-append (text "list_safe_reference(")
+              ($xsmith_render-node (ast-child 'array n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'fallback n))
+              (text ")")))]
  [MutableArraySafeAssignmentStatement
   (λ (n)
-    (define array-var (text (fresh-var-name "arr_")))
-    (v-append
-     (h-append array-var (text " = ") ($xsmith_render-node (ast-child 'array n)))
-     (h-append  array-var
-                lbracket
-                ($xsmith_render-node (ast-child 'index n))
-                (text " % ")
-                (text "len") lparen array-var rparen
-                rbracket
-                space equals space ($xsmith_render-node (ast-child 'newvalue n)))))]
+    (h-append (text "list_safe_assignment(")
+              ($xsmith_render-node (ast-child 'array n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'newvalue n))
+              (text ")")))]
 
  [MutableDictionarySafeLiteral
   (λ (n)
@@ -471,27 +482,20 @@
               dot
               (text "get")
               lparen
-              ($xsmith_render-node (ast-child 'accessKey n))
+              ($xsmith_render-node (ast-child 'key n))
               comma
               space
-              ($xsmith_render-node (ast-child 'defaultValue n))
+              ($xsmith_render-node (ast-child 'fallback n))
               rparen))]
  [MutableDictionarySafeAssignmentStatement
   (λ (n)
-    (define dict-var (text (fresh-var-name "dict_")))
-    (v-append
-     (h-append dict-var
-               (text " = ")
-               ($xsmith_render-node (ast-child 'dictionary n)))
-     (h-append dict-var
-               lbracket
-               (text "list") lparen dict-var (text ".keys()") rparen
-               lbracket
-               ($xsmith_render-node (ast-child 'index n))
-               (text " % ")
-               (text "len") lparen dict-var (text ".keys()") rparen
-               rbracket
-               rbracket)))]
+    (h-append (text "dict_safe_assignment(")
+              ($xsmith_render-node (ast-child 'dictionary n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'newvalue n))
+              (text ")")))]
 
  [MutableStructuralRecordLiteral
   (λ (n)

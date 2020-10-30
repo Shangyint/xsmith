@@ -800,18 +800,23 @@
         (if (null? list)
             fallback
             (cdr list))))
-    (define (NE/vector-ref vec index)
-      (vector-ref vec (modulo index (vector-length vec))))
-    (define-values (immutable-vector-set)
-      (λ (vec index-raw val)
-        (define-values (index) (modulo index-raw (vector-length vec)))
-        (vector->immutable-vector
-         (build-vector (vector-length vec)
-                       (λ (i) (if (equal? i index)
-                                  val
-                                  (vector-ref vec i)))))))
+    (define (NE/vector-ref vec index fallback)
+      (if (eq? 0 (vector-length vec))
+          fallback
+          (vector-ref vec (modulo index (vector-length vec)))))
+    (define (immutable-vector-set vec index-raw val)
+      (if (eq? 0 (vector-length vec))
+          (void)
+          (let ([index (modulo index-raw (vector-length vec))])
+            (vector->immutable-vector
+             (build-vector (vector-length vec)
+                           (λ (i) (if (equal? i index)
+                                      val
+                                      (vector-ref vec i))))))))
     (define (NE/vector-set! vec index val)
-      (vector-set! vec (modulo index (vector-length vec)) val))
+      (if (eq? 0 (vector-length vec))
+          (void)
+          (vector-set! vec (modulo index (vector-length vec)) val)))
 
     (define (my-format/hash-inner the-hash)
       (define (hash-sort-lt l r)
@@ -991,9 +996,13 @@
  [ImmutableArrayLiteral
   (λ (n) `(vector->immutable-vector (vector ,@(render-children 'expressions n))))]
  [MutableArraySafeReference
-  (λ (n) `(NE/vector-ref ,(render-child 'array n) ,(render-child 'index n)))]
+  (λ (n) `(NE/vector-ref ,(render-child 'array n)
+                         ,(render-child 'index n)
+                         ,(render-child 'fallback n)))]
  [ImmutableArraySafeReference
-  (λ (n) `(NE/vector-ref ,(render-child 'array n) ,(render-child 'index n)))]
+  (λ (n) `(NE/vector-ref ,(render-child 'array n)
+                         ,(render-child 'index n)
+                         ,(render-child 'fallback n)))]
  [MutableArraySafeAssignmentExpression
   (λ (n)
     `(NE/vector-set! ,(render-child 'array n)

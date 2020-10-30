@@ -45,7 +45,7 @@
 ;; TODO - all of these magic constants should be parameterizable somehow.  Eg. maybe they should be racket parameters.
 
 ;; Long arrays can sometimes create really long generation times, eg. for arrays of arrays of arrays of functions...
-(define array-max-length 4)
+(define array-max-length 6)
 (define max-effect-expressions 3)
 (define fieldname-options
   '(a b c d e f g))
@@ -108,7 +108,7 @@
     (hash 'dictionary (mutable (dictionary-type (dictionary-key-type-thunk)
                                                 vt))
           'index index-and-length-type
-          'newValue vt)))
+          'newvalue vt)))
 
 (define (lambda-fresh-implementation cur-hole make-fresh-node-func)
   (let* ([type (att-value 'xsmith_type cur-hole)]
@@ -499,13 +499,13 @@
                     component
                     [ImmutableArrayLiteral
                      Expression
-                     ;; Be sure arrays are never empty.
-                     ([expressions : Expression * = (add1 (random array-max-length))])
+                     ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1]
                     [ImmutableArraySafeReference
                      Expression ([array : Expression]
-                                 [index : Expression])]
+                                 [index : Expression]
+                                 [fallback : Expression])]
                     [ImmutableArraySafeSet
                      Expression ([array : Expression]
                                  [index : Expression]
@@ -523,7 +523,8 @@
                      [(fresh-type-variable)
                       (λ (n t) (hash 'index index-and-length-type
                                      'array (immutable
-                                             (array-type t))))]]
+                                             (array-type t))
+                                     'fallback t))]]
                     [ImmutableArraySafeSet
                      [(immutable (fresh-array-type))
                       (λ (n t)
@@ -581,8 +582,7 @@
                     component
                     [MutableArrayLiteral
                      Expression
-                     ;; Be sure arrays are never empty.
-                     ([expressions : Expression * = (add1 (random array-max-length))])
+                     ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop type-info
@@ -594,13 +594,15 @@
                         (hash 'expressions et))]]
                     [MutableArraySafeReference
                      Expression ([array : Expression]
-                                 [index : Expression])
+                                 [index : Expression]
+                                 [fallback : Expression])
                      #:prop mutable-container-access (read 'MutableArray)
                      #:prop type-info
                      [(fresh-type-variable)
                       (λ (n t) (hash 'index index-and-length-type
                                      'array (mutable
-                                             (array-type t))))]]))
+                                             (array-type t))
+                                     'fallback t))]]))
                 #'())
          #,@(if (use? use-mutable-array-safe-assignment-expression)
                 #'((add-to-grammar
@@ -628,8 +630,7 @@
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
-                     ;; Ensure dictionaries are never empty.
-                     (let ([elem-count (add1 (random array-max-length))])
+                     (let ([elem-count (random array-max-length)])
                        (hash 'keys elem-count
                              'vals elem-count))
                      #:prop type-info
@@ -644,8 +645,8 @@
                     [MutableDictionarySafeReferenceWithDefault
                      Expression
                      ([dictionary : Expression]
-                      [accessKey : Expression]
-                      [defaultValue : Expression])
+                      [key : Expression]
+                      [fallback : Expression])
                      #:prop choice-weight 10
                      #:prop mutable-container-access (read 'MutableDictionary)
                      #:prop type-info
@@ -653,8 +654,8 @@
                       (λ (n t)
                         (define key-type (dictionary-key-type))
                         (hash 'dictionary (mutable (dictionary-type key-type t))
-                              'accessKey key-type
-                              'defaultValue t))]]))
+                              'key key-type
+                              'fallback t))]]))
                 #'())
          #,@(if (use? use-mutable-dictionary-safe-assignment-expression)
                 #'((add-to-grammar
@@ -663,7 +664,7 @@
                      Expression
                      ([dictionary : VariableReference]
                       [index : Expression]
-                      [newValue : Expression])
+                      [newvalue : Expression])
                      #:prop mutable-container-access (write 'MutableDictionary)
                      #:prop required-child-reference #t
                      #:prop type-info
@@ -1017,7 +1018,7 @@
                      Statement
                      ([dictionary : VariableReference]
                       [index : Expression]
-                      [newValue : Expression])
+                      [newvalue : Expression])
                      #:prop mutable-container-access (write 'MutableDictionary)
                      #:prop type-info
                      [no-return-type
