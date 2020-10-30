@@ -1654,6 +1654,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
 ;; TODO - this should be configurable.
 (define type-max-concretization-depth (make-parameter 5))
 (define record-type-max-fields (make-parameter 5))
+(define product-type-max-length 6)
 
 (define (concretize-type t
                          #:at-node [node #f])
@@ -1690,7 +1691,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
        (if inner-types
            (mk-product-type (map r inner-types))
            (mk-product-type (map (λ (x) (r (fresh-type-variable)))
-                                 (make-list (random 6) #f))))]
+                                 (make-list (random product-type-max-length) #f))))]
       [(and (? nominal-record-type?) (? settled?)) t]
       [(c-nominal-record-type name super known-fields lb ub)
        (when name
