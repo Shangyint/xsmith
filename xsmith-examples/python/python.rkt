@@ -343,6 +343,7 @@
  [Minus Expression ([l : Expression] [r : Expression])]
  [Times Expression ([l : Expression] [r : Expression])]
  [SafeDivide Expression ([l : Expression] [r : Expression])]
+ [SafeIntDivide Expression ([l : Expression] [r : Expression])]
  [LessThan Expression ([l : Expression] [r : Expression])]
  [GreaterThan Expression ([l : Expression] [r : Expression])])
 (define numeric-bin-op-subtype (λ (n t) (hash 'l t 'r t)))
@@ -355,7 +356,8 @@
  [Plus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
  [Minus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
  [Times [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
- [SafeDivide [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
+ [SafeDivide [real-type (λ (n) (hash 'l real-type 'r real-type))]]
+ [SafeIntDivide [int-type (λ (n) (hash 'l int-type 'r int-type))]]
  [LessThan [bool-type comparison-child-types]]
  [GreaterThan [bool-type comparison-child-types]])
 
@@ -613,6 +615,8 @@
 FAKEBLOCK = True
 def safe_divide(a,b):
   return a if (b == 0) else (a / b)
+def safe_int_divide(a,b):
+  return a if (b == 0) else (a // b)
 def NE_chr(x):
   return chr(abs(x) % 0x10FFFF)
 def NE_ord(x):
@@ -839,6 +843,11 @@ def dict_safe_assignment_by_index(dict, index, newvalue):
  [LessThan (binary-op-renderer (text "<"))]
  [GreaterThan (binary-op-renderer (text ">"))]
 
+ [SafeIntDivide (λ (n) (h-append (text "safe_int_divide") lparen
+                                 ($xsmith_render-node (ast-child 'l n))
+                                 (text ",") space
+                                 ($xsmith_render-node (ast-child 'r n))
+                                 rparen))]
  [SafeDivide (λ (n) (h-append (text "safe_divide") lparen
                               ($xsmith_render-node (ast-child 'l n))
                               (text ",") space
