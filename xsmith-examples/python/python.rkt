@@ -190,7 +190,8 @@
                                      (λ (n t) (hash 'Expression string-type))]
                    #:prop render-node-info pass-through-render]
  [CharsToString Expression (Expression)
-                #:prop type-info [string-type (fresh-sequence char-type)]
+                #:prop type-info
+                [string-type (λ (n t) (hash 'Expression (fresh-sequence char-type)))]
                 #:prop render-node-info
                 (λ (n) (h-append (text "\"\".join(")
                                  ($xsmith_render-node (ast-child 'Expression n))
