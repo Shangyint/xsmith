@@ -21,6 +21,11 @@
 
 ;; TODO - types - add characters, sets, iterables, what else?
 
+(define number-type (base-type 'number #:leaf? #f))
+(define real-type (base-type 'real number-type #:leaf? #f))
+(define int-type (base-type 'int real-type))
+(define float-type (base-type 'float real-type))
+
 (define char-type (base-type 'char))
 (define dictionary-key-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
@@ -73,7 +78,9 @@
                        #:VariableReference #t
                        #:ProcedureApplication #t
                        #:LambdaWithExpression #t
-                       #:Numbers #t
+                       #:int-type int-type
+                       #:number-type number-type
+                       #:index-and-length-type int-type
                        #:int-literal-value (biased-random-int)
                        #:Booleans #t
                        #:Strings #t
@@ -99,6 +106,8 @@
                       #:MutableDictionarySafeAssignmentByKeyStatement #t
                       #:MutableDictionarySafeAssignmentByIndexStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
+                      #:int-type int-type
+                      #:index-and-length-type int-type
                       #:dictionary-key-type (dictionary-key-type)
                       #:dictionary-value-type (dictionary-value-type)
                       )
@@ -312,6 +321,35 @@
            (λ (n) (h-append ($xsmith_render-node (ast-child 'Expression n))
                             (text ".keys()")))]
  )
+
+;; Numbers.  The canned-components numbers aren't quite right if we allow complex numbers.
+(add-to-grammar
+ python-comp
+ [NumberLiteral Expression (v)
+                #:prop may-be-generated #f
+                #:prop choice-weight 1]
+ [IntLiteral NumberLiteral ()
+             #:prop fresh (hash 'v (biased-random-int))]
+ [Plus Expression ([l : Expression] [r : Expression])]
+ [Minus Expression ([l : Expression] [r : Expression])]
+ [Times Expression ([l : Expression] [r : Expression])]
+ [SafeDivide Expression ([l : Expression] [r : Expression])]
+ [LessThan Expression ([l : Expression] [r : Expression])]
+ [GreaterThan Expression ([l : Expression] [r : Expression])])
+(define numeric-bin-op-subtype (λ (n t) (hash 'l t 'r t)))
+(define (comparison-child-types n t)
+  ;; TODO - which types does python allow to be compared?
+  (define ct (fresh-type-variable real-type string-type bool-type))
+  (hash 'l ct 'r ct))
+(add-property
+ python-comp type-info
+ [IntLiteral [int-type no-child-types]]
+ [Plus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
+ [Minus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
+ [Times [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
+ [SafeDivide [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
+ [LessThan [bool-type comparison-child-types]]
+ [GreaterThan [bool-type comparison-child-types]])
 
 (define (render-let varname rhs body)
   (h-append (text "(lambda ")
