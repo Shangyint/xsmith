@@ -396,7 +396,9 @@
 ;; TODO - delattr()
 ;; TODO - dict()
 ;; TODO - dir()
-;; TODO - divmod() -- this one will be easy, but I need to add tuple operations
+(ag/two-arg divmod #:NE-name NE_divmod
+            #:type (product-type (list int-type int-type))
+            #:ctype (E2ctype int-type int-type))
 ;; TODO - enumerate()
 ;; TODO - eval()
 ;; TODO - exec()
@@ -479,6 +481,11 @@ def safe_divide(a,b):
   return a if (b == 0) else (a / b)
 def NE_chr(x):
   return chr(abs(x) % 0x10FFFF)
+def NE_divmod(x,y):
+  if 0 == y:
+    return (x,y)
+  else:
+    return divmod(x,y)
 def listmap(f, ls):
   return list(map(f, ls))
 def list_safe_reference(array, index, fallback):
