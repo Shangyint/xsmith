@@ -416,6 +416,7 @@
 ;; TODO - bytearray()
 ;; TODO - bytes()
 (ag/single-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
+;; TODO - if I add a char type (as strings of length 1), chr should return that type
 (ag/single-arg chr #:NE-name NE_chr #:type string-type #:ctype (Ectype int-type))
 ;; TODO - classmethod()
 ;; TODO - compile()
@@ -486,7 +487,8 @@
 ;; TODO - object()
 (ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
-;; TODO - ord() -- need to add a character type to the type system, also switch chr() to use it.
+;; TODO - if I add a char type (as strings of length 1), chr should accept that type
+(ag/single-arg ord #:NE-name NE_ord #:type int-type #:ctype (Ectype string-type))
 ;; The pow function can take a long time and a lot of memory
 ;; (IE enough to hang the process) when given very large numbers...
 #;(ag/two-arg pow #:racr-name PowTwo
@@ -521,6 +523,11 @@ def safe_divide(a,b):
   return a if (b == 0) else (a / b)
 def NE_chr(x):
   return chr(abs(x) % 0x10FFFF)
+def NE_ord(x):
+  if 0 == len(x):
+    return 0
+  else:
+    return ord(x[0])
 def NE_divmod(x,y):
   if 0 == y:
     return (x,y)
