@@ -189,7 +189,13 @@
   #:transformer (syntax-parser
                   [inc:expr
                    #'(λ (n)
-                       (define increment (inc n))
+                       (define increment
+                         (cond [(number? inc) inc]
+                               [(procedure? inc) (inc n)]
+                               [else
+                                (error 'depth-increase
+                                       "bad value for depth-increase: ~v"
+                                       inc)]))
                        (define parent-depth
                          (cond [(and (ast-has-child? 'xsmithliftdepth n)
                                      (number? (ast-child 'xsmithliftdepth n)))
