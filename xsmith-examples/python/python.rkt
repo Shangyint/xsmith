@@ -21,6 +21,7 @@
 
 ;; TODO - types - add characters, sets, iterables, what else?
 
+(define char-type (base-type 'char))
 (define dictionary-key-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define dictionary-value-type
@@ -173,9 +174,34 @@
      line))])
 
 (define no-child-types (λ (n t) (hash)))
+(define pass-through-render (λ (n) ($xsmith_render-node (ast-child 'Expression n))))
 
 (add-to-grammar
  python-comp
+ [CharLiteral Expression ([v = (random-char)])
+              #:prop type-info [char-type no-child-types]
+              #:prop choice-weight 1
+              #:prop render-node-info
+              (λ (n) (text (python-string-format (string (ast-child 'v n)))))]
+ [StringToSequence Expression (Expression)
+                   #:prop depth-increase 0
+                   #:prop wont-over-deepen #t
+                   #:prop type-info [(immutable (sequence-type char-type))
+                                     (λ (n t) (hash 'Expression string-type))]
+                   #:prop render-node-info pass-through-render]
+ [CharsToString Expression (Expression)
+                #:prop type-info [string-type (fresh-sequence char-type)]
+                #:prop render-node-info
+                (λ (n) (h-append (text "\"\".join(")
+                                 ($xsmith_render-node (ast-child 'Expression n))
+                                 (text ")")))]
+ [ByteStringToSequence Expression (Expression)
+                       #:prop depth-increase 0
+                       #:prop wont-over-deepen #t
+                       #:prop type-info
+                       [(immutable (sequence-type int-type))
+                        (λ (n t) (hash 'Expression byte-string-type))]
+                       #:prop render-node-info pass-through-render]
  [ByteStringLiteral Expression ([v = (random-byte-string)])
                     #:prop type-info [byte-string-type no-child-types]
                     #:prop choice-weight 1
@@ -262,7 +288,7 @@
                               (λ (n) (h-append (text "tuple(")
                                                ($xsmith_render-node (ast-child 'seq n))
                                                (text ")")))]
- [MutableArrayToSequence Expression ([arr : Expression])
+ [MutableArrayToSequence Expression (Expression)
                          #:prop depth-increase 0
                          #:prop wont-over-deepen #t
                          #:prop type-info
@@ -270,19 +296,19 @@
                           (λ (n t)
                             (define inner (fresh-type-variable))
                             (unify! (mutable (sequence-type inner)) t)
-                            (hash 'arr (mutable (array-type inner))))]
-                         #:prop render-node-info
-                         (λ (n) ($xsmith_render-node (ast-child 'arr n)))]
- [DictKeys Expression ([dict : Expression])
+                            (hash 'Expression (mutable (array-type inner))))]
+                         #:prop render-node-info pass-through-render]
+ [DictKeys Expression (Expression)
            #:prop type-info
            ;; I'm not sure about the mutability of this...
            [(immutable (sequence-type (dictionary-key-type)))
             (λ (n t)
               (define kt (dictionary-key-type))
               (unify! (immutable (sequence-type kt)) t)
-              (hash 'dict (mutable (dictionary-type kt (dictionary-value-type)))))]
+              (hash 'Expression
+                    (mutable (dictionary-type kt (dictionary-value-type)))))]
            #:prop render-node-info
-           (λ (n) (h-append ($xsmith_render-node (ast-child 'dict n))
+           (λ (n) (h-append ($xsmith_render-node (ast-child 'Expression n))
                             (text ".keys()")))]
  )
 
@@ -429,8 +455,7 @@
 ;; TODO - bytearray()
 ;; TODO - bytes()
 (ag/single-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
-;; TODO - if I add a char type (as strings of length 1), chr should return that type
-(ag/single-arg chr #:NE-name NE_chr #:type string-type #:ctype (Ectype int-type))
+(ag/single-arg chr #:NE-name NE_chr #:type char-type #:ctype (Ectype int-type))
 ;; TODO - classmethod()
 ;; TODO - compile()
 ;; TODO - complex actually allows floats as args, but I need to expand the numeric tower before I do that.
@@ -477,7 +502,7 @@
                #:ctype (λ (n t)
                          (define inner (fresh-type-variable))
                          (unify! (mutable (array-type inner)) t)
-                         (hash 'seq (fresh-sequence inner))))
+                         (hash 'Expression (fresh-sequence inner))))
 ;; TODO - locals()
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
@@ -500,8 +525,7 @@
 ;; TODO - object()
 (ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
-;; TODO - if I add a char type (as strings of length 1), chr should accept that type
-(ag/single-arg ord #:NE-name NE_ord #:type int-type #:ctype (Ectype string-type))
+(ag/single-arg ord #:NE-name NE_ord #:type int-type #:ctype (Ectype char-type))
 ;; The pow function can take a long time and a lot of memory
 ;; (IE enough to hang the process) when given very large numbers...
 #;(ag/two-arg pow #:racr-name PowTwo
