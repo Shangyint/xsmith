@@ -74,6 +74,8 @@
                        #:string-literal-value (biased-random-string)
                        #:MutableArray #t
                        #:MutableDictionary #t
+                       #:MutableDictionarySafeReferenceByKey #t
+                       #:MutableDictionarySafeReferenceByIndex #t
                        #:MutableStructuralRecord #t
                        #:dictionary-key-type (dictionary-key-type)
                        #:dictionary-value-type (dictionary-value-type)
@@ -88,7 +90,8 @@
                       #:AssignmentStatement #t
                       #:NullStatement #t
                       #:MutableArraySafeAssignmentStatement #t
-                      #:MutableDictionarySafeAssignmentStatement #t
+                      #:MutableDictionarySafeAssignmentByKeyStatement #t
+                      #:MutableDictionarySafeAssignmentByIndexStatement #t
                       #:MutableStructuralRecordAssignmentStatement #t
                       #:dictionary-key-type (dictionary-key-type)
                       #:dictionary-value-type (dictionary-value-type)
@@ -437,9 +440,14 @@ def list_safe_reference(array, index, fallback):
 def list_safe_assignment(array, index, newvalue):
   if not (len(array) == 0):
     array[index % len(array)] = newvalue
-def dict_safe_assignment(dict, index, newvalue):
+def dict_safe_reference_by_index(dict, index, fallback):
   if not (len(dict) == 0):
-    dict[index % len(dict.keys())] = newvalue
+    return dict[list(dict.keys())[index % len(dict.keys())]]
+  else:
+    return fallback
+def dict_safe_assignment_by_index(dict, index, newvalue):
+  if not (len(dict) == 0):
+    dict[list(dict.keys())[index % len(dict.keys())]] = newvalue
 ")
 
 ;;;; Render nodes from add-basic-statements/expressions
@@ -675,7 +683,7 @@ def dict_safe_assignment(dict, index, newvalue):
                                       space
                                       ($xsmith_render-node val))))
               rbrace))]
- [MutableDictionarySafeReferenceWithDefault
+ [MutableDictionarySafeReferenceByKey
   (λ (n)
     (h-append ($xsmith_render-node (ast-child 'dictionary n))
               dot
@@ -686,9 +694,26 @@ def dict_safe_assignment(dict, index, newvalue):
               space
               ($xsmith_render-node (ast-child 'fallback n))
               rparen))]
- [MutableDictionarySafeAssignmentStatement
+ [MutableDictionarySafeReferenceByIndex
   (λ (n)
-    (h-append (text "dict_safe_assignment(")
+    (h-append (text "dict_safe_reference_by_index(")
+              ($xsmith_render-node (ast-child 'dictionary n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'index n))
+              (text ", ")
+              ($xsmith_render-node (ast-child 'fallback n))
+              (text ")")))]
+ [MutableDictionarySafeAssignmentByKeyStatement
+  (λ (n)
+    (h-append ($xsmith_render-node (ast-child 'dictionary n))
+              (text "[")
+              ($xsmith_render-node (ast-child 'key n))
+              (text "]")
+              (text " = ")
+              ($xsmith_render-node (ast-child 'newvalue n))))]
+ [MutableDictionarySafeAssignmentByIndexStatement
+  (λ (n)
+    (h-append (text "dict_safe_assignment_by_index(")
               ($xsmith_render-node (ast-child 'dictionary n))
               (text ", ")
               ($xsmith_render-node (ast-child 'index n))

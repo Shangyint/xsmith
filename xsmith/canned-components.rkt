@@ -105,9 +105,13 @@
                                                 dictionary-value-type-thunk)
   (λ (n t)
     (define vt (dictionary-value-type-thunk))
-    (hash 'dictionary (mutable (dictionary-type (dictionary-key-type-thunk)
-                                                vt))
+    (define kt (dictionary-key-type-thunk))
+    (hash 'dictionary (mutable (dictionary-type kt vt))
+          ;; Depending on the type of assignment, it will either have a key
+          ;; or an index, but not both.  However, extra keys are just ignored,
+          ;; for better or worse, so we can just use both always...
           'index index-and-length-type
+          'key kt
           'newvalue vt)))
 
 (define (lambda-fresh-implementation cur-hole make-fresh-node-func)
@@ -217,8 +221,18 @@
          (~optional (~seq #:ImmutableArray use-immutable-array:boolean))
          (~optional (~seq #:ImmutableList use-immutable-list:boolean))
          (~optional (~seq #:MutableDictionary use-mutable-dictionary:boolean))
-         (~optional (~seq #:MutableDictionarySafeAssignmentExpression
-                          use-mutable-dictionary-safe-assignment-expression:boolean))
+         ;; Dictionaries may be accessed/updated by key or by index.
+         ;; When using index, you must ensure that the keys are in a deterministic
+         ;; order, perhaps by sorting them in a wrapper function.
+         ;; In either case, the dictionary may be empty.
+         (~optional (~seq #:MutableDictionarySafeReferenceByIndex
+                          use-mutable-dictionary-safe-reference-by-index:boolean))
+         (~optional (~seq #:MutableDictionarySafeReferenceByKey
+                          use-mutable-dictionary-safe-reference-by-key:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentByIndexExpression
+                          use-mutable-dictionary-safe-assignment-by-index-expression:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentByKeyExpression
+                          use-mutable-dictionary-safe-assignment-by-key-expression:boolean))
          (~optional (~seq #:MutableStructuralRecord
                           use-mutable-structural-record:boolean))
          (~optional (~seq #:MutableStructuralRecordAssignmentExpression
@@ -641,8 +655,12 @@
                         (define dt (mutable (dictionary-type kt vt)))
                         (subtype-unify! dt t)
                         (hash 'keys kt
-                              'vals vt))]]
-                    [MutableDictionarySafeReferenceWithDefault
+                              'vals vt))]]))
+                #'())
+         #,@(if (use? use-mutable-dictionary-safe-reference-by-key)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeReferenceByKey
                      Expression
                      ([dictionary : Expression]
                       [key : Expression]
@@ -657,10 +675,45 @@
                               'key key-type
                               'fallback t))]]))
                 #'())
-         #,@(if (use? use-mutable-dictionary-safe-assignment-expression)
+         #,@(if (use? use-mutable-dictionary-safe-reference-by-index)
                 #'((add-to-grammar
                     component
-                    [MutableDictionarySafeAssignmentExpression
+                    [MutableDictionarySafeReferenceByIndex
+                     Expression
+                     ([dictionary : Expression]
+                      [index : Expression]
+                      [fallback : Expression])
+                     #:prop choice-weight 10
+                     #:prop mutable-container-access (read 'MutableDictionary)
+                     #:prop type-info
+                     [(dictionary-value-type)
+                      (λ (n t)
+                        (define key-type (dictionary-key-type))
+                        (hash 'dictionary (mutable (dictionary-type key-type t))
+                              'index index-and-length-type
+                              'fallback t))]]))
+                #'())
+         #,@(if (use? use-mutable-dictionary-safe-assignment-by-key-expression)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeAssignmentByKeyExpression
+                     Expression
+                     ([dictionary : VariableReference]
+                      [key : Expression]
+                      [newvalue : Expression])
+                     #:prop mutable-container-access (write 'MutableDictionary)
+                     #:prop required-child-reference #t
+                     #:prop type-info
+                     [void-type
+                      (mutable-dictionary-assignment-type-rhs
+                       index-and-length-type
+                       dictionary-key-type
+                       dictionary-value-type)]]))
+                #'())
+         #,@(if (use? use-mutable-dictionary-safe-assignment-by-index-expression)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeAssignmentByIndexExpression
                      Expression
                      ([dictionary : VariableReference]
                       [index : Expression]
@@ -832,8 +885,10 @@
          (~optional (~seq #:ExpressionStatement use-expression-statement:boolean))
          (~optional (~seq #:MutableArraySafeAssignmentStatement
                           use-mutable-array-safe-assignment-statement:boolean))
-         (~optional (~seq #:MutableDictionarySafeAssignmentStatement
-                          use-mutable-dictionary-safe-assignment-statement:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentByKeyStatement
+                          use-mutable-dictionary-safe-assignment-by-key-statement:boolean))
+         (~optional (~seq #:MutableDictionarySafeAssignmentByIndexStatement
+                          use-mutable-dictionary-safe-assignment-by-index-statement:boolean))
          (~optional (~seq #:MutableStructuralRecordAssignmentStatement
                           use-mutable-structural-record-assignment-statement:boolean))
          (~optional (~seq #:bool-type bool-type-e:expr)
@@ -1011,10 +1066,26 @@
                               'index index-and-length-type
                               'newvalue inner))]]))
                 #'())
-         #,@(if (use? use-mutable-dictionary-safe-assignment-statement)
+         #,@(if (use? use-mutable-dictionary-safe-assignment-by-key-statement)
                 #'((add-to-grammar
                     component
-                    [MutableDictionarySafeAssignmentStatement
+                    [MutableDictionarySafeAssignmentByKeyStatement
+                     Statement
+                     ([dictionary : VariableReference]
+                      [key : Expression]
+                      [newvalue : Expression])
+                     #:prop mutable-container-access (write 'MutableDictionary)
+                     #:prop type-info
+                     [no-return-type
+                      (mutable-dictionary-assignment-type-rhs
+                       index-and-length-type
+                       dictionary-key-type
+                       dictionary-value-type)]]))
+                #'())
+         #,@(if (use? use-mutable-dictionary-safe-assignment-by-index-statement)
+                #'((add-to-grammar
+                    component
+                    [MutableDictionarySafeAssignmentByIndexStatement
                      Statement
                      ([dictionary : VariableReference]
                       [index : Expression]
