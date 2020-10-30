@@ -251,6 +251,7 @@
 
  [MutableArrayToSequence Expression ([arr : Expression])
                          #:prop depth-increase 0
+                         #:prop wont-over-deepen #t
                          #:prop type-info
                          [(mutable (sequence-type (fresh-type-variable)))
                           (λ (n t)
