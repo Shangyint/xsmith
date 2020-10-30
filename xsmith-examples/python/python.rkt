@@ -211,7 +211,7 @@
            (for/list ([c (string->list str)])
              (define ci (char->integer c))
              (cond [(equal? c #\\) "\\\\"]
-                   [(equal? c #\") "\\"]
+                   [(equal? c #\") "\\\""]
                    [(< 31 ci 126) (string c)]
                    ;; For arbitrary unicode, you can use \Uxxxxxxxx with hex digits.
                    [else (format "\\U~a" (~r #:base 16
@@ -224,7 +224,9 @@
           (apply
            string-append
            (for/list ([c (bytes->list str)])
-             (cond [(< 31 c 126) (string (integer->char c))]
+             (cond [(equal? c (char->integer #\\)) "\\\\"]
+                   [(equal? c (char->integer #\")) "\\\""]
+                   [(< 31 c 126) (string (integer->char c))]
                    ;; \xNN allows arbitrary hex characters
                    [else (format "\\x~a" (~r #:base 16
                                              #:min-width 2
