@@ -19,14 +19,14 @@
 
 (define-basic-spec-component python-comp)
 
-;; TODO - types - add characters, tuples, sets, iterables, what else?
-;;        Note that tuples are just (product-type (list ...)), but I need to define grammar nodes for literals, projection, etc.  Maybe I need safe projection for empty tuples...
+;; TODO - types - add characters, sets, iterables, what else?
 
 (define dictionary-key-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define dictionary-value-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define byte-string-type (base-type 'btye-string))
+(define tuple-max-length 6)
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -194,6 +194,55 @@
                                       ($xsmith_render-node (ast-child 'Expression n))
                                       rparen
                                       (text ".encode('UTF-8')")))]
+
+
+ [TupleLiteral Expression ([values : Expression *])
+               #:prop wont-over-deepen #t
+               #:prop choice-weight 1
+               #:prop fresh (let* ([t (att-value 'xsmith_type (current-hole))]
+                                   [pt (product-type #f)]
+                                   [_ (unify! t pt)]
+                                   [inners (product-type-inner-type-list pt)]
+                                   [len (if inners
+                                            (length inners)
+                                            (random tuple-max-length))])
+                              (hash 'values len))
+               #:prop type-info
+               [(product-type #f)
+                (λ (n t)
+                  (define children (ast-children (ast-child 'values n)))
+                  (define child-types (map (λ (x) (fresh-type-variable)) children))
+                  (unify! t (product-type child-types))
+                  (for/hash ([c children] [ct child-types]) (values c ct)))]
+               #:prop render-node-info
+               (λ (n) (h-append
+                       (text "(")
+                       (h-concat (for/list ([c (ast-children
+                                                (ast-child 'values n))])
+                                   (h-append
+                                    ($xsmith_render-node c)
+                                    ;; Thankfully python allows a trailing comma.
+                                    (text ", "))))
+                       (text ")")))]
+ [TupleReference Expression ([tuple : Expression]
+                             [length]
+                             [index])
+                 #:prop fresh (let* ([length (add1 (random (sub1 tuple-max-length)))]
+                                     [index (random length)])
+                                (hash 'length length 'index index))
+                 #:prop type-info
+                 [(fresh-type-variable)
+                  (λ (n t)
+                    (define index (ast-child 'index n))
+                    (define child-types
+                      (for/list ([i (in-range (ast-child 'length n))])
+                        (if (equal? i index)
+                            t
+                            (fresh-type-variable))))
+                    (hash 'tuple (product-type child-types)))]
+                 #:prop render-node-info
+                 (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
+                                  (text (format "[~a]" (ast-child 'index n)))))]
  )
 
 (define (render-let varname rhs body)
