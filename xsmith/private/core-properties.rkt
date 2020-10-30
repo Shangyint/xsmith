@@ -1352,9 +1352,11 @@ few of these methods.
                                    (string-append
                                     "No type info provided by parent for node "
                                     "(of AST type ~a, with parent of AST type ~a, "
+                                    "ancestors ~a,"
                                     "and field name ~a).")
                                    node-type-name
                                    (parent-node-type)
+                                   (map ast-node-type (ancestor-nodes node))
                                    (att-value '_xsmith_node-field-name-in-parent
                                               node)))))
   (define my-type-from-parent (if (procedure? my-type-from-parent/func)
