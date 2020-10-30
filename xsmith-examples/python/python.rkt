@@ -583,7 +583,7 @@
 ;; TODO - object()
 (ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
-(ag/single-arg ord #:NE-name NE_ord #:type int-type #:ctype (Ectype char-type))
+(ag/single-arg ord #:type int-type #:ctype (Ectype char-type))
 ;; The pow function can take a long time and a lot of memory
 ;; (IE enough to hang the process) when given very large numbers...
 #;(ag/two-arg pow #:racr-name PowTwo
@@ -620,11 +620,6 @@ def safe_int_divide(a,b):
   return a if (b == 0) else (a // b)
 def NE_chr(x):
   return chr(abs(x) % 0x10FFFF)
-def NE_ord(x):
-  if 0 == len(x):
-    return 0
-  else:
-    return ord(x[0])
 def NE_max(seq, fallback):
   if 0 == len(seq):
     return fallback
