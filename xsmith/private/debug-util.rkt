@@ -29,6 +29,21 @@
                             'source-line
                             'source-column))))))]))
 
+(module+ app
+  (provide (rename-out [debug-app #%app]))
+  (define-syntax (debug-app stx)
+    (syntax-parse stx
+      [(_ f arg ...)
+       (define/syntax-parse src (syntax-source stx))
+       (define/syntax-parse line (syntax-line stx))
+       (define/syntax-parse column (syntax-column stx))
+       #'(with-handlers ([(λ(e)#t) (λ(e)
+                                     (eprintf
+                                      "error in application at source location: ~a:~a:~a\n"
+                                      'src 'line 'column)
+                                     (raise e))])
+           (#%app f arg ...))])))
+
 (module+ dict
   (provide
    (rename-out [debug-dict-ref dict-ref])
