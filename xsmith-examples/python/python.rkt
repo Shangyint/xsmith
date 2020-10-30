@@ -259,17 +259,6 @@
                             (hash 'arr (mutable (array-type inner))))]
                          #:prop render-node-info
                          (λ (n) ($xsmith_render-node (ast-child 'arr)))]
- [SequenceToMutableArray Expression ([seq : Expression])
-                         #:prop type-info
-                         [(mutable (array-type (fresh-type-variable)))
-                          (λ (n t)
-                            (define inner (fresh-type-variable))
-                            (unify! (mutable (array-type inner)) t)
-                            (hash 'seq (fresh-sequence inner)))]
-                         #:prop render-node-info
-                         (λ (n) (h-append (text "list(")
-                                          ($xsmith_render-node (ast-child 'seq n))
-                                          (text ")")))]
  [DictKeys Expression ([dict : Expression])
            #:prop type-info
            ;; I'm not sure about the mutability of this...
@@ -440,7 +429,16 @@
 ;; TODO - enumerate()
 ;; TODO - eval()
 ;; TODO - exec()
-;; TODO - filter() -- I need to change safe array access to allow empty arrays.  Note that this returns an iterable, not an array!
+(ag/two-arg filter
+            #:type (immutable (sequence-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define arg-elem (fresh-type-variable))
+                      (define return-array (immutable (sequence-type arg-elem)))
+                      (unify! t return-array)
+                      (define arg-array (fresh-sequence arg-elem))
+                      (hash 'l (function-type (product-type (list arg-elem))
+                                              bool-type)
+                            'r arg-array)))
 ;; The float function can actually take a string or an int, but the string has to be a number string...
 (ag/single-arg float #:type number-type #:ctype (Ectype int-type))
 ;; TODO - format() -- this will probably be fine if limited to default (empty) format spec and given a value in a limited set of types.  Arbitrary types will raise problems of eg. how function X is printed.
@@ -458,8 +456,13 @@
 ;; TODO - isinstance()
 ;; TODO - issubclass()
 ;; TODO - iter()
-;; TODO - len() -- this should be easy, and could replace various other length forms I've defined, but I'll wait until I add more types.
-;; TODO - list()
+(ag/single-arg len #:type int-type
+               #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
+(ag/single-arg list #:type (mutable (array-type (fresh-type-variable)))
+               #:ctype (λ (n t)
+                         (define inner (fresh-type-variable))
+                         (unify! (mutable (array-type inner)) t)
+                         (hash 'seq (fresh-sequence inner))))
 ;; TODO - locals()
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
