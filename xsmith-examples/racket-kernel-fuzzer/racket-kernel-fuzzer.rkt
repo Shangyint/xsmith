@@ -765,16 +765,24 @@
           (angle x)))
     (define (NE/bytes-ref bytes index)
       (define l (bytes-length bytes))
-      (bytes-ref bytes (modulo index l)))
+      (if (zero? l)
+          0
+          (bytes-ref bytes (modulo index l))))
     (define (NE/string-ref string index)
       (define l (string-length string))
-      (string-ref string (modulo index l)))
+      (if (zero? l)
+          #\a
+          (string-ref string (modulo index l))))
     (define (NE/bytes-set! bytes index new)
       (define l (bytes-length bytes))
-      (bytes-set! bytes (modulo index l) new))
+      (if (zero? l)
+          (void)
+          (bytes-set! bytes (modulo index l) new)))
     (define (NE/string-set! string index new)
       (define l (string-length string))
-      (string-set! string (modulo index l) new))
+      (if (zero? l)
+          (void)
+          (string-set! string (modulo index l) new)))
     (define (NE/seconds->date x)
       (define (sd x)
         ;; Don't use local time.
@@ -806,7 +814,7 @@
           (vector-ref vec (modulo index (vector-length vec)))))
     (define (immutable-vector-set vec index-raw val)
       (if (eq? 0 (vector-length vec))
-          (void)
+          vec
           (let ([index (modulo index-raw (vector-length vec))])
             (vector->immutable-vector
              (build-vector (vector-length vec)
