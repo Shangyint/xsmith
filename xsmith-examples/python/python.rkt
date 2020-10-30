@@ -356,8 +356,8 @@
  [Plus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
  [Minus [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
  [Times [(fresh-subtype-of number-type) numeric-bin-op-subtype]]
- [SafeDivide [real-type (λ (n) (hash 'l real-type 'r real-type))]]
- [SafeIntDivide [int-type (λ (n) (hash 'l int-type 'r int-type))]]
+ [SafeDivide [real-type (λ (n t) (hash 'l real-type 'r real-type))]]
+ [SafeIntDivide [int-type (λ (n t) (hash 'l int-type 'r int-type))]]
  [LessThan [bool-type comparison-child-types]]
  [GreaterThan [bool-type comparison-child-types]])
 
