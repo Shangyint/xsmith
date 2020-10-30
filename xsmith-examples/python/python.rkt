@@ -259,7 +259,7 @@
                             (unify! (mutable (sequence-type inner)) t)
                             (hash 'arr (mutable (array-type inner))))]
                          #:prop render-node-info
-                         (λ (n) ($xsmith_render-node (ast-child 'arr)))]
+                         (λ (n) ($xsmith_render-node (ast-child 'arr n)))]
  [DictKeys Expression ([dict : Expression])
            #:prop type-info
            ;; I'm not sure about the mutability of this...
