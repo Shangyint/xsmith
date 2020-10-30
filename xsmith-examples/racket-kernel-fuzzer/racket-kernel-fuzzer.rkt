@@ -48,7 +48,7 @@
        (for/list ([e-stx (syntax->list #'(e ...))]
                   [i (in-naturals)])
          (datum->syntax #'here i)))
-     #'(match (random (add1 count))
+     #'(match (random count)
          [index e] ...)]))
 
 (define (biased-random-char)
