@@ -488,8 +488,11 @@
 (ag/single-arg tan #:type number #:ctype (Ectype real))
 (ag/single-arg atan #:racr-name AtanOne #:NE-name NE/atan-1 #:type number
                #:ctype (Ectype real))
-(ag/single-arg add1)
-(ag/single-arg sub1)
+(ag/single-arg add1 #:racr-name AddOneNum #:type number)
+(ag/single-arg add1 #:racr-name AddOneInt #:type int)
+(ag/single-arg add1 #:racr-name AddOneNat #:type nat)
+(ag/single-arg sub1 #:racr-name SubOneNum #:type number)
+(ag/single-arg sub1 #:racr-name SubOneInt #:type int)
 (ag/single-arg angle #:type real #:NE-name NE/angle)
 (ag/single-arg ceiling #:type real)
 (ag/single-arg floor #:type real)
