@@ -650,7 +650,11 @@
 ;; TODO - property()
 ;; TODO - range()
 ;; TODO - repr()
-(ag/single-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
+;; TODO - a reversed object is not reversible!  What kind of nonsense is that?!
+;;        I'm not going to muck up my fuzzer's type system even more right now
+;;        for the sake of fuzzing this single wacko python type.
+;;        So let's just turn off `reversed` for the time being.
+;(ag/single-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
 (ag/single-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
 ;; TODO - setattr()
