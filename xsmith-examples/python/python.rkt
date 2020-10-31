@@ -885,9 +885,9 @@ def dict_safe_assignment_by_index(dict, index, newvalue):
                    rparen))]
 
  [BoolLiteral (λ (n) (text (if (ast-child 'v n) "True" "False")))]
- [Not (λ (n) (h-append (text "not") lparen
+ [Not (λ (n) (h-append lparen (text "not") lparen
                        ($xsmith_render-node (ast-child 'Expression n))
-                       rparen))]
+                       rparen rparen))]
  [And (binary-op-renderer (text "and"))]
  [Or (binary-op-renderer (text "or"))]
 
