@@ -51,7 +51,7 @@
      #'(match (random count)
          [index e] ...)]))
 
-(define (biased-random-char)
+(define (biased-random-char*)
   ;; Random-char very rarely generates ascii, which is more common.
   ;; More saliently, low-value characters are interned in Racket and
   ;; high-value characters are not.  So I want to be sure to generate
@@ -59,12 +59,23 @@
   (if (random-bool)
       (random-char)
       (random-char-in-range (range 0 128))))
-(define (biased-random-string)
+(define (biased-random-string*)
   (random-expr
    (random-string)
    (random-string-from-char-producing-proc
     (λ () (random-char-in-range (range 0 128))))
    (random-string-from-char-producing-proc biased-random-char)))
+
+;; For now, to stop getting the same bug all the time, don't produce
+;; characters that trip up bugs we've already found.
+(define (biased-random-char)
+  (let ([c (biased-random-char*)])
+    (if (or (eq? c #\;) (eq? c #\,))
+        (biased-random-char)
+        c)))
+(define (biased-random-string)
+  (string-replace (biased-random-string*) #px";|," "a"))
+
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
   ;; I want more variety, like bigints.
