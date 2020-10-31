@@ -74,7 +74,7 @@
         (biased-random-char)
         c)))
 (define (biased-random-string)
-  (string-replace (biased-random-string*) #px";|," "a"))
+  (string-replace (biased-random-string*) #px";|`" "a"))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
