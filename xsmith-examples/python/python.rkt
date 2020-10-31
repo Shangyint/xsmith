@@ -625,13 +625,13 @@
 (ag/two-arg max #:NE-name NE_max
             ;; with fallback for when it gets an empty sequence
             #:type (fresh-comparable-type)
-            #:ctype (λ (n t) (hash 'l (fresh-iterable t)
+            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
                                    'r t)))
 ;; TODO - memoryview()
 (ag/two-arg min #:NE-name NE_min
             ;; with fallback for when it gets an empty sequence
             #:type (fresh-comparable-type)
-            #:ctype (λ (n t) (hash 'l (fresh-iterable t)
+            #:ctype (λ (n t) (hash 'l (fresh-sequence t)
                                    'r t)))
 ;; TODO - next()
 ;; TODO - object()
