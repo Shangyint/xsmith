@@ -654,6 +654,7 @@
 ;;        I'm not going to muck up my fuzzer's type system even more right now
 ;;        for the sake of fuzzing this single wacko python type.
 ;;        So let's just turn off `reversed` for the time being.
+;;        Also the return of `map` is not reversible.  What a load of hogwash.
 ;(ag/single-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
 (ag/single-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
