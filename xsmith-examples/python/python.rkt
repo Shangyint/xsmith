@@ -683,9 +683,9 @@
 (define header-definitions-block
   "
 FAKEBLOCK = True
-def safe_divide(a,b):
+def safe_divide(a, b):
   return a if (b == 0) else (a / b)
-def safe_int_divide(a,b):
+def safe_int_divide(a, b):
   return a if (b == 0) else (a // b)
 def NE_chr(x):
   return chr(abs(x) % 0x10FFFF)
@@ -699,11 +699,11 @@ def NE_min(seq, fallback):
     return fallback
   else:
     return min(seq)
-def NE_divmod(x,y):
+def NE_divmod(x, y):
   if 0 == y:
-    return (x,y)
+    return (x, y)
   else:
-    return divmod(x,y)
+    return divmod(x, y)
 def list_safe_reference(array, index, fallback):
   if not (len(array) == 0):
     return array[index % len(array)]
