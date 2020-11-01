@@ -549,27 +549,35 @@
 
 ;;;; built-in functions from https://docs.python.org/3/library/functions.html
 (ag/single-arg abs)
-;; TODO - all()
-;; TODO - any()
-;; TODO - ascii()
+(ag/single-arg all #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
+(ag/single-arg any #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
+(ag/single-arg ascii #:type string-type #:ctype (Ectype (fresh-type-variable)))
 (ag/single-arg bin #:type string-type #:ctype (Ectype int-type))
 (ag/single-arg bool #:type bool-type #:ctype (Ectype (fresh-type-variable)))
-;; TODO - breakpoint()
-;; TODO - bytearray()
-;; TODO - bytes()
+;; TODO - breakpoint()  ;; XXX - we may not want to implement this, as it initializes the PDB debugger.
+;; TODO - bytearray()  ;; XXX - returns a mutable byte-string, so we may need to update the byte-string-type stuff to accommodate.
+;; TODO - bytes actually takes arguments of a few varieties, but they need to be constrained to avoid obvious errors.
+;;          - string (requires encoding and error handling)
+;;          - buffer (requires us implementing buffers)
+;;          - iterable (all contents must be integers in the range [0, 255])
+;;          - no argument (produces an empty byte string)
+(ag/single-arg bytes #:type byte-string-type #:ctype (Ectype (fresh-type-variable int-type )))
 (ag/single-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
 (ag/single-arg chr #:NE-name NE_chr #:type char-type #:ctype (Ectype int-type))
-;; TODO - classmethod()
-;; TODO - compile()
+;; TODO - classmethod()  ;; XXX - this is to be used as a decorator prior to a class's method declaration.
+;; TODO - compile()  ;; XXX we may not want to implement this, as it produces code objects that may lead to arbitrary execution.
 ;; TODO - complex actually allows floats as args, but I need to expand the numeric tower before I do that.
 (ag/two-arg complex #:type number-type #:ctype (E2ctype int-type int-type))
 ;; TODO - delattr()
 ;; TODO - dict()
-;; TODO - dir()
+;; TODO - dir also accepts no arguments, which returns a list of names bound in the current scope.
+;;        Something to investigate is marking strings as variables, such that the output of `dir`
+;;        could be used in calls to, e.g., `getattr`, `delattr`, or `del`.
+(ag/single-arg dir #:type (fresh-iterable string-type) #:ctype (Ectype (fresh-type-variable)))
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
-;; TODO - enumerate()
+;; TODO - enumerate()  ;; XXX - requires use of tuple type specification
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
@@ -588,13 +596,15 @@
 ;; TODO - frozenset()
 ;; TODO - getattr()
 ;; TODO - globals()
-;; TODO - hasattr()
+;; TODO - hasattr really should be using strings that represent attributes, but this is technically correct.
+(ag/two-arg hasattr #:type bool-type #:ctype (hash 'l (fresh-type-variable)
+                                                   'r string-type))
 ;; TODO - hash()
-;; TODO - help()
+;; TODO - help()  ;; XXX - don't know if we should implement this, since it's meant for interactive use.
 (ag/single-arg hex #:type string-type #:ctype (Ectype int-type))
-;; TODO - id()
+(ag/single-arg id #:type int-type #:ctype (fresh-type-variable))
 ;; TODO - __import__()
-;; TODO - input()
+;; TODO - input()  ;; XXX - don't know if we should implement this, since it waits for external input.
 ;; TODO - int()
 ;; TODO - isinstance()
 ;; TODO - issubclass()
