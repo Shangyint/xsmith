@@ -602,7 +602,7 @@
 ;; TODO - hash()
 ;; TODO - help()  ;; XXX - don't know if we should implement this, since it's meant for interactive use.
 (ag/single-arg hex #:type string-type #:ctype (Ectype int-type))
-(ag/single-arg id #:type int-type #:ctype (fresh-type-variable))
+(ag/single-arg id #:type int-type #:ctype (Ectype (fresh-type-variable)))
 ;; TODO - __import__()
 ;; TODO - input()  ;; XXX - don't know if we should implement this, since it waits for external input.
 ;; TODO - int()
