@@ -31,7 +31,7 @@
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define dictionary-value-type
   (λ () (fresh-type-variable)))
-(define byte-string-type (base-type 'btye-string))
+(define byte-string-type (base-type 'byte-string))
 (define tuple-max-length 6)
 (define-generic-type sequence-type ([type covariant]))
 (define-generic-type iterable-type ([type covariant]))
