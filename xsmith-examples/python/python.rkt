@@ -577,7 +577,23 @@
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
-;; TODO - enumerate()  ;; XXX - requires use of tuple type specification
+;; TODO - enumerate returns an 'enumerate object', which is not reversible but is fairly similar to a list.
+;;        Also, their should be a constraint that the returned tuples' second elements are of the same type as the elements of the passed-in iterable.
+(ag/single-arg enumerate
+               #:type (immutable (fresh-iterable (product-type (list int-type (fresh-type-variable)))))
+               #:ctype (λ (n t)
+                         ;; The inner type we will tell the child to take.
+                         (define inner-type (fresh-type-variable))
+                         ;; The inner type as dictated by the parent's type.
+                         (define inner-type-to-return
+                           ;; Get the list of type variables. The innermost is listed first.
+                           ;; TODO - Is the return order of `type->type-variable-list` guaranteed?
+                           (car
+                            (type->type-variable-list t)))
+                         ;; Unify the two types.
+                         (unify! inner-type inner-type-to-return)
+                         ;; Assign the child's type. It must be an iterable of the chosen type.
+                         (hash 'Expression (fresh-iterable inner-type-to-return))))
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
