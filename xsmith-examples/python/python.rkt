@@ -597,8 +597,9 @@
 ;; TODO - getattr()
 ;; TODO - globals()
 ;; TODO - hasattr really should be using strings that represent attributes, but this is technically correct.
-(ag/two-arg hasattr #:type bool-type #:ctype (hash 'l (fresh-type-variable)
-                                                   'r string-type))
+(ag/two-arg hasattr #:type bool-type #:ctype (λ (n t)
+                                               (hash 'l (fresh-type-variable)
+                                                     'r string-type)))
 ;; TODO - hash()
 ;; TODO - help()  ;; XXX - don't know if we should implement this, since it's meant for interactive use.
 (ag/single-arg hex #:type string-type #:ctype (Ectype int-type))
