@@ -136,6 +136,31 @@ function mutable_array_safe_assignment(array, index, newvalue)
   end
 end
 
+function form(x)
+  local t = type(x)
+  if \"nil\" == t then
+    return \"nil\"
+  elseif \"string\" == t then
+    return string.format(\"%q\", x)
+  elseif \"number\" == t then
+    -- Large numbers can't be printed by %d,
+    -- but also will print differently in different implementations with %q.
+    -- TODO I'm not sure where the cutoff is, or how to effectively print big numbers.
+    if math.abs(x) < 10 ^ 16 then return tostring(x) else return \"BIGnumber\" end
+  elseif \"boolean\" == t then
+    if x then return \"true\" else return \"false\" end
+  elseif \"table\" == t then
+    local acc = \"{\"
+    for index, value in pairs(x) do
+      acc = acc .. \"[\" .. form(index) .. \"]\" .. form(value) .. \", \"
+    end
+    acc = acc .. \"}\"
+    return acc
+  else
+    return t
+  end
+end
+
 expression_statement_dummy_var = 0;
 
 ")
@@ -161,9 +186,10 @@ expression_statement_dummy_var = 0;
                     (list (ast-child 'Block n))))))
      (text "")
      (apply v-append
-            (map (λ (v) (text (format "print(~a)\n"
+            (map (λ (v) (text (format "print(form(~a))\n"
                                       (ast-child 'name v))))
-                 (filter (λ (x) (base-type? (ast-child 'type x)))
+                 definitions
+                 #;(filter (λ (x) (base-type? (ast-child 'type x)))
                          definitions)))
      ;; Hack to get a newline...
      (text "")))]
