@@ -108,20 +108,30 @@
   "
 --modulo = function(a, b) return a - math.floor(a/b)*b end
 modulo = function(a, b) return a % b end
+-- modulo doesn't work reliably on large numbers.
+-- TODO - figure out where the boundary is.
+array_modulo_max = math.floor(2 ^ 30)
+array_modulo = function(a, b)
+  if a > array_modulo_max or a < (- array_modulo_max) then
+    return modulo(array_modulo_max, b)
+  else
+    return modulo(a, b)
+  end
+end
 
 safe_divide = function(a, b) return (b == 0) and a or (a / b) end
 function mutable_array_safe_reference(array, index, fallback)
   if (#array == 0) then
     return fallback
   else
-    return array[modulo(index, #array) + 1]
+    return array[array_modulo(index, #array) + 1]
   end
 end
 function mutable_array_safe_assignment(array, index, newvalue)
   if (#array == 0) then
     return
   else
-    array[modulo(index, #array) + 1] = newvalue
+    array[array_modulo(index, #array) + 1] = newvalue
     return
   end
 end
