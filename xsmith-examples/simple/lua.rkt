@@ -106,7 +106,9 @@
 
 (define header-definitions-block
   "
-modulo = function(a, b) return a - math.floor(a/b)*b end
+--modulo = function(a, b) return a - math.floor(a/b)*b end
+modulo = function(a, b) return a % b end
+
 safe_divide = function(a, b) return (b == 0) and a or (a / b) end
 function mutable_array_safe_reference(array, index, fallback)
   if (#array == 0) then
