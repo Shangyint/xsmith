@@ -700,6 +700,8 @@
 
 (define header-definitions-block
   "
+from inspect import signature
+
 FAKEBLOCK = True
 def safe_divide(a, b):
   return a if (b == 0) else (a / b)
@@ -738,6 +740,23 @@ def dict_safe_reference_by_index(dict, index, fallback):
 def dict_safe_assignment_by_index(dict, index, newvalue):
   if not (len(dict) == 0):
     dict[list(dict.keys())[index % len(dict.keys())]] = newvalue
+def to_string(x) -> str:
+    if any(map(lambda t: isinstance(x, t), (bool, int, float, complex, str, bytes, bytearray, memoryview))):
+        # Primitive types with known-good `__repr__` implementations.
+        return repr(x)
+    elif isinstance(x, tuple):
+        return '(' + ', '.join(map(to_string, x)) + ')'
+    elif isinstance(x, list):
+        return '[' + ', '.join(map(to_string, x)) + ']'
+    elif isinstance(x, dict):
+        return '{' + ', '.join(': '.join(map(to_string, pair)) for pair in x.items()) + '}'
+    elif callable(x):
+        func_name = getattr(x, '__name__', \"#<FUNCTION>\")
+        parameters = tuple(sorted(signature(x).parameters.keys()))
+        return func_name + repr(parameters)
+    else:
+        return repr(x)
+
 ")
 
 ;;;; Render nodes from add-basic-statements/expressions
@@ -759,9 +778,10 @@ def dict_safe_assignment_by_index(dict, index, newvalue):
                     (list (ast-child 'Block n))))))
      (text "")
      (apply v-append
-            (map (λ (v) (text (format "print(~a)\n"
+            (map (λ (v) (text (format "print(to_string(~a))\n"
                                       (ast-child 'name v))))
-                 (filter (λ (x) (base-type? (ast-child 'type x)))
+                 definitions
+                 #;(filter (λ (x) (base-type? (ast-child 'type x)))
                          definitions)))
      ;; Hack to get a newline...
      (text "")))]
