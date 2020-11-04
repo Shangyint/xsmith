@@ -10,6 +10,7 @@
  racket/pretty
  racket/match
  syntax/parse/define
+ "../private/xsmith-examples-version.rkt"
  (for-syntax
   clotho/racket/base
   syntax/parse
@@ -1114,6 +1115,7 @@
 (define-xsmith-interface-functions
   [racket-comp]
   #:fuzzer-name racket-kernel
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:program-node ProgramWithSequence
   #:type-thunks type-thunks-for-concretization
   #:format-render racket-format-render

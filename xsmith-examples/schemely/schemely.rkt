@@ -40,6 +40,7 @@
  racket/class
  racket/string
  racket/port
+ "../private/xsmith-examples-version.rkt"
  )
 
 (define-spec-component schemely-core)
@@ -389,6 +390,7 @@
 (define-xsmith-interface-functions
   [schemely-core]
   #:fuzzer-name schemely
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:format-render schemely-format-render
   #:type-thunks type-thunks-for-concretization
   )

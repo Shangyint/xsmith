@@ -12,6 +12,7 @@
  racket/match
  racket/list
  syntax/parse/define
+ "../private/xsmith-examples-version.rkt"
  (for-syntax
   racket/base
   syntax/parse
@@ -1079,11 +1080,12 @@ def to_string(x) -> str:
 
 (define-xsmith-interface-functions
   [python-comp]
-  #:fuzzer-name python
+  #:fuzzer-name python3
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render python-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "# ~a" l)) lines)
                                          "\n")))
 
-(module+ main (python-command-line))
+(module+ main (python3-command-line))

@@ -41,6 +41,7 @@
  racket/dict
  (except-in racket/list empty)
  racket/string
+ "../private/xsmith-examples-version.rkt"
  )
 
 (define-spec-component pythonesque-grammar)
@@ -562,6 +563,7 @@ Fixes:
 (define-xsmith-interface-functions
   [pythonesque-grammar]
   #:fuzzer-name pythonesque
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:default-max-depth 8
   #:comment-wrap (λ (lines) (string-join
                              (map (λ (l) (format "# ~a" l)) lines)

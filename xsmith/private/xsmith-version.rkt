@@ -35,7 +35,7 @@
  xsmith-version-string/no-name
  )
 
-(require "version-string-with-git-hash.rkt")
+(require "../version-string-with-git-hash.rkt")
 
 
 

@@ -7,6 +7,7 @@
  xsmith/canned-components
  pprint
  racket/string
+ "../private/xsmith-examples-version.rkt"
  )
 
 (define-basic-spec-component javascript-comp)
@@ -254,6 +255,7 @@ array_safe_assignment = function(array, index, newvalue){
 (define-xsmith-interface-functions
   [javascript-comp]
   #:fuzzer-name simple-javascript
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render javascript-format-render

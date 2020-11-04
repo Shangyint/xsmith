@@ -36,6 +36,7 @@
  "cish-grammar.rkt"
  "cish-rules.rkt"
  "cish-utils.rkt"
+ "../private/xsmith-examples-version.rkt"
 
  xsmith
  racr
@@ -51,7 +52,7 @@
 (define-xsmith-interface-functions
   [cish-grammar cish-rules]
   #:fuzzer-name cish
-  #:fuzzer-version xsmith-version-string/no-name
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:comment-wrap (λ (lines) (format "/*\n~a\n*/"
                                     (string-join lines "\n")))
   #:default-max-depth 9

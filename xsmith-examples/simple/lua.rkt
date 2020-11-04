@@ -11,6 +11,7 @@
  racket/list
  racket/match
  racket/format
+ "../private/xsmith-examples-version.rkt"
  )
 
 (define-basic-spec-component lua-comp)
@@ -381,6 +382,7 @@ expression_statement_dummy_var = 0;
 (define-xsmith-interface-functions
   [lua-comp]
   #:fuzzer-name simple-lua
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render lua-format-render

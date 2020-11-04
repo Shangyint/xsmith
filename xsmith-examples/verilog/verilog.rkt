@@ -43,6 +43,7 @@
  ; racket/class
  racket/port
  racket/string
+ "../private/xsmith-examples-version.rkt"
  ;;
  )
 
@@ -536,7 +537,7 @@
 (define-xsmith-interface-functions
   [verilog-core]
   #:fuzzer-name verilog
-  #:fuzzer-version	"0.0"
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:program-node Source
   #:type-thunks type-thunks-for-concretization
   #:comment-wrap	verilog-comment-wrap

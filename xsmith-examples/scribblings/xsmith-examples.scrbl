@@ -34,7 +34,7 @@
 xsmith/scribblings/util
 ;; for cish features list
 "../cish/cish-main.rkt"
-xsmith/private/xsmith-version
+"../private/xsmith-examples-version.rkt"
 racket/list
 )
 
@@ -44,7 +44,7 @@ racket/list
         (@author+email "Pierce Darragh" "pierce.darragh@gmail.com")
         (@author+email "Eric Eide" "eeide@cs.utah.edu")]
 
-Version @xsmith-version-string
+Version @xsmith-examples-version-string
 
 The @tt{xsmith-examples} package has some pre-built fuzzers that @emph{vary in their level of quality and/or utility as a learning aid}.
 

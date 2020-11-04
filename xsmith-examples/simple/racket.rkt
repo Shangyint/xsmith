@@ -8,6 +8,7 @@
  racket/string
  racket/list
  racket/pretty
+ "../private/xsmith-examples-version.rkt"
  )
 
 (define-basic-spec-component racket-comp)
@@ -303,6 +304,7 @@
 (define-xsmith-interface-functions
   [racket-comp]
   #:fuzzer-name simple-racket
+  #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithSequence
   #:format-render racket-format-render
