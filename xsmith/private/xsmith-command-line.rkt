@@ -575,8 +575,8 @@
                   #:max-depth [max-depth-arg not-given]
                   #:type-max-depth [type-max-depth-arg not-given]
                   #:timeout [timeout-arg not-given]
-                  #:print-debug print-debug
-                  #:verbose verbose?
+                  #:print-debug [print-debug not-given]
+                  #:verbose [verbose? not-given]
                   )
 
 
@@ -634,8 +634,8 @@
             #:server-ip (arg server-ip-arg server-ip-default)
             #:given-seed (arg seed-arg given-seed-default)
             #:server? (arg server-arg server-default)
-            #:netstring-server (arg netstring-server-arg
-                                    netstring-server-default)
+            #:netstring-server-path (arg netstring-server-arg
+                                         netstring-server-default)
             #:netstring-ignore-input? (arg netstring-ignore-input-arg
                                            netstring-ignore-input-default)
             #:render-on-error? (arg render-on-error-arg render-on-error-default)
@@ -653,8 +653,8 @@
             #:output-file (arg output-file-arg output-file-default)
 
             #:command-line-to-print command-line-to-print
-            #:print-debug print-debug
-            #:verbose verbose?
+            #:print-debug (arg print-debug print-debug-default)
+            #:verbose (arg verbose? verbose-default)
             )
            )
 
