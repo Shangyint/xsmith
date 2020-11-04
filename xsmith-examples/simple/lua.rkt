@@ -146,7 +146,7 @@ function form(x)
     -- Large numbers can't be printed by %d,
     -- but also will print differently in different implementations with %q.
     -- TODO I'm not sure where the cutoff is, or how to effectively print big numbers.
-    if math.abs(x) < 10 ^ 16 then return tostring(x) else return \"BIGnumber\" end
+    if math.abs(x) < 10 ^ 14 then return tostring(x) else return \"BIGnumber\" end
   elseif \"boolean\" == t then
     if x then return \"true\" else return \"false\" end
   elseif \"table\" == t then
