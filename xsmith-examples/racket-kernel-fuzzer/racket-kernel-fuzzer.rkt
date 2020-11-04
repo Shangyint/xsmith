@@ -1113,7 +1113,7 @@
 
 (define-xsmith-interface-functions
   [racket-comp]
-  #:fuzzer-name racket
+  #:fuzzer-name racket-kernel
   #:program-node ProgramWithSequence
   #:type-thunks type-thunks-for-concretization
   #:format-render racket-format-render
@@ -1122,4 +1122,4 @@
 
   )
 
-(module+ main (racket-command-line))
+(module+ main (racket-kernel-command-line))
