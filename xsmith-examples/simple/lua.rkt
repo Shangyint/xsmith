@@ -140,6 +140,8 @@ function form(x)
   local t = type(x)
   if \"nil\" == t then
     return \"nil\"
+  elseif \"function\" == t then
+    return t
   elseif \"string\" == t then
     return string.format(\"%q\", x)
   elseif \"number\" == t then
