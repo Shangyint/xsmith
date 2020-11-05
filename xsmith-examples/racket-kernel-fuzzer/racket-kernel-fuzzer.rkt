@@ -666,8 +666,8 @@
 (ag/type-predicate evt?)
 (ag/type-predicate exn?)
 (ag/type-predicate hash?)
-;; TODO - maybe I should turn off `immutable?`, because eg. some string functions apparently don't guarantee whether their return is mutable or immutable.
-(ag/type-predicate immutable?)
+;; some string functions apparently don't guarantee whether their return is mutable or immutable.  Eg. string-normalize-* return mutable strings in BC but immutable strings in CS.  Or it may be something more subtle, like sometimes returning the original string.  Anyway, this gives spurious differences.
+;(ag/type-predicate immutable?)
 (ag/type-predicate integer?)
 (ag/type-predicate interned-char?)
 (ag/type-predicate keyword?)
