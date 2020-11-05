@@ -75,7 +75,13 @@
         (biased-random-char)
         c)))
 (define (biased-random-string)
-  (string-replace (biased-random-string*) #px";|`" "a"))
+  ;; Semicolon and backtick had printing issues in racketCS.
+  ;; Period had printing issues in racketBC.
+  ;; Hash doesn't have a bug per se, but racketCS quotes symbols
+  ;; that start with # by either putting them in pipes or using backslashes
+  ;; (it seems to use backslashes when the symbol starts with #%, otherwise
+  ;; pipes).  So it gives spurious output mismatches.
+  (string-replace (biased-random-string*) #px";|`|#|\\." "a"))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
