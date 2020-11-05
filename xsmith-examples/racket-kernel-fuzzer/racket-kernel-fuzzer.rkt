@@ -537,7 +537,9 @@
 
 (ag/single-arg char-downcase #:type char)
 (ag/single-arg char-foldcase #:type char)
-(ag/single-arg char-titlecase #:type char)
+;; char-titlecase presumably has the same issue as string-titlecase, in that it is
+;; a wont-fix issue in RacketBC.
+;(ag/single-arg char-titlecase #:type char)
 (ag/single-arg char-upcase #:type char)
 (ag/single-arg char-utf-8-length #:type int #:ctype (Ectype char))
 (ag/single-arg char-general-category #:type symbol
