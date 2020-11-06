@@ -523,7 +523,7 @@
                   (string-titlecase (symbol->string (syntax->datum id))))))
 (define-syntax-parser ag [(_ arg ...) #'(add-to-grammar python-comp arg ...)])
 (define-syntax-parser ap [(_ arg ...) #'(add-property python-comp arg ...)])
-(define-syntax-parser ag/single-arg
+(define-syntax-parser ag/one-arg
   [(_ name:id
       (~or (~optional (~seq #:type type:expr)
                       #:defaults ([type #'(fresh-subtype-of number-type)]))
@@ -605,12 +605,12 @@
    #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
 
 ;;;; built-in functions from https://docs.python.org/3/library/functions.html
-(ag/single-arg abs)
-(ag/single-arg all #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
-(ag/single-arg any #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
-(ag/single-arg ascii #:type string-type #:ctype (Ectype (fresh-type-variable)))
-(ag/single-arg bin #:type string-type #:ctype (Ectype int-type))
-(ag/single-arg bool #:type bool-type #:ctype (Ectype (fresh-type-variable)))
+(ag/one-arg abs)
+(ag/one-arg all #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
+(ag/one-arg any #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
+(ag/one-arg ascii #:type string-type #:ctype (Ectype (fresh-type-variable)))
+(ag/one-arg bin #:type string-type #:ctype (Ectype int-type))
+(ag/one-arg bool #:type bool-type #:ctype (Ectype (fresh-type-variable)))
 ;; TODO - breakpoint()  ;; XXX - we may not want to implement this, as it initializes the PDB debugger.
 ;; TODO - bytearray()  ;; XXX - returns a mutable byte-string, so we may need to update the byte-string-type stuff to accommodate.
 ;; TODO - bytes actually takes arguments of a few varieties, but they need to be constrained to avoid obvious errors.
@@ -618,9 +618,9 @@
 ;;          - buffer (requires us implementing buffers)
 ;;          - iterable (all contents must be integers in the range [0, 255])
 ;;          - no argument (produces an empty byte string)
-(ag/single-arg bytes #:type byte-string-type #:ctype (Ectype (fresh-type-variable int-type )))
-(ag/single-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
-(ag/single-arg chr #:NE-name NE_chr #:type char-type #:ctype (Ectype int-type))
+(ag/one-arg bytes #:type byte-string-type #:ctype (Ectype (fresh-type-variable int-type )))
+(ag/one-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
+(ag/one-arg chr #:NE-name NE_chr #:type char-type #:ctype (Ectype int-type))
 ;; TODO - classmethod()  ;; XXX - this is to be used as a decorator prior to a class's method declaration.
 ;; TODO - compile()  ;; XXX we may not want to implement this, as it produces code objects that may lead to arbitrary execution.
 ;; TODO - complex actually allows floats as args, but I need to expand the numeric tower before I do that.
@@ -630,27 +630,27 @@
 ;; TODO - dir also accepts no arguments, which returns a list of names bound in the current scope.
 ;;        Something to investigate is marking strings as variables, such that the output of `dir`
 ;;        could be used in calls to, e.g., `getattr`, `delattr`, or `del`.
-(ag/single-arg dir #:type (fresh-iterable string-type) #:ctype (Ectype (fresh-type-variable)))
+(ag/one-arg dir #:type (fresh-iterable string-type) #:ctype (Ectype (fresh-type-variable)))
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
 ;; TODO - enumerate returns an 'enumerate object', which is not reversible but is fairly similar to a list.
 ;;        Also, their should be a constraint that the returned tuples' second elements are of the same type as the elements of the passed-in iterable.
-(ag/single-arg enumerate
-               #:type (immutable (fresh-iterable (product-type (list int-type (fresh-type-variable)))))
-               #:ctype (λ (n t)
-                         ;; The inner type we will tell the child to take.
-                         (define inner-type (fresh-type-variable))
-                         ;; The inner type as dictated by the parent's type.
-                         (define inner-type-to-return
-                           ;; Get the list of type variables. The innermost is listed first.
-                           ;; TODO - Is the return order of `type->type-variable-list` guaranteed?
-                           (car
-                            (type->type-variable-list t)))
-                         ;; Unify the two types.
-                         (unify! inner-type inner-type-to-return)
-                         ;; Assign the child's type. It must be an iterable of the chosen type.
-                         (hash 'Expression (fresh-iterable inner-type-to-return))))
+(ag/one-arg enumerate
+            #:type (immutable (fresh-iterable (product-type (list int-type (fresh-type-variable)))))
+            #:ctype (λ (n t)
+                      ;; The inner type we will tell the child to take.
+                      (define inner-type (fresh-type-variable))
+                      ;; The inner type as dictated by the parent's type.
+                      (define inner-type-to-return
+                        ;; Get the list of type variables. The innermost is listed first.
+                        ;; TODO - Is the return order of `type->type-variable-list` guaranteed?
+                        (car
+                         (type->type-variable-list t)))
+                      ;; Unify the two types.
+                      (unify! inner-type inner-type-to-return)
+                      ;; Assign the child's type. It must be an iterable of the chosen type.
+                      (hash 'Expression (fresh-iterable inner-type-to-return))))
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
@@ -664,7 +664,7 @@
                                               bool-type)
                             'r arg-array)))
 ;; The float function can actually take a string or an int, but the string has to be a number string...
-(ag/single-arg float #:type number-type #:ctype (Ectype int-type))
+(ag/one-arg float #:type number-type #:ctype (Ectype int-type))
 ;; TODO - format() -- this will probably be fine if limited to default (empty) format spec and given a value in a limited set of types.  Arbitrary types will raise problems of eg. how function X is printed.
 ;; TODO - frozenset()
 ;; TODO - getattr()
@@ -675,22 +675,22 @@
                                                      'r string-type)))
 ;; TODO - hash()
 ;; TODO - help()  ;; XXX - don't know if we should implement this, since it's meant for interactive use.
-(ag/single-arg hex #:type string-type #:ctype (Ectype int-type))
+(ag/one-arg hex #:type string-type #:ctype (Ectype int-type))
 ;; TODO - id is commented out because its return value is both implementation- and run-dependent.
-;; (ag/single-arg id #:type int-type #:ctype (Ectype (fresh-type-variable)))
+;; (ag/one-arg id #:type int-type #:ctype (Ectype (fresh-type-variable)))
 ;; TODO - __import__()
 ;; TODO - input()  ;; XXX - don't know if we should implement this, since it waits for external input.
 ;; TODO - int()
 ;; TODO - isinstance()
 ;; TODO - issubclass()
 ;; TODO - iter()
-(ag/single-arg len #:type int-type
-               #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
-(ag/single-arg list #:type (mutable (array-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner (fresh-type-variable))
-                         (unify! (mutable (array-type inner)) t)
-                         (hash 'Expression (fresh-iterable inner))))
+(ag/one-arg len #:type int-type
+            #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
+(ag/one-arg list #:type (mutable (array-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner (fresh-type-variable))
+                      (unify! (mutable (array-type inner)) t)
+                      (hash 'Expression (fresh-iterable inner))))
 ;; TODO - locals()
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
@@ -720,17 +720,17 @@
                                    'r t)))
 ;; TODO - next()
 ;; TODO - object()
-(ag/single-arg oct #:type string-type #:ctype (Ectype int-type))
+(ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
-(ag/single-arg ord #:type int-type #:ctype (Ectype char-type))
+(ag/one-arg ord #:type int-type #:ctype (Ectype char-type))
 ;; The pow function can take a long time and a lot of memory
 ;; (IE enough to hang the process) when given very large numbers...
 #;(ag/two-arg pow #:racr-name PowTwo
-            #:type int-type
-            #:ctype (E2ctype int-type int-type))
-#;(ag/three-arg pow #:racr-name PowThree
               #:type int-type
-              #:ctype (E3ctype int-type int-type int-type))
+              #:ctype (E2ctype int-type int-type))
+#;(ag/three-arg pow #:racr-name PowThree
+                #:type int-type
+                #:ctype (E3ctype int-type int-type int-type))
 ;; TODO - print()
 ;; TODO - property()
 ;; TODO - range()
@@ -740,12 +740,12 @@
 ;;        for the sake of fuzzing this single wacko python type.
 ;;        So let's just turn off `reversed` for the time being.
 ;;        Also the return of `map` is not reversible.  What a load of hogwash.
-;(ag/single-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
-(ag/single-arg round #:type int-type #:ctype (Ectype real-type))
+;(ag/one-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
+(ag/one-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
 ;; TODO - setattr()
 ;; TODO - slice()
-(ag/single-arg sorted #:type (immutable (iterable-type (fresh-comparable-type))))
+(ag/one-arg sorted #:type (immutable (iterable-type (fresh-comparable-type))))
 ;; TODO - staticmethod()
 ;; TODO - str()
 ;; TODO - sum()
@@ -839,7 +839,7 @@ def to_string(x) -> str:
                                       (ast-child 'name v))))
                  definitions
                  #;(filter (λ (x) (base-type? (ast-child 'type x)))
-                         definitions)))
+                           definitions)))
      ;; Hack to get a newline...
      (text "")))]
 
