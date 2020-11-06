@@ -601,13 +601,15 @@
 ;(ag/single-arg string-titlecase #:type immutable-string #:ctype (Ectype string))
 (ag/single-arg string-upcase #:type immutable-string #:ctype (Ectype string))
 
-(ag/single-arg string-normalize-nfc
+;; In BC these may return a MUTABLE string that is EQ to the original.
+;; In CS these (rightfully) return immutable strings.
+(ag/single-arg string-normalize-nfc/wrap
                #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfd
+(ag/single-arg string-normalize-nfd/wrap
                #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkc
+(ag/single-arg string-normalize-nfkc/wrap
                #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkd
+(ag/single-arg string-normalize-nfkd/wrap
                #:type immutable-string #:ctype (Ectype string))
 
 (define-syntax-parser ag/converter
@@ -836,6 +838,14 @@
             [(> x max-second) (sd (modulo (truncate x) max-second))]
             [else (sd x)])
       )
+    (define (string-normalize-nfd/wrap str)
+      (string-normalize-nfd (string-copy str)))
+    (define (string-normalize-nfkd/wrap str)
+      (string-normalize-nfkd (string-copy str)))
+    (define (string-normalize-nfc/wrap str)
+      (string-normalize-nfc (string-copy str)))
+    (define (string-normalize-nfkc/wrap str)
+      (string-normalize-nfkc (string-copy str)))
     (define-values (safe-car)
       (λ (list fallback)
         (if (null? list)
