@@ -946,7 +946,9 @@
 (ag/str-method/two-arg count #:type int-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg count #:type int-type #:ctype (SM3ctype string-type int-type int-type))
 ;; TODO - encode()  ;; XXX - changed in 3.9
-;; TODO - endswith()
+(ag/str-method/one-arg endswith #:type bool-type #:ctype (SM1ctype string-type))
+(ag/str-method/two-arg endswith #:type bool-type #:ctype (SM2ctype string-type int-type))
+(ag/str-method/three-arg endswith #:type bool-type #:ctype (SM3ctype string-type int-type int-type))
 ;; TODO - expandtabs()
 ;; TODO - find()
 ;; TODO - format()  ;; XXX - changed in 3.7
