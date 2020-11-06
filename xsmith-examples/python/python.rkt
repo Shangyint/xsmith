@@ -646,10 +646,16 @@
 (ag/two-arg complex #:type number-type #:ctype (E2ctype int-type int-type))
 ;; TODO - delattr()
 ;; TODO - dict()
-;; TODO - dir also accepts no arguments, which returns a list of names bound in the current scope.
-;;        Something to investigate is marking strings as variables, such that the output of `dir`
-;;        could be used in calls to, e.g., `getattr`, `delattr`, or `del`.
-(ag/one-arg dir #:type (fresh-iterable string-type) #:ctype (Ectype (fresh-type-variable)))
+;; Zero-arg dir returns a list of names bound in the current scope.
+(ag/zero-arg dir
+             #:racr-name DirZero
+             #:type (fresh-iterable string-type))
+;; One-arg dir returns a list of attributes of the passed-in object.
+;; TODO - Figure a way to use the returned strings in, e.g., `getattr`, `delattr`.
+(ag/one-arg dir
+            #:racr-name DirOne
+            #:type (fresh-iterable string-type)
+            #:ctype (Ectype (fresh-type-variable)))
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
