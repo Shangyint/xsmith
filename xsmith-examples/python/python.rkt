@@ -816,6 +816,13 @@
 ;;;;;;
 ;; NOTE: methods on instances of `str`, documented at: https://docs.python.org/3/library/stdtypes.html#string-methods
 
+;; Concatenates documents *ds*, inserting *d-sep* between each pair of documents.
+(define (h-intercalate ds d-sep)
+  (h-concat
+   (add-between
+    ds
+    d-sep)))
+
 (define-for-syntax (racr-ize-str-method-id id suffix)
   (datum->syntax id
                  (string->symbol
@@ -823,6 +830,15 @@
                    "StrMethod"
                    (string-titlecase (symbol->string (syntax->datum id)))
                    suffix))))
+
+(define (render-str-method-node n name . args)
+  (h-append ($xsmith_render-node (ast-child 'str n))
+            dot
+            (text name)
+            lparen
+            (h-intercalate args
+                           (text ", "))
+            rparen))
 
 (define-syntax-parser ag/str-method/zero-arg
   [(_ name:id
@@ -838,12 +854,7 @@
                        (hash 'str string-type))]
                     #:prop render-node-info
                     (λ (n)
-                      (define name (symbol->string 'name))
-                      (h-append ($xsmith_render-node (ast-child 'str n))
-                                dot
-                                (text name)
-                                lparen
-                                rparen))])])
+                      (render-str-method-node n (symbol->string 'name)))])])
 
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
