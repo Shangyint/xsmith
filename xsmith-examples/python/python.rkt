@@ -815,7 +815,38 @@
 
 ;;;;;;
 ;; NOTE: methods on instances of `str`, documented at: https://docs.python.org/3/library/stdtypes.html#string-methods
-;; TODO - capitalize()  ;; XXX - changed in 3.8
+
+(define-for-syntax (racr-ize-str-method-id id suffix)
+  (datum->syntax id
+                 (string->symbol
+                  (string-append
+                   "StrMethod"
+                   (string-titlecase (symbol->string (syntax->datum id)))
+                   suffix))))
+
+(define-syntax-parser ag/str-method/zero-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'string-type]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-str-method-id #'name "Zero")])))
+      ...)
+   #'(ag [racr-name Expression ([str : Expression])
+                    #:prop type-info
+                    [type
+                     (λ (n t)
+                       (hash 'str string-type))]
+                    #:prop render-node-info
+                    (λ (n)
+                      (define name (symbol->string 'name))
+                      (h-append ($xsmith_render-node (ast-child 'str n))
+                                dot
+                                (text name)
+                                lparen
+                                rparen))])])
+
+;; NOTE - capitalize - changed in 3.8
+(ag/str-method/zero-arg capitalize)
 ;; TODO - casefold()
 ;; TODO - center()
 ;; TODO - count()
