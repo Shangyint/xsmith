@@ -739,6 +739,7 @@
 ;; I could define multiple instances, though.
 ;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
 (ag/two-arg map
+            #:racr-name MapTwo
             #:type (immutable (iterable-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
@@ -749,6 +750,21 @@
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
+(ag/three-arg map
+              #:racr-name MapThree
+              #:type (immutable (iterable-type (fresh-type-variable)))
+              #:ctype (λ (n t)
+                        (define return-elem (fresh-type-variable))
+                        (define return-array (immutable (iterable-type return-elem)))
+                        (unify! t return-array)
+                        (define arg1-elem (fresh-type-variable))
+                        (define arg1-array (fresh-iterable arg1-elem))
+                        (define arg2-elem (fresh-type-variable))
+                        (define arg2-array (fresh-iterable arg2-elem))
+                        (hash 'l (function-type (product-type (list arg1-elem arg2-elem))
+                                                return-elem)
+                              'm arg1-array
+                              'r arg2-array)))
 (ag/two-arg max #:NE-name NE_max
             ;; with fallback for when it gets an empty sequence
             #:type (fresh-comparable-type)
