@@ -153,7 +153,7 @@
                        #:MutableStructuralRecordAssignmentExpression #t
                        #:ImmutableStructuralRecord #t
                        #:int-type int
-                       #:bool-type bool
+                       #:bool-type exact-bool
                        )
 
 
