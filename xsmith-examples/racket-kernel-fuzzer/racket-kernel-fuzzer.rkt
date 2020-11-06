@@ -77,11 +77,12 @@
 (define (biased-random-string)
   ;; Semicolon and backtick had printing issues in racketCS.
   ;; Period had printing issues in racketBC.
+  ;; The uFEFF character caused a read/write bug in 7.9.
   ;; Hash doesn't have a bug per se, but racketCS quotes symbols
   ;; that start with # by either putting them in pipes or using backslashes
   ;; (it seems to use backslashes when the symbol starts with #%, otherwise
   ;; pipes).  So it gives spurious output mismatches.
-  (string-replace (biased-random-string*) #px";|`|#|\\." "a"))
+  (string-replace (biased-random-string*) #px";|`|#|\\.|\uFEFF" "a"))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
