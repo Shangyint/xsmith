@@ -856,10 +856,34 @@
                     (λ (n)
                       (render-str-method-node n (symbol->string 'name)))])])
 
+(define-syntax-parser ag/str-method/one-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'string-type]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'str string-type 'arg string-type))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-str-method-id #'name "One")])))
+      ...)
+   #'(ag [racr-name Expression ([str : Expression]
+                                [arg : Expression])
+                    #:prop type-info
+                    [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (render-str-method-node n
+                                              (symbol->string 'name)
+                                              ($xsmith_render-node (ast-child 'arg n))))])])
+(define-syntax-parser SM1ctype
+  [(_ etype-arg:expr)
+   #'(λ (n t) (hash 'str string-type
+                    'arg etype-arg))])
+
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
 ;; TODO - casefold()
 ;; TODO - center()
+(ag/str-method/one-arg center #:ctype (SM1ctype int-type))
 ;; TODO - count()
 ;; TODO - encode()  ;; XXX - changed in 3.9
 ;; TODO - endswith()
