@@ -44,6 +44,62 @@
   (fresh-type-variable
    (mutable (sequence-type inner))
    (immutable (sequence-type inner))))
+;;
+;; NOTE: These are just some notes about the strange lazy iterable-esque data
+;;       types in Python. Most of this is written in a pseudo-Haskell notation.
+;;
+;; iterable:
+;;   - __iter__()
+;; iterator:
+;;   - __iter__()
+;;   - __next__()
+;; sequence:
+;;   - __getitem__()
+;; mutable sequence:
+;;   - list, bytearray
+;; immutable sequence:
+;;   - tuple, range, str, bytes
+;;   - everything in mutable sequences
+;;   - __hash__() (if sub-elements are hashable)
+;;
+;; all       ::                  Either (Iterable a, Sequence a) -> Bool
+;; any       ::                  Either (Iterable a, Sequence a) -> Bool
+;; dict      ::                  Maybe (Either Iterable (a, b), Sequence (a, b)) -> Dictionary a b
+;; enumerate ::                  Either (Iterable a, Sequence a) -> Iterator (Int, a)
+;; filter    :: Boolifiable b => (a -> b) -> Either (Iterable a, Sequence a) -> Iterator a
+;; hash      :: Hashable a    => a -> Int
+;; iter      ::                  Either (Iterable a, Sequence a) -> Iterator a
+;; len       ::                  Lengthy a -> Int
+;; list      ::                  Maybe (Either (Iterable a, Sequence a)) -> List a
+;; map       ::                  (a -> b) -> Either (Iterable a, Sequence a) -> Iterator b
+;; max       :: Comparable a  => Either (Iterable a, Sequence a) -> a
+;; min       :: Comparable a  => Either (Iterable a, Sequence a) -> a
+;; next      ::                  Iterator a -> a
+;; range     ::                  Int -> Maybe Int -> Maybe Int -> Immutable Sequence Int
+;; reversed  ::                  Either (Reversible a, Sequence a) -> Iterator a
+;; set       :: Hashable a    => Either (Iterable a, Sequence a) -> Set a
+;; sorted    :: Comparable a  => Either (Iterable a, Sequence a) -> List a
+;; sum       :: Summable a    => Either (Iterable a, Sequence a) -> a
+;; tuple     ::                  Either (Iterable a, Sequence a) -> Immutable Sequence a
+;; zip       ::                  Either (Iterable a, Sequence a) -> Either (Iterable b, Sequence b) -> Iterator (a, b)
+;;
+;; class Iterable a where
+;;     __iter__ :: () -> Iterator a
+;; class Iterable a => Iterator a where
+;;     __next__ :: () -> Maybe a
+;; class Sequence a where
+;;     __getitem__ :: Int -> a  ;; NOTE: the index is most often an Int, though not always
+;; class Hashable a where
+;;     __hash__ :: a -> Int
+;; class Boolifiable a where
+;;     __bool__ :: a -> Bool
+;; class Comparable a where
+;;     __lt__ :: a -> a -> Bool
+;; class Summable a where
+;;     __add__ :: a -> a -> a
+;;
+;;
+;;
 (define (fresh-comparable-type)
   ;; TODO - lots of things are comparable (eg. lt/gt work on them) in python,
   ;; but I'm not sure which ones I should include for fuzzing.
