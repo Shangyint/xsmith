@@ -864,36 +864,56 @@
           (void)
           (vector-set! vec (modulo index (vector-length vec)) val)))
 
-    (define (my-format/hash-inner the-hash)
-      (define (hash-sort-lt l r)
-        (match (list l r)
-          [(list (? number?) (? number?)) (< l r)]
-          [(list (? string?) (? string?)) (string<? l r)]
-          [(list (? symbol?) (? symbol?)) (string<? (symbol->string l)
-                                                    (symbol->string r))]
-          [(list (? keyword?) (? keyword?)) (string<? (keyword->string l)
-                                                      (keyword->string r))]
-          [else (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
-      (string-join
-       (for/list ([k (sort (hash-keys the-hash) hash-sort-lt)])
-         (format "[~a . ~a]"
-                 (my-format k)
-                 (my-format (hash-ref the-hash k))))))
     (define (format-round x)
       (if (or (equal? x +inf.0)
               (equal? x -inf.0)
               (equal? x +nan.0))
           x
           (~a #:max-width +inf.0 (inexact->exact (round x)))))
-    (define (my-format val)
+
+    (define (my-format val #:mutables [mutables '()])
+      (define (rec x)
+        (my-format x #:mutables mutables))
+      (define (my-format/hash-inner the-hash)
+        (define (hash-sort-lt l r)
+          (match (list l r)
+            [(list (? number?) (? number?)) (< l r)]
+            [(list (? string?) (? string?)) (string<? l r)]
+            [(list (? symbol?) (? symbol?)) (string<? (symbol->string l)
+                                                      (symbol->string r))]
+            [(list (? keyword?) (? keyword?)) (string<? (keyword->string l)
+                                                        (keyword->string r))]
+            [else (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
+        (string-join
+         (for/list ([k (sort (hash-keys the-hash) hash-sort-lt)])
+           (format "[~a . ~a]"
+                   (rec k)
+                   (rec (hash-ref the-hash k))))))
       (define (mutable? x)
         (not (immutable? x)))
+      (define (mutable-container? x)
+        (and (mutable? x)
+             (or (box? x)
+                 (vector? x)
+                 (hash? x))))
+      (define mutable-index
+        (and (mutable-container? val)
+             (let ([memq-result (memq val mutables)])
+               (and memq-result (length memq-result)))))
+      (when (and (mutable? val) (not mutable-index))
+        (set! mutables (cons val mutables)))
       (match val
-        [(list v ...) (format "(~a)" (string-join (map my-format v)))]
+        ;; The type system ought to prevent any cyclic data structures...
+        ;; Yet I got a couple in a big fuzz campaign, so to guard against
+        ;; programs failing to terminate while printing due to cyclic
+        ;; data, I'm adding this mutable container guard.
+        [(? (λ (x) mutable-index))
+         (format "#{mutable-object-already-seen: ~a}" mutable-index)]
+        [(list v ...) (format "(~a)" (string-join (map rec v)))]
         [(and (? immutable?) (vector v ...))
-         (format "#{vector-immutable ~a}" (string-join (map my-format v)))]
+         (format "#{vector-immutable ~a}" (string-join (map rec v)))]
         [(vector v ...)
-         (format "#{vector-mutable ~a}" (string-join (map my-format v)))]
+         (format "#{vector-mutable ~a}" (string-join (map rec v)))]
         [(and (? immutable?) (? hash?) (? hash-eq?))
          (format "#{immutable-hasheq ~a}" (my-format/hash-inner val))]
         [(and (? immutable?) (? hash?) (? hash-eqv?))
@@ -907,9 +927,9 @@
         [(and (? mutable?) (? hash?) (? hash-equal?))
          (format "#{mutable-hashequal ~a}" (my-format/hash-inner val))]
         [(and (? immutable?) (box v))
-         (format "#{immutable-box ~a}" (my-format v))]
+         (format "#{immutable-box ~a}" (rec v))]
         [(and (? mutable?) (box v))
-         (format "#{mutable-box ~a}" (my-format v))]
+         (format "#{mutable-box ~a}" (rec v))]
         [(? procedure?)
          ;; Different versions of Racket can have different results for
          ;; `object-name`, so let's just print all procedures equally.
