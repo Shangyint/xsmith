@@ -404,7 +404,9 @@
 (ag/variadic bitwise-ior 0 #:type int)
 (ag/variadic bitwise-xor 0 #:type int)
 (ag/variadic lcm 0 #:type int)
-(ag/variadic gcd 0 #:type int)
+;; TODO - re-enable gcd when I start fuzzing versions where the bug is fixed.
+;;        Turning it off for now to stop getting duplicates.
+;(ag/variadic gcd 0 #:type int)
 (ag/variadic min 1 #:racr-name MinReal #:type real)
 (ag/variadic min 1 #:racr-name MinInt #:type int)
 (ag/variadic min 1 #:racr-name MinNat #:type nat)
