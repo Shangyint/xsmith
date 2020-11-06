@@ -523,6 +523,25 @@
                   (string-titlecase (symbol->string (syntax->datum id))))))
 (define-syntax-parser ag [(_ arg ...) #'(add-to-grammar python-comp arg ...)])
 (define-syntax-parser ap [(_ arg ...) #'(add-property python-comp arg ...)])
+
+(define-syntax-parser ag/zero-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'(fresh-subtype-of number-type)]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-id #'name)]))
+           (~optional (~seq #:NE-name NE-name)
+                      #:defaults ([NE-name #'name])))
+      ...)
+   #'(ag [racr-name Expression ()
+                    #:prop type-info [type (λ (n t) (hash))]
+                    #:prop render-node-info
+                    (λ (n)
+                      (define name (symbol->string (if NE? 'NE-name 'name)))
+                      (h-append (text name)
+                                lparen
+                                rparen))])])
+
 (define-syntax-parser ag/one-arg
   [(_ name:id
       (~or (~optional (~seq #:type type:expr)
