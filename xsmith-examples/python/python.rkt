@@ -879,11 +879,37 @@
    #'(λ (n t) (hash 'str string-type
                     'arg etype-arg))])
 
+(define-syntax-parser ag/str-method/two-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'string-type]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'str string-type 'argOne string-type 'argTwo string-type))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-str-method-id #'name "Two")])))
+      ...)
+   #'(ag [racr-name Expression ([str : Expression]
+                                [argOne : Expression]
+                                [argTwo : Expression])
+                    #:prop type-info
+                    [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (render-str-method-node n
+                                              (symbol->string 'name)
+                                              ($xsmith_render-node (ast-child 'argOne n))
+                                              ($xsmith_render-node (ast-child 'argTwo n))))])])
+(define-syntax-parser SM2ctype
+  [(_ etype-arg1:expr etype-arg2:expr)
+   #'(λ (n t) (hash 'str string-type
+                    'argOne etype-arg1
+                    'argTwo etype-arg2))])
+
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
 ;; TODO - casefold()
-;; TODO - center()
 (ag/str-method/one-arg center #:ctype (SM1ctype int-type))
+(ag/str-method/two-arg center #:ctype (SM2ctype int-type char-type))
 ;; TODO - count()
 ;; TODO - encode()  ;; XXX - changed in 3.9
 ;; TODO - endswith()
