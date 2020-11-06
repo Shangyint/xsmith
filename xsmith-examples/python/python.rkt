@@ -813,6 +813,55 @@
 ;; TODO - vars()
 ;; TODO - zip()
 
+;;;;;;
+;; NOTE: methods on instances of `str`, documented at: https://docs.python.org/3/library/stdtypes.html#string-methods
+;; TODO - capitalize()  ;; XXX - changed in 3.8
+;; TODO - casefold()
+;; TODO - center()
+;; TODO - count()
+;; TODO - encode()  ;; XXX - changed in 3.9
+;; TODO - endswith()
+;; TODO - expandtabs()
+;; TODO - find()
+;; TODO - format()  ;; XXX - changed in 3.7
+;; TODO - format_map()
+;; TODO - index()
+;; TODO - isalnum()
+;; TODO - isalpha()
+;; TODO - isascii()  ;; XXX - new in 3.7
+;; TODO - isdecimal()
+;; TODO - isdigit()
+;; TODO - isidentifier()
+;; TODO - islower()
+;; TODO - isnumeric()
+;; TODO - isprintable()
+;; TODO - isspace()
+;; TODO - istitle()
+;; TODO - isupper()
+;; TODO - join()
+;; TODO - ljust()
+;; TODO - lower()
+;; TODO - lstrip()
+;; TODO - maketrans()  ;; XXX - static
+;; TODO - partition()
+;; TODO - removeprefix()  ;; XXX - new in 3.9
+;; TODO - removesuffix()  ;; XXX - new in 3.9
+;; TODO - replace()
+;; TODO - rindex()
+;; TODO - rjust()
+;; TODO - rpartition()
+;; TODO - rsplit()
+;; TODO - rstrip()
+;; TODO - split()
+;; TODO - splitlines()
+;; TODO - startswith()
+;; TODO - strip()
+;; TODO - swapcase()
+;; TODO - title()
+;; TODO - translate()
+;; TODO - upper()
+;; TODO - zfill()
+
 (define header-definitions-block
   "
 from inspect import signature
