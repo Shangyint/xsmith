@@ -32,6 +32,10 @@
   (λ () (fresh-type-variable int-type bool-type string-type)))
 (define dictionary-value-type
   (λ () (fresh-type-variable)))
+(define (fresh-dictionary key-type value-type)
+  (fresh-type-variable
+   (mutable (dictionary-type key-type value-type))
+   (immutable (dictionary-type key-type value-type))))
 (define byte-string-type (base-type 'byte-string))
 (define tuple-max-length 6)
 (define-generic-type sequence-type ([type covariant]))
@@ -651,7 +655,14 @@
 ;; TODO - complex actually allows floats as args, but I need to expand the numeric tower before I do that.
 (ag/two-arg complex #:type number-type #:ctype (E2ctype int-type int-type))
 ;; TODO - delattr()
-;; TODO - dict()
+;; TODO - dict can also take some other configurations of arguments.
+(ag/zero-arg dict
+             #:racr-name DictZero
+             #:type (fresh-dictionary (dictionary-key-type) (dictionary-value-type)))
+(ag/one-arg dict
+            #:racr-name DictOne
+            #:type (fresh-dictionary (dictionary-key-type) (dictionary-value-type))
+            #:ctype (Ectype (fresh-iterable (product-type (list (dictionary-key-type) (dictionary-value-type))))))
 ;; Zero-arg dir returns a list of names bound in the current scope.
 (ag/zero-arg dir
              #:racr-name DirZero
