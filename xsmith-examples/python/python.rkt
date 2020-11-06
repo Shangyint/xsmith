@@ -905,12 +905,46 @@
                     'argOne etype-arg1
                     'argTwo etype-arg2))])
 
+(define-syntax-parser ag/str-method/three-arg
+  [(_ name:id
+      (~or (~optional (~seq #:type type:expr)
+                      #:defaults ([type #'string-type]))
+           (~optional (~seq #:ctype ctype:expr)
+                      #:defaults ([ctype #'(λ (n t) (hash 'str string-type
+                                                          'argOne string-type
+                                                          'argTwo string-type
+                                                          'argThree string-type))]))
+           (~optional (~seq #:racr-name racr-name:id)
+                      #:defaults ([racr-name (racr-ize-str-method-id #'name "Three")])))
+      ...)
+   #'(ag [racr-name Expression ([str : Expression]
+                                [argOne : Expression]
+                                [argTwo : Expression]
+                                [argThree : Expression])
+                    #:prop type-info
+                    [type ctype]
+                    #:prop render-node-info
+                    (λ (n)
+                      (render-str-method-node n
+                                              (symbol->string 'name)
+                                              ($xsmith_render-node (ast-child 'argOne n))
+                                              ($xsmith_render-node (ast-child 'argTwo n))
+                                              ($xsmith_render-node (ast-child 'argThree n))))])])
+(define-syntax-parser SM3ctype
+  [(_ etype-arg1:expr etype-arg2:expr etype-arg3:expr)
+   #'(λ (n t) (hash 'str string-type
+                    'argOne etype-arg1
+                    'argTwo etype-arg2
+                    'argThree etype-arg3))])
+
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
 ;; TODO - casefold()
 (ag/str-method/one-arg center #:ctype (SM1ctype int-type))
 (ag/str-method/two-arg center #:ctype (SM2ctype int-type char-type))
-;; TODO - count()
+(ag/str-method/one-arg count #:type int-type #:ctype (SM1ctype string-type))
+(ag/str-method/two-arg count #:type int-type #:ctype (SM2ctype string-type int-type))
+(ag/str-method/three-arg count #:type int-type #:ctype (SM3ctype string-type int-type int-type))
 ;; TODO - encode()  ;; XXX - changed in 3.9
 ;; TODO - endswith()
 ;; TODO - expandtabs()
