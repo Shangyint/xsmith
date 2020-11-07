@@ -79,6 +79,7 @@
          render-hole-info
          type-info
          edit
+         feature
          ;; user-added props
          prop-name ...
          )
