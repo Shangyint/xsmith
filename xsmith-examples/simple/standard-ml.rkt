@@ -113,8 +113,6 @@
                    space op-rendered space
                    (att-value 'xsmith_render-node (ast-child 'r n)) rparen)))
 
-;; TODO - I haven't quite got procedure (lambda) printing right, so I'm turning functions off for now.
-(add-property comp choice-weight [ProcedureApplication 0])
 
 (add-property
  comp
@@ -149,6 +147,31 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                            (hash 'definitions (λ (c) (fresh-type-variable))
                                  'Expression t))]])
 
+
+(define (type->string t*)
+  ;; concretize and unify, just in case.
+  (define t (concretize-type t*))
+  (unify! t t*)
+  (cond
+    [(can-unify? t int-type) "int"]
+    [(can-unify? t string-type) "string"]
+    [(can-unify? t bool-type) "bool"]
+    [(can-unify? t (box-type (fresh-type-variable)))
+     (define inner (fresh-type-variable))
+     (unify! (box-type inner) t)
+     (format "(~a) ref" (type->string inner))]
+    [(can-unify? t (product-type #f))
+     (define inners (product-type-inner-type-list t))
+     (if (null? inners)
+         "unit"
+         (format "(~a)" (string-join (map type->string inners) " * ")))]
+    [(can-unify? t (function-type (product-type #f) (fresh-type-variable)))
+     (define ret (fresh-type-variable))
+     (define arg (fresh-type-variable))
+     (unify! t (function-type arg ret))
+     (format "(~a -> ~a)" (type->string arg) (type->string ret))]
+    [else (error 'standard-ml_type->string
+                 "Type not implemented yet: ~v" t)]))
 
 (add-property
  comp
@@ -226,9 +249,12 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                  (ast-children (ast-child 'effectexpressions n))))
      (att-value 'xsmith_render-node (ast-child 'finalexpression n))))]
 
- ;; TODO - maybe type annotations.
  [Definition (λ (n) (h-append (text "val ")
                               (text (ast-child 'name n))
+                              space
+                              colon
+                              space
+                              (text (type->string (ast-child 'type n)))
                               space
                               equals
                               space
@@ -240,19 +266,18 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
  ;; TODO - I could *actually* use my single-argument function type for SML and
  ;; have it take tuple objects, I think.
  [ProcedureApplication
-  (λ (n) (h-append (att-value 'xsmith_render-node (ast-child 'procedure n))
+  (λ (n) (h-append lparen
+                   (att-value 'xsmith_render-node (ast-child 'procedure n))
                    lparen
                    (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
                                     (ast-children (ast-child 'arguments n))))
+                   rparen
                    rparen))]
- ;; TODO - maybe type annotations.
  [FormalParameter
-  (λ (n) (text (format "~a" (ast-child 'name n))))
-  #;(λ (n) (h-append
+  (λ (n) (h-append
           (text (format "~a" (ast-child 'name n)))
           space colon space
-          (text (type->string (ast-child 'type n)))))
-  ]
+          (text (type->string (ast-child 'type n)))))]
  [LambdaWithExpression
   (λ (n) (h-append lparen (text "fn") lparen
                    (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
