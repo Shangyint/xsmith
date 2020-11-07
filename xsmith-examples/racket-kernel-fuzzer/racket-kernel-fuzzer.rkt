@@ -239,13 +239,13 @@
 
 (define ((render-variadic variadic-function-name) n)
   `(,variadic-function-name ,@(render-children 'minargs n)
-                           ,@(render-children 'moreargs n)))
+                            ,@(render-children 'moreargs n)))
 (define no-child-types (λ (n t) (hash)))
 
 (define-syntax-parser ag [(_ arg ...) #'(add-to-grammar racket-comp arg ...)])
 (define-syntax-parser ap [(_ arg ...) #'(add-property racket-comp arg ...)])
 
-(define-syntax-parser ag/single-arg
+(define-syntax-parser ag/one-arg
   [(_ name:id
       (~or (~optional (~seq #:type type:expr)
                       #:defaults ([type #'(fresh-subtype-of number)]))
@@ -356,15 +356,15 @@
 (ag/atomic-literal KeywordLiteral keyword (string->keyword (biased-random-string)))
 
 ;; Limit make-string length to a byte to prevent making ginormous strings.
-(ag/single-arg make-string #:racr-name MakeStringOne
-               #:type mutable-string
-               #:ctype (Ectype byte))
+(ag/one-arg make-string #:racr-name MakeStringOne
+            #:type mutable-string
+            #:ctype (Ectype byte))
 (ag/two-arg make-string #:racr-name MakeStringTwo
             #:type mutable-string
             #:ctype (E2ctype byte char))
-(ag/single-arg make-bytes #:racr-name MakeBytesOne
-               #:type mutable-bytes
-               #:ctype (Ectype byte))
+(ag/one-arg make-bytes #:racr-name MakeBytesOne
+            #:type mutable-bytes
+            #:ctype (Ectype byte))
 (ag/two-arg make-bytes #:racr-name MakeBytesTwo
             #:type mutable-bytes
             #:ctype (E2ctype byte byte))
@@ -385,10 +385,10 @@
                       #:defaults ([NE-name #'racket-name])))
       ...)
    #'(ag [racr-name VariadicExpression ()
-               #:prop fresh (hash 'minargs min-args)
-               #:prop type-info [type ctype]
-               #:prop render-node-info (render-variadic
-                                        (if NE? 'NE-name 'racket-name))])])
+                    #:prop fresh (hash 'minargs min-args)
+                    #:prop type-info [type ctype]
+                    #:prop render-node-info (render-variadic
+                                             (if NE? 'NE-name 'racket-name))])])
 (ag/variadic * 0 #:racr-name TimesNum #:type number)
 (ag/variadic * 0 #:racr-name TimesReal #:type real)
 (ag/variadic * 0 #:racr-name TimesInt #:type int)
@@ -426,7 +426,7 @@
 (ag/variadic bytes-append 0 #:type mutable-bytes
              #:ctype (λ (n t) (hash 'minargs bytes 'moreargs bytes)))
 
- ;; The numerical comparison operators require at least 1 argument.  I'm not sure why they don't accept 0 args -- eg. as a predicate that an empty list is sorted.
+;; The numerical comparison operators require at least 1 argument.  I'm not sure why they don't accept 0 args -- eg. as a predicate that an empty list is sorted.
 (define-syntax-parser ag/number-compare
   [(_ name:id symbol:expr)
    #'(ag [name VariadicExpression ()
@@ -490,80 +490,80 @@
 (ag/bytes-compare BytesGreaterThan 'bytes>?)
 
 
-(ag/single-arg abs #:type real)
-(ag/single-arg cos #:type number #:ctype (Ectype real))
-(ag/single-arg acos #:type number #:ctype (Ectype real))
-(ag/single-arg sin #:type number #:ctype (Ectype real))
-(ag/single-arg asin #:type number #:ctype (Ectype real))
-(ag/single-arg tan #:type number #:ctype (Ectype real))
-(ag/single-arg atan #:racr-name AtanOne #:NE-name NE/atan-1 #:type number
-               #:ctype (Ectype real))
-(ag/single-arg add1 #:racr-name AddOneNum #:type number)
-(ag/single-arg add1 #:racr-name AddOneInt #:type int)
-(ag/single-arg add1 #:racr-name AddOneNat #:type nat)
-(ag/single-arg sub1 #:racr-name SubOneNum #:type number)
-(ag/single-arg sub1 #:racr-name SubOneInt #:type int)
-(ag/single-arg angle #:type real #:NE-name NE/angle)
-(ag/single-arg ceiling #:type real)
-(ag/single-arg floor #:type real)
-(ag/single-arg round #:type real)
-(ag/single-arg truncate #:type real)
-(ag/single-arg imag-part)
-(ag/single-arg real-part)
-(ag/single-arg magnitude)
+(ag/one-arg abs #:type real)
+(ag/one-arg cos #:type number #:ctype (Ectype real))
+(ag/one-arg acos #:type number #:ctype (Ectype real))
+(ag/one-arg sin #:type number #:ctype (Ectype real))
+(ag/one-arg asin #:type number #:ctype (Ectype real))
+(ag/one-arg tan #:type number #:ctype (Ectype real))
+(ag/one-arg atan #:racr-name AtanOne #:NE-name NE/atan-1 #:type number
+            #:ctype (Ectype real))
+(ag/one-arg add1 #:racr-name AddOneNum #:type number)
+(ag/one-arg add1 #:racr-name AddOneInt #:type int)
+(ag/one-arg add1 #:racr-name AddOneNat #:type nat)
+(ag/one-arg sub1 #:racr-name SubOneNum #:type number)
+(ag/one-arg sub1 #:racr-name SubOneInt #:type int)
+(ag/one-arg angle #:type real #:NE-name NE/angle)
+(ag/one-arg ceiling #:type real)
+(ag/one-arg floor #:type real)
+(ag/one-arg round #:type real)
+(ag/one-arg truncate #:type real)
+(ag/one-arg imag-part)
+(ag/one-arg real-part)
+(ag/one-arg magnitude)
 ;; TODO - numerator and denominator take rational reals (not imaginaries or irrationals)
-(ag/single-arg numerator #:type int)
-(ag/single-arg denominator #:type int)
+(ag/one-arg numerator #:type int)
+(ag/one-arg denominator #:type int)
 ;; TODO - what should I do about exp, expt, arithmetic-shift, and other functions that potentially need a limited domain?  Make NE versions?
 
-(ag/single-arg not #:type bool)
-(ag/single-arg bitwise-not #:type int)
-(ag/single-arg zero? #:type bool #:ctype (Ectype number))
-(ag/single-arg null? #:type bool
-               #:ctype (Ectype (immutable (list-type (fresh-type-variable)))))
-(ag/single-arg symbol-interned? #:type bool #:ctype (Ectype symbol))
-(ag/single-arg symbol-unreadable?
-               #:type bool #:ctype (Ectype symbol))
-(ag/single-arg integer-length #:type int)
-(ag/single-arg even? #:type bool #:ctype (Ectype int))
-(ag/single-arg odd? #:type bool #:ctype (Ectype int))
-(ag/single-arg exact? #:type bool #:ctype (Ectype number))
-(ag/single-arg inexact? #:type bool #:ctype (Ectype number))
-(ag/single-arg exact-integer? #:type bool #:ctype (Ectype number))
-(ag/single-arg exact-positive-integer? #:type bool #:ctype (Ectype number))
-(ag/single-arg exact-nonnegative-integer? #:type bool #:ctype (Ectype number))
-(ag/single-arg inexact-real? #:type bool #:ctype (Ectype number))
-(ag/single-arg positive? #:type bool #:ctype (Ectype real))
-(ag/single-arg negative? #:type bool #:ctype (Ectype real))
-(ag/single-arg exact->inexact #:type number)
-(ag/single-arg inexact->exact #:type number)
+(ag/one-arg not #:type bool)
+(ag/one-arg bitwise-not #:type int)
+(ag/one-arg zero? #:type bool #:ctype (Ectype number))
+(ag/one-arg null? #:type bool
+            #:ctype (Ectype (immutable (list-type (fresh-type-variable)))))
+(ag/one-arg symbol-interned? #:type bool #:ctype (Ectype symbol))
+(ag/one-arg symbol-unreadable?
+            #:type bool #:ctype (Ectype symbol))
+(ag/one-arg integer-length #:type int)
+(ag/one-arg even? #:type bool #:ctype (Ectype int))
+(ag/one-arg odd? #:type bool #:ctype (Ectype int))
+(ag/one-arg exact? #:type bool #:ctype (Ectype number))
+(ag/one-arg inexact? #:type bool #:ctype (Ectype number))
+(ag/one-arg exact-integer? #:type bool #:ctype (Ectype number))
+(ag/one-arg exact-positive-integer? #:type bool #:ctype (Ectype number))
+(ag/one-arg exact-nonnegative-integer? #:type bool #:ctype (Ectype number))
+(ag/one-arg inexact-real? #:type bool #:ctype (Ectype number))
+(ag/one-arg positive? #:type bool #:ctype (Ectype real))
+(ag/one-arg negative? #:type bool #:ctype (Ectype real))
+(ag/one-arg exact->inexact #:type number)
+(ag/one-arg inexact->exact #:type number)
 
-(ag/single-arg char-downcase #:type char)
-(ag/single-arg char-foldcase #:type char)
+(ag/one-arg char-downcase #:type char)
+(ag/one-arg char-foldcase #:type char)
 ;; char-titlecase presumably has the same issue as string-titlecase, in that it is
 ;; a wont-fix issue in RacketBC.
-;(ag/single-arg char-titlecase #:type char)
-(ag/single-arg char-upcase #:type char)
-(ag/single-arg char-utf-8-length #:type int #:ctype (Ectype char))
-(ag/single-arg char-general-category #:type symbol
-               #:ctype (Ectype char))
+;(ag/one-arg char-titlecase #:type char)
+(ag/one-arg char-upcase #:type char)
+(ag/one-arg char-utf-8-length #:type int #:ctype (Ectype char))
+(ag/one-arg char-general-category #:type symbol
+            #:ctype (Ectype char))
 
-(ag/single-arg date*-nanosecond #:type number #:ctype (Ectype date*))
-(ag/single-arg date*-time-zone-name #:type immutable-string #:ctype (Ectype date*))
-(ag/single-arg date-day #:type int #:ctype (Ectype date))
-(ag/single-arg date-dst? #:type bool #:ctype (Ectype date))
-(ag/single-arg date-hour #:type int #:ctype (Ectype date))
-(ag/single-arg date-minute #:type int #:ctype (Ectype date))
-(ag/single-arg date-month #:type int #:ctype (Ectype date))
-(ag/single-arg date-second #:type int #:ctype (Ectype date))
-(ag/single-arg date-time-zone-offset #:type int #:ctype (Ectype date))
-(ag/single-arg date-week-day #:type int #:ctype (Ectype date))
-(ag/single-arg date-year #:type int #:ctype (Ectype date))
-(ag/single-arg date-year-day #:type int #:ctype (Ectype date))
+(ag/one-arg date*-nanosecond #:type number #:ctype (Ectype date*))
+(ag/one-arg date*-time-zone-name #:type immutable-string #:ctype (Ectype date*))
+(ag/one-arg date-day #:type int #:ctype (Ectype date))
+(ag/one-arg date-dst? #:type bool #:ctype (Ectype date))
+(ag/one-arg date-hour #:type int #:ctype (Ectype date))
+(ag/one-arg date-minute #:type int #:ctype (Ectype date))
+(ag/one-arg date-month #:type int #:ctype (Ectype date))
+(ag/one-arg date-second #:type int #:ctype (Ectype date))
+(ag/one-arg date-time-zone-offset #:type int #:ctype (Ectype date))
+(ag/one-arg date-week-day #:type int #:ctype (Ectype date))
+(ag/one-arg date-year #:type int #:ctype (Ectype date))
+(ag/one-arg date-year-day #:type int #:ctype (Ectype date))
 
 (define-syntax-parser ag/char-pred
   [(_ name:id)
-   #'(ag/single-arg name #:type bool #:ctype (Ectype char))])
+   #'(ag/one-arg name #:type bool #:ctype (Ectype char))])
 (ag/char-pred char-alphabetic?)
 (ag/char-pred char-blank?)
 (ag/char-pred char-graphic?)
@@ -576,16 +576,16 @@
 (ag/char-pred char-upper-case?)
 (ag/char-pred char-whitespace?)
 
-(ag/single-arg string-length #:type int #:ctype (Ectype string))
-(ag/single-arg bytes-length #:type int #:ctype (Ectype bytes))
-(ag/single-arg string-utf-8-length
-               #:type int #:ctype (Ectype string))
-(ag/single-arg string-copy #:type mutable-string #:ctype (Ectype string))
-(ag/single-arg bytes-copy #:type mutable-bytes #:ctype (Ectype bytes))
+(ag/one-arg string-length #:type int #:ctype (Ectype string))
+(ag/one-arg bytes-length #:type int #:ctype (Ectype bytes))
+(ag/one-arg string-utf-8-length
+            #:type int #:ctype (Ectype string))
+(ag/one-arg string-copy #:type mutable-string #:ctype (Ectype string))
+(ag/one-arg bytes-copy #:type mutable-bytes #:ctype (Ectype bytes))
 
-(ag/single-arg sha1-bytes #:type bytes #:ctype (Ectype bytes))
-(ag/single-arg sha224-bytes #:type bytes #:ctype (Ectype bytes))
-(ag/single-arg sha256-bytes #:type bytes #:ctype (Ectype bytes))
+(ag/one-arg sha1-bytes #:type bytes #:ctype (Ectype bytes))
+(ag/one-arg sha224-bytes #:type bytes #:ctype (Ectype bytes))
+(ag/one-arg sha256-bytes #:type bytes #:ctype (Ectype bytes))
 
 (ag/two-arg bytes-ref #:NE-name NE/bytes-ref #:type byte #:ctype (E2ctype bytes int))
 (ag/two-arg string-ref #:NE-name NE/string-ref #:type char #:ctype (E2ctype string int))
@@ -598,28 +598,28 @@
               #:ctype (E3ctype mutable-string int char))
 
 ;; It seems to be inconsistent whether these return mutable or immutable strings.
-(ag/single-arg string-downcase #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-foldcase #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-downcase #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-foldcase #:type immutable-string #:ctype (Ectype string))
 ;; String titlecase is buggy in RacketBC, but the fix is just to use CS instead, so I'm commenting it out of the fuzzer so I stop getting a deluge of string-titlecase bug reports.
-;(ag/single-arg string-titlecase #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-upcase #:type immutable-string #:ctype (Ectype string))
+;(ag/one-arg string-titlecase #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-upcase #:type immutable-string #:ctype (Ectype string))
 
 ;; In BC these may return a MUTABLE string that is EQ to the original.
 ;; In CS these (rightfully) return immutable strings.
-(ag/single-arg string-normalize-nfc/wrap
-               #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfd/wrap
-               #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkc/wrap
-               #:type immutable-string #:ctype (Ectype string))
-(ag/single-arg string-normalize-nfkd/wrap
-               #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-normalize-nfc/wrap
+            #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-normalize-nfd/wrap
+            #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-normalize-nfkc/wrap
+            #:type immutable-string #:ctype (Ectype string))
+(ag/one-arg string-normalize-nfkd/wrap
+            #:type immutable-string #:ctype (Ectype string))
 
 (define-syntax-parser ag/converter
   [(_ name:id from:expr to:expr
       (~optional (~seq #:NE-name NE-name)
                  #:defaults ([NE-name #'name])))
-   #'(ag/single-arg name #:type to #:ctype (Ectype from) #:NE-name NE-name)])
+   #'(ag/one-arg name #:type to #:ctype (Ectype from) #:NE-name NE-name)])
 (ag/converter char->integer char int)
 (ag/converter number->string number string)
 (ag/converter string->symbol string symbol)
@@ -638,37 +638,37 @@
 ;; TODO - should be real instead of int
 ;; TODO - needs a second boolean arg for whether it's local time (the default #t is local) -- or maybe I should always use UTC?
 (ag/converter seconds->date real date* #:NE-name NE/seconds->date)
-(ag/single-arg vector->list
-               #:racr-name ImmutableVectorToList
-               #:type (immutable (list-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner-type (fresh-type-variable))
-                         (unify! t (immutable (list-type inner-type)))
-                         (hash 'Expression (immutable (array-type inner-type)))))
-(ag/single-arg vector->list
-               #:racr-name MutableVectorToList
-               #:type (immutable (list-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner-type (fresh-type-variable))
-                         (unify! t (immutable (list-type inner-type)))
-                         (hash 'Expression (mutable (array-type inner-type)))))
+(ag/one-arg vector->list
+            #:racr-name ImmutableVectorToList
+            #:type (immutable (list-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner-type (fresh-type-variable))
+                      (unify! t (immutable (list-type inner-type)))
+                      (hash 'Expression (immutable (array-type inner-type)))))
+(ag/one-arg vector->list
+            #:racr-name MutableVectorToList
+            #:type (immutable (list-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner-type (fresh-type-variable))
+                      (unify! t (immutable (list-type inner-type)))
+                      (hash 'Expression (mutable (array-type inner-type)))))
 ;; This one is kinda dumb, it probably checks and is just identity.
-(ag/single-arg vector->immutable-vector
-               #:racr-name ImmutableVectorToImmutableVector
-               #:type (immutable (array-type (fresh-type-variable))))
-(ag/single-arg vector->immutable-vector
-               #:racr-name MutableVectorToImmutableVector
-               #:type (immutable (array-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner-type (fresh-type-variable))
-                         (unify! t (immutable (array-type inner-type)))
-                         (hash 'Expression (mutable (array-type inner-type)))))
+(ag/one-arg vector->immutable-vector
+            #:racr-name ImmutableVectorToImmutableVector
+            #:type (immutable (array-type (fresh-type-variable))))
+(ag/one-arg vector->immutable-vector
+            #:racr-name MutableVectorToImmutableVector
+            #:type (immutable (array-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner-type (fresh-type-variable))
+                      (unify! t (immutable (array-type inner-type)))
+                      (hash 'Expression (mutable (array-type inner-type)))))
 
 (define-syntax-parser ag/type-predicate
   [(_ name:id)
-   #'(ag/single-arg name
-                    #:type bool
-                    #:ctype (Ectype (fresh-type-variable)))])
+   #'(ag/one-arg name
+                 #:type bool
+                 #:ctype (Ectype (fresh-type-variable)))])
 (ag/type-predicate boolean?)
 (ag/type-predicate box?)
 (ag/type-predicate byte?)
@@ -707,26 +707,26 @@
 (ag/type-predicate vector?)
 (ag/type-predicate void?)
 
-(ag/single-arg box
-               #:racr-name MutableBoxLiteral
-               #:type (mutable (box-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner-type (fresh-type-variable))
-                         (unify! (mutable (box-type inner-type)) t)
-                         (hash 'Expression inner-type)))
+(ag/one-arg box
+            #:racr-name MutableBoxLiteral
+            #:type (mutable (box-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner-type (fresh-type-variable))
+                      (unify! (mutable (box-type inner-type)) t)
+                      (hash 'Expression inner-type)))
 (ap wont-over-deepen [MutableBoxLiteral #t])
-(ag/single-arg box-immutable #:racr-name ImmutableBoxLiteral
-               #:type (immutable (box-type (fresh-type-variable)))
-               #:ctype (λ (n t)
-                         (define inner-type (fresh-type-variable))
-                         (unify! (immutable (box-type inner-type)) t)
-                         (hash 'Expression inner-type)))
+(ag/one-arg box-immutable #:racr-name ImmutableBoxLiteral
+            #:type (immutable (box-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define inner-type (fresh-type-variable))
+                      (unify! (immutable (box-type inner-type)) t)
+                      (hash 'Expression inner-type)))
 (ap wont-over-deepen [ImmutableBoxLiteral #t])
-(ag/single-arg unbox
-               #:type (fresh-type-variable)
-               #:ctype (λ (n t) (hash 'Expression (fresh-type-variable
-                                                   (immutable (box-type t))
-                                                   (mutable (box-type t))))))
+(ag/one-arg unbox
+            #:type (fresh-type-variable)
+            #:ctype (λ (n t) (hash 'Expression (fresh-type-variable
+                                                (immutable (box-type t))
+                                                (mutable (box-type t))))))
 (ap mutable-container-access [Unbox (read 'box)])
 (ag [SetBoxBang Expression ([box : Expression] [newval : Expression])
                 #:prop mutable-container-access (write 'box)
