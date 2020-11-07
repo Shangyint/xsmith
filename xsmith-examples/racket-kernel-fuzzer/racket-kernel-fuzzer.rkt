@@ -545,7 +545,7 @@
 (ag/one-arg inexact-real? #:type bool #:ctype (Ectype number))
 (ag/one-arg positive? #:type bool #:ctype (Ectype real))
 (ag/one-arg negative? #:type bool #:ctype (Ectype real))
-(ag/one-arg exact->inexact #:type number)
+(ag/one-arg exact->inexact #:type number #:feature float)
 (ag/one-arg inexact->exact #:type number)
 
 (ag/one-arg char-downcase #:type char)
