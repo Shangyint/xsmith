@@ -254,10 +254,12 @@
            (~optional (~seq #:racr-name racr-name:id)
                       #:defaults ([racr-name (racr-ize-id #'name)]))
            (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
+                      #:defaults ([NE-name #'name]))
+           (~optional (~seq #:feature feature-arg)))
       ...)
    #'(ag [racr-name Expression (Expression)
                     #:prop type-info [type ctype]
+                    (~? (~@ #:prop feature feature-arg))
                     #:prop render-node-info
                     (λ (n) `(,(if NE? 'NE-name 'name)
                              ,(render-child 'Expression n)))])])
@@ -274,11 +276,13 @@
            (~optional (~seq #:racr-name racr-name:id)
                       #:defaults ([racr-name (racr-ize-id #'name)]))
            (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
+                      #:defaults ([NE-name #'name]))
+           (~optional (~seq #:feature feature-arg)))
       ...)
    #'(ag [racr-name Expression ([l : Expression]
                                 [r : Expression])
                     #:prop type-info [type ctype]
+                    (~? (~@ #:prop feature feature-arg))
                     #:prop render-node-info
                     (λ (n) `(,(if NE? 'NE-name 'name)
                              ,(render-child 'l n)
@@ -296,12 +300,14 @@
            (~optional (~seq #:racr-name racr-name:id)
                       #:defaults ([racr-name (racr-ize-id #'name)]))
            (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
+                      #:defaults ([NE-name #'name]))
+           (~optional (~seq #:feature feature-arg)))
       ...)
    #'(ag [racr-name Expression ([l : Expression]
                                 [m : Expression]
                                 [r : Expression])
                     #:prop type-info [type ctype]
+                    (~? (~@ #:prop feature feature-arg))
                     #:prop render-node-info
                     (λ (n) `(,(if NE? 'NE-name 'name)
                              ,(render-child 'l n)
@@ -382,11 +388,13 @@
                                                (syntax-e #'racket-name))
                                               #'racket-name)]))
            (~optional (~seq #:NE-name NE-name:id)
-                      #:defaults ([NE-name #'racket-name])))
+                      #:defaults ([NE-name #'racket-name]))
+           (~optional (~seq #:feature feature-arg)))
       ...)
    #'(ag [racr-name VariadicExpression ()
                     #:prop fresh (hash 'minargs min-args)
                     #:prop type-info [type ctype]
+                    (~? (~@ #:prop feature feature-arg))
                     #:prop render-node-info (render-variadic
                                              (if NE? 'NE-name 'racket-name))])])
 (ag/variadic * 0 #:racr-name TimesNum #:type number)
@@ -491,26 +499,28 @@
 
 
 (ag/one-arg abs #:type real)
-(ag/one-arg cos #:type number #:ctype (Ectype real))
-(ag/one-arg acos #:type number #:ctype (Ectype real))
-(ag/one-arg sin #:type number #:ctype (Ectype real))
-(ag/one-arg asin #:type number #:ctype (Ectype real))
-(ag/one-arg tan #:type number #:ctype (Ectype real))
+(ag/one-arg cos #:type number #:ctype (Ectype real) #:feature float)
+(ag/one-arg acos #:type number #:ctype (Ectype real) #:feature float)
+(ag/one-arg sin #:type number #:ctype (Ectype real) #:feature float)
+(ag/one-arg asin #:type number #:ctype (Ectype real) #:feature float)
+(ag/one-arg tan #:type number #:ctype (Ectype real) #:feature float)
 (ag/one-arg atan #:racr-name AtanOne #:NE-name NE/atan-1 #:type number
+            #:feature float
             #:ctype (Ectype real))
 (ag/one-arg add1 #:racr-name AddOneNum #:type number)
 (ag/one-arg add1 #:racr-name AddOneInt #:type int)
 (ag/one-arg add1 #:racr-name AddOneNat #:type nat)
 (ag/one-arg sub1 #:racr-name SubOneNum #:type number)
 (ag/one-arg sub1 #:racr-name SubOneInt #:type int)
-(ag/one-arg angle #:type real #:NE-name NE/angle)
+(ag/one-arg angle #:type real #:NE-name NE/angle #:feature float)
 (ag/one-arg ceiling #:type real)
 (ag/one-arg floor #:type real)
 (ag/one-arg round #:type real)
 (ag/one-arg truncate #:type real)
 (ag/one-arg imag-part)
 (ag/one-arg real-part)
-(ag/one-arg magnitude)
+;; TODO - magnitude requires the float feature if complex numbers are allowed.
+(ag/one-arg magnitude #:feature float)
 ;; TODO - numerator and denominator take rational reals (not imaginaries or irrationals)
 (ag/one-arg numerator #:type int)
 (ag/one-arg denominator #:type int)
@@ -752,7 +762,8 @@
 (ag/two-arg make-polar
             #:type number
             ;; TODO - should be real real, once I fix the numeric tower
-            #:ctype (E2ctype int int))
+            #:ctype (E2ctype int int)
+            #:feature float)
 (ag/two-arg make-rectangular
             #:type number
             ;; TODO - should be real real, once I fix the numeric tower
@@ -1160,6 +1171,7 @@
   #:program-node ProgramWithSequence
   #:type-thunks type-thunks-for-concretization
   #:format-render racket-format-render
+  #:features ([float #f])
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format ";; ~a" l)) lines)
                                          "\n"))
 
