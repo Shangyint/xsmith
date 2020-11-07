@@ -53,6 +53,7 @@
  render-node-info
  render-hole-info
  edit
+ feature
 
  make-lift-reference-choice-proc
 
@@ -204,6 +205,24 @@
                                 (att-value 'xsmith_ast-depth (parent-node n))]
                                [else 0]))
                        (+ increment parent-depth))]))
+
+(define-property feature
+  #:allow-duplicates? #t
+  #:appends
+  (choice-method _xsmith_features-enabled)
+  #:transformer
+  (λ (this-prop-info)
+    (define _xsmith_features-enabled-info
+      (hash-set
+       (for/hash ([(k v) (in-dict this-prop-info)])
+         (syntax-parse v
+           [(feature-name:id ...)
+            (values
+             k
+             #'(λ () (and (xsmith-feature-enabled? 'feature-name) ...)))]))
+       #f
+       #'(λ () #t)))
+    (list _xsmith_features-enabled-info)))
 
 (define-property choice-weight
   #:appends
@@ -1094,7 +1113,8 @@ It just reads the values of several other properties and produces the results fo
     (define (get-filters node-name)
       (let ([user-filters (dict-ref this-info/defaults node-name #'())])
         ;; Add user-specified filters to the core filters.
-        #`(_xsmith_may-be-generated
+        #`(_xsmith_features-enabled
+           _xsmith_may-be-generated
            _xsmith_wont-over-deepen
            _xsmith_satisfies-type-constraint?
            _xsmith_no-io-conflict?
