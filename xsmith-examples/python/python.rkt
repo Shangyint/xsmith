@@ -42,11 +42,15 @@
 (define-generic-type iterable-type ([type covariant]))
 (define (fresh-iterable inner)
   (fresh-type-variable
-   (mutable (iterable-type inner))
-   (immutable (iterable-type inner))))
+   (mutable (fresh-type-variable (iterable-type inner)
+                                 (sequence-type inner)
+                                 (array-type inner)))
+   (immutable (fresh-type-variable (iterable-type inner)
+                                   (sequence-type inner)))))
 (define (fresh-sequence inner)
   (fresh-type-variable
-   (mutable (sequence-type inner))
+   (mutable (fresh-type-variable (sequence-type inner)
+                                 (array-type inner)))
    (immutable (sequence-type inner))))
 ;;
 ;; NOTE: These are just some notes about the strange lazy iterable-esque data
@@ -207,7 +211,8 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:collection-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
+ #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable elem-type)))
 (add-property
  python-comp render-node-info
  [ArrayComprehension
@@ -223,7 +228,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
