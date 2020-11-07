@@ -7,6 +7,8 @@
  xsmith/canned-components
  pprint
  racket/string
+ racket/format
+ (except-in racket/list empty)
  "../private/xsmith-examples-version.rkt"
  )
 
@@ -14,6 +16,39 @@
 
 (define int-type (base-type 'int))
 (define-generic-type box-type ([type covariant]))
+
+;; TODO - strings -- I'm left somewhat unsure whether SML supports unicode strings
+;; or just ascii strings.  Perhaps it's inconsistent.  I would like to know if
+;; there is a standard way for both...
+
+(define random-string-length-max 50)
+(define (random-ascii-string)
+  (define l (random random-string-length-max))
+  (apply string
+         (map (λ (_) (integer->char (random 128)))
+              (make-list l #f))))
+(define (byte-char->decimal-escape c)
+  (format "\\~a" (~r #:min-width 3 #:pad-string "0" (char->integer c))))
+(define (char->unicode-escape c)
+  (format "\\x~a" (~r #:min-width 4 #:pad-string "0" #:base 16 (char->integer c))))
+(define (sml-string-format str)
+  (apply
+   string-append
+   (flatten
+    (list
+     "\""
+     (for/list ([c (string->list str)])
+       (cond [(or (char<=? #\a c #\z)
+                  (char<=? #\A c #\Z)
+                  (char<=? #\0 c #\9)
+                  )
+              (string c)]
+             [(< (char->integer c) 256)
+              (byte-char->decimal-escape c)]
+             [else
+              (char->unicode-escape c)
+              ]))
+     "\""))))
 
 (add-basic-expressions comp
                        ;#:ProgramWithSequence #t
@@ -29,7 +64,7 @@
                        #:Booleans #t
                        #:Strings #t
                        ;; TODO - make a string generator that fits within SML bounds and produces interesting strings.
-                       #:string-literal-value (random-ref (list "foo" "bar" "baz"))
+                       #:string-literal-value (random-ascii-string)
                        )
 
 
@@ -249,7 +284,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                               (att-value 'xsmith_render-node (ast-child 'r n))
                               rparen))]
 
- [StringLiteral (λ (n) (text (format "~v" (ast-child 'v n))))]
+ [StringLiteral (λ (n) (text (sml-string-format (ast-child 'v n))))]
  ;; TODO - SML strings have concat which is [string] -> string.
  ;; I should define my own string stuff rather than bringing in canned components here.
  [StringAppend (λ (n) (h-append lparen
