@@ -16,6 +16,7 @@
 
 (define int-type (base-type 'int))
 (define-generic-type box-type ([type covariant]))
+(define no-child-types (λ (n t) (hash)))
 
 ;; TODO - strings -- I'm left somewhat unsure whether SML supports unicode strings
 ;; or just ascii strings.  Perhaps it's inconsistent.  I would like to know if
@@ -51,8 +52,8 @@
      "\""))))
 
 (add-basic-expressions comp
-                       ;#:ProgramWithSequence #t
-                       ;#:ExpressionSequence #t
+                       #:ProgramWithSequence #t
+                       #:ExpressionSequence #t
                        #:VariableReference #t
                        #:ProcedureApplication #t
                        #:LambdaWithExpression #t
@@ -92,6 +93,8 @@
  [SetBox Expression ([box : Expression]
                      [newval : Expression])
         #:prop mutable-container-access (write 'box)
+        ;; to always have an expression of void-type available
+        #:prop wont-over-deepen #t
         #:prop type-info
         [void-type (λ (n t)
                      (define inner (fresh-type-variable))
@@ -101,12 +104,16 @@
                 lparen
                 (render-child 'box n) (text " := ") (render-child 'newval n)
                 rparen))]
+ [DumbVoid Expression ()
+           #:prop choice-weight 1
+           #:prop type-info [void-type no-child-types]
+           #:prop render-node-info (λ (n) (text "()"))]
  )
 
 
 
 
-(define nest-step 4)
+(define nest-step 2)
 
 (define (binary-op-renderer op-rendered)
   (λ (n) (h-append lparen (att-value 'xsmith_render-node (ast-child 'l n))
@@ -156,6 +163,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
     [(can-unify? t int-type) "int"]
     [(can-unify? t string-type) "string"]
     [(can-unify? t bool-type) "bool"]
+    [(can-unify? t void-type) "unit"]
     [(can-unify? t (box-type (fresh-type-variable)))
      (define inner (fresh-type-variable))
      (unify! (box-type inner) t)
@@ -177,7 +185,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
  comp
  render-node-info
 
- [ProgramWithExpression
+ [ProgramWithSequence
   ;; Some compilers (polyml's polyc) expect a main function.
   ;; Others make a binary that executes the top level.
   ;; So we'll make a main function but also call it.
@@ -202,52 +210,45 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
        (text "val _ = print \"\\n\"")))
     (v-append
      (text header-definitions-block)
-     (text "fun main() = let\n")
-     (vb-concat
-      `(,(text "")
-        ,(text "")
-        ,@(map (λ (cn) (att-value 'xsmith_render-node cn))
-               definitions)
-        ,(h-append (text "val mainresult = ") (att-value 'xsmith_render-node (ast-child 'Expression n)))))
-     (text "")
-     (print-value (text "mainresult") (att-value 'xsmith_type (ast-child 'Expression n)))
-     (apply v-append
-            (map (λ (v)
-                   (print-value (text (ast-child 'name v)) (ast-child 'type v)))
-                 (filter (λ (x) (base-type? (ast-child 'type x)))
-                         definitions)))
-     (text "in print \"\\n\" end")
+     (nest nest-step
+           (v-append
+            (text "fun main() = let\n")
+            (vb-concat
+             `(,(text "")
+               ,(text "")
+               ,@(map (λ (cn) (att-value 'xsmith_render-node cn))
+                      definitions)
+               ,(h-append (text "val mainresult = ") (att-value 'xsmith_render-node (ast-child 'ExpressionSequence n)))))
+            (text "")
+            (print-value (text "mainresult") (att-value 'xsmith_type (ast-child 'ExpressionSequence n)))
+            (apply v-append
+                   (map (λ (v)
+                          (print-value (text (ast-child 'name v)) (ast-child 'type v)))
+                        (filter (λ (x)
+                                  (let ([t (ast-child 'type x)])
+                                    (and (base-type? t) (not (can-unify? void-type t)))))
+                                definitions)))))
+     (text "in print \"\\n\"")
+     (text "end")
      (text "val _ = main()")
      ;; Hack to get a newline...
      (text "")))]
- #;[ProgramWithSequence
-  (λ (n)
-    (define definitions (ast-children (ast-child 'definitions n)))
-    (v-append
-     (text header-definitions-block)
-     (vb-concat
-      (list*
-       (text "")
-       (text "")
-       (map (λ (cn) (att-value 'xsmith_render-node cn))
-            (append definitions
-                    (list (ast-child 'ExpressionSequence n))))))
-     (text "")
-     (apply v-append
-            (map (λ (v) (text (format "print ~a\n"
-                                      (ast-child 'name v))))
-                 #;(filter (λ (x) (base-type? (ast-child 'type x)))
-                         definitions)
-                 definitions))
-     ;; Hack to get a newline...
-     (text "")))]
- #;[ExpressionSequence
+
+ [ExpressionSequence
   (λ (n)
     (v-append
-     (apply v-append
-            (map (λ (c) (att-value 'xsmith_render-node c))
-                 (ast-children (ast-child 'effectexpressions n))))
-     (att-value 'xsmith_render-node (ast-child 'finalexpression n))))]
+     (nest nest-step
+           (v-append
+            (text "let")
+            (apply v-append
+                   (map (λ (c) (h-append (text "val _ = ")
+                                         (att-value 'xsmith_render-node c)))
+                        (ast-children (ast-child 'effectexpressions n))))))
+     (nest nest-step
+           (v-append
+            (text "in")
+            (att-value 'xsmith_render-node (ast-child 'finalexpression n))))
+     (text "end")))]
 
  [Definition (λ (n) (h-append (text "val ")
                               (text (ast-child 'name n))
@@ -346,7 +347,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
   #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
   ;#:program-node ProgramWithSequence
-  #:program-node ProgramWithExpression
+  #:program-node ProgramWithSequence
   #:format-render sml-format-render
   #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n"))))
 
