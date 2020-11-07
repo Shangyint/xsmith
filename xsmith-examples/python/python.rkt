@@ -945,7 +945,114 @@
 (ag/str-method/one-arg count #:type int-type)
 (ag/str-method/two-arg count #:type int-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg count #:type int-type #:ctype (SM3ctype string-type int-type int-type))
-;; TODO - encode()  ;; XXX - changed in 3.9
+;; NOTE - These encodings are enumerated at: https://docs.python.org/3/library/codecs.html#standard-encodings
+;;        This list includes only each main codec name and none of the aliases.
+(define encoding-codecs
+  (list "ascii"
+        "big5" "big5hkscs"
+        "cp037" "cp273" "cp424" "cp437" "cp500" "cp720" "cp737" "cp775"
+        "cp850" "cp852" "cp855" "cp856" "cp857" "cp858" "cp860" "cp861"
+        "cp862" "cp863" "cp864" "cp865" "cp866" "cp869" "cp874" "cp875"
+        "cp932" "cp949" "cp950" "cp1006" "cp1026" "cp1125" "cp1140" "cp1250"
+        "cp1251" "cp1252" "cp1253" "cp1254" "cp1255" "cp1256" "cp1257" "cp1258"
+        "euc_jp" "euc_jis_2004" "euc_jisx0213" "euc_kr"
+        "gb2312" "gbk" "gb18030"
+        "hz"
+        "iso2022_jp" "iso2022_jp_1" "iso2022_jp_2" "iso2022_jp_2004"
+        "iso2022_jp_3" "iso2022_jp_ext" "iso2022_kr"
+        "latin_1"
+        "iso8859_2" "iso8859_3" "iso8859_4" "iso8859_5" "iso8859_6" "iso8859_7"
+        "iso8859_8" "iso8859_9" "iso8859_10" "iso8859_11" "iso8859_12"
+        "iso8859_13" "iso8859_14" "iso8859_15" "iso8859_16"
+        "johab"
+        "koi8_r" "koi8_t" "koi8_u"
+        "kz1048"
+        "mac_cyrillic" "mac_greek" "mac_iceland" "mac_latin2" "mac_roman" "mac_turkish"
+        "ptcp154"
+        "shitf_jis" "shift_jis_2004" "shift_jisx0213"
+        "utf_32" "utf_32_be" "utf_32_le"
+        "utf_16" "utf_16_be" "utf_16_le"
+        "utf_7" "utf_8" "utf_8_sig"))
+;; NOTE - These error handling mechanisms are enumerated under: https://docs.python.org/3/library/codecs.html#codecs.register_error
+;;        Aside from 'strict' (which is accordingly commented out), they should prevent runtime errors.
+;; TODO - Wrapping this in a custom function in the header could accommodate implementing 'strict' and
+;;        simply checking for errors, but I don't know if that's worth bothering with since any such
+;;        error should be handled adequately by the error-avoiding mechanisms enabled here.
+(define encoding-error-handling-schemes
+  (list #;"strict"
+        "ignore"
+        "replace"
+        "xmlcharrefreplace"
+        "backslashreplace"
+        "namereplace"))
+(add-to-grammar
+ python-comp
+ ;; NOTE - While we provide a version of `encode` that uses the default encoding, we do not use the default
+ ;;        error handling option of 'strict'. This is to avoid runtime exceptions.
+ [StrMethodEncodeOne Expression
+                     ([str : Expression]
+                      [errors = (random-ref encoding-error-handling-schemes)])
+                     #:prop type-info
+                     [byte-string-type
+                      (λ (n t)
+                        (hash 'str string-type))]
+                     #:prop render-node-info
+                     (λ (n)
+                       (h-append ($xsmith_render-node (ast-child 'str n))
+                                 dot
+                                 (text "encode")
+                                 lparen
+                                 (text "errors=") squote (text (ast-child 'errors n)) squote
+                                 rparen))]
+ [StrMethodEncodeTwo Expression
+                     ([str : Expression]
+                      [encoding = (random-ref encoding-codecs)]
+                      [errors = (random-ref encoding-error-handling-schemes)])
+                     #:prop type-info
+                     [byte-string-type
+                      (λ (n t)
+                        (hash 'str string-type))]
+                     #:prop render-node-info
+                     (λ (n)
+                       (render-str-method-node n
+                                               "encode"
+                                               (h-append squote (text (ast-child 'encoding n)) squote)
+                                               (h-append squote (text (ast-child 'errors n)) squote)))]
+ ;; We also provide the byte string decoding method implementations here since
+ ;; they are the dual of the string encoding method.
+ [BytesMethodDecodeOne Expression
+                       ([bts : Expression]
+                        [errors = (random-ref encoding-error-handling-schemes)])
+                       #:prop type-info
+                       [string-type
+                        (λ (n t)
+                          (hash 'bts byte-string-type))]
+                       #:prop render-node-info
+                       (λ (n)
+                         (h-append ($xsmith_render-node (ast-child 'bts n))
+                                   dot
+                                   (text "decode")
+                                   lparen
+                                   (text "errors=") squote (text (ast-child 'errors n)) squote
+                                   rparen))]
+ [BytesMethodDecodeTwo Expression
+                       ([bts : Expression]
+                        [encoding = (random-ref encoding-codecs)]
+                        [errors = (random-ref encoding-error-handling-schemes)])
+                       #:prop type-info
+                       [string-type
+                        (λ (n t)
+                          (hash 'bts byte-string-type))]
+                       #:prop render-node-info
+                       (λ (n)
+                         (h-append ($xsmith_render-node (ast-child 'bts n))
+                                   dot
+                                   (text "decode")
+                                   lparen
+                                   squote (text (ast-child 'encoding n)) squote
+                                   comma space
+                                   squote (text (ast-child 'errors n)) squote
+                                   rparen))])
 (ag/str-method/one-arg endswith #:type bool-type)
 (ag/str-method/two-arg endswith #:type bool-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg endswith #:type bool-type #:ctype (SM3ctype string-type int-type int-type))
