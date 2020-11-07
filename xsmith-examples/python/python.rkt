@@ -939,7 +939,7 @@
 
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
-;; TODO - casefold()
+(ag/str-method/zero-arg casefold)
 (ag/str-method/one-arg center #:ctype (SM1ctype int-type))
 (ag/str-method/two-arg center #:ctype (SM2ctype int-type char-type))
 (ag/str-method/one-arg count #:type int-type)
