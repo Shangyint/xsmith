@@ -560,63 +560,29 @@
                 lparen
                 ($xsmith_render-node (ast-child 'Expression n))
                 rparen))))
+(define-ag/two-arg ag/two-arg python-comp racr-ize-id NE?
+  #'(fresh-subtype-of number-type)
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                lparen
+                ($xsmith_render-node (ast-child 'l n))
+                (text ", ")
+                ($xsmith_render-node (ast-child 'r n))
+                rparen))))
+(define-ag/three-arg ag/three-arg python-comp racr-ize-id NE?
+  #'(fresh-subtype-of number-type)
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                lparen
+                ($xsmith_render-node (ast-child 'l n))
+                (text ", ")
+                ($xsmith_render-node (ast-child 'm n))
+                (text ", ")
+                ($xsmith_render-node (ast-child 'r n))
+                rparen))))
 
-(define-syntax-parser ag/two-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number-type)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
-      ...)
-   #'(ag [racr-name Expression ([l : Expression]
-                                [r : Expression])
-                    #:prop type-info [type ctype]
-                    #:prop render-node-info
-                    (λ (n)
-                      (define name (symbol->string (if NE? 'NE-name 'name)))
-                      (h-append (text name)
-                                (text "(")
-                                ($xsmith_render-node (ast-child 'l n))
-                                (text ", ")
-                                ($xsmith_render-node (ast-child 'r n))
-                                (text ")")))])])
-(define-syntax-parser E2ctype
-  [(_ etypel:expr etyper:expr)
-   #'(λ (n t) (hash 'l etypel 'r etyper))])
-
-(define-syntax-parser ag/three-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number-type)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
-      ...)
-   #'(ag [racr-name Expression ([l : Expression]
-                                [m : Expression]
-                                [r : Expression])
-                    #:prop type-info [type ctype]
-                    #:prop render-node-info
-                    (λ (n)
-                      (define name (symbol->string (if NE? 'NE-name 'name)))
-                      (h-append (text name)
-                                (text "(")
-                                ($xsmith_render-node (ast-child 'l n))
-                                (text ", ")
-                                ($xsmith_render-node (ast-child 'm n))
-                                (text ", ")
-                                ($xsmith_render-node (ast-child 'r n))
-                                (text ")")))])])
-(define-syntax-parser E3ctype
-  [(_ etypel:expr etypem:expr etyper:expr)
-   #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
 
 ;;;; built-in functions from https://docs.python.org/3/library/functions.html
 (ag/one-arg abs)

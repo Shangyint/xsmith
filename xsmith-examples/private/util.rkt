@@ -2,7 +2,11 @@
 (provide
  random-expr
  define-ag/one-arg
+ define-ag/two-arg
+ define-ag/three-arg
  Ectype
+ E2ctype
+ E3ctype
  )
 
 (require
@@ -58,3 +62,64 @@
 (define-syntax-parser Ectype
   [(_ etype:expr)
    #'(λ (n t) (hash 'Expression etype))])
+
+(define-syntax-parser define-ag/two-arg
+  [(_ ag-name:id component-name:id racr-ize-id:expr
+      no-exception-check-expr:expr
+      type-default-stx
+      mk-render-node:expr)
+   #'(define-syntax-parser ag-name
+       [(_ name:id
+           (~or (~optional (~seq #:type type:expr)
+                           #:defaults ([type type-default-stx]))
+                (~optional (~seq #:ctype ctype:expr)
+                           #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
+                (~optional (~seq #:racr-name racr-name:id)
+                           #:defaults ([racr-name (racr-ize-id #'name)]))
+                (~optional (~seq #:NE-name NE-name)
+                           #:defaults ([NE-name #'name]))
+                (~optional (~seq #:feature feature-arg)))
+           (... ...))
+        #'(add-to-grammar component-name
+                          [racr-name Expression ([l : Expression]
+                                                 [r : Expression])
+                                     #:prop type-info [type ctype]
+                                     ((... ~?) ((... ~@) #:prop feature feature-arg))
+                                     #:prop render-node-info
+                                     (mk-render-node (λ () (if no-exception-check-expr
+                                                               'NE-name
+                                                               'name)))])])])
+(define-syntax-parser E2ctype
+  [(_ etypel:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'r etyper))])
+
+(define-syntax-parser define-ag/three-arg
+  [(_ ag-name:id component-name:id racr-ize-id:expr
+      no-exception-check-expr:expr
+      type-default-stx
+      mk-render-node:expr)
+   #'(define-syntax-parser ag-name
+       [(_ name:id
+           (~or (~optional (~seq #:type type:expr)
+                           #:defaults ([type type-default-stx]))
+                (~optional (~seq #:ctype ctype:expr)
+                           #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
+                (~optional (~seq #:racr-name racr-name:id)
+                           #:defaults ([racr-name (racr-ize-id #'name)]))
+                (~optional (~seq #:NE-name NE-name)
+                           #:defaults ([NE-name #'name]))
+                (~optional (~seq #:feature feature-arg)))
+           (... ...))
+        #'(add-to-grammar component-name
+                          [racr-name Expression ([l : Expression]
+                                                 [m : Expression]
+                                                 [r : Expression])
+                                     #:prop type-info [type ctype]
+                                     ((... ~?) ((... ~@) #:prop feature feature-arg))
+                                     #:prop render-node-info
+                                     (mk-render-node (λ () (if no-exception-check-expr
+                                                               'NE-name
+                                                               'name)))])])])
+(define-syntax-parser E3ctype
+  [(_ etypel:expr etypem:expr etyper:expr)
+   #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])

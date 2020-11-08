@@ -240,56 +240,20 @@
   (λ (name-thunk)
     (λ (n) `(,(name-thunk)
              ,(render-child 'Expression n)))))
+(define-ag/two-arg ag/two-arg racket-comp racr-ize-id NE?
+  #'(fresh-subtype-of number)
+  (λ (name-thunk)
+    (λ (n) `(,(name-thunk)
+             ,(render-child 'l n)
+             ,(render-child 'r n)))))
+(define-ag/three-arg ag/three-arg racket-comp racr-ize-id NE?
+  #'(fresh-subtype-of number)
+  (λ (name-thunk)
+    (λ (n) `(,(name-thunk)
+             ,(render-child 'l n)
+             ,(render-child 'm n)
+             ,(render-child 'r n)))))
 
-(define-syntax-parser ag/two-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name]))
-           (~optional (~seq #:feature feature-arg)))
-      ...)
-   #'(ag [racr-name Expression ([l : Expression]
-                                [r : Expression])
-                    #:prop type-info [type ctype]
-                    (~? (~@ #:prop feature feature-arg))
-                    #:prop render-node-info
-                    (λ (n) `(,(if NE? 'NE-name 'name)
-                             ,(render-child 'l n)
-                             ,(render-child 'r n)))])])
-(define-syntax-parser E2ctype
-  [(_ etypel:expr etyper:expr)
-   #'(λ (n t) (hash 'l etypel 'r etyper))])
-
-(define-syntax-parser ag/three-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name]))
-           (~optional (~seq #:feature feature-arg)))
-      ...)
-   #'(ag [racr-name Expression ([l : Expression]
-                                [m : Expression]
-                                [r : Expression])
-                    #:prop type-info [type ctype]
-                    (~? (~@ #:prop feature feature-arg))
-                    #:prop render-node-info
-                    (λ (n) `(,(if NE? 'NE-name 'name)
-                             ,(render-child 'l n)
-                             ,(render-child 'm n)
-                             ,(render-child 'r n)))])])
-(define-syntax-parser E3ctype
-  [(_ etypel:expr etypem:expr etyper:expr)
-   #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
 
 (ag
  [EmptyListLiteral Expression ()
