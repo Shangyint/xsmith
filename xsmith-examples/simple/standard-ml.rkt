@@ -9,8 +9,28 @@
  racket/string
  racket/format
  (except-in racket/list empty)
+ "../private/util.rkt"
  "../private/xsmith-examples-version.rkt"
  )
+
+#|
+TODO - running / compiling SML
+
+* poly/ML - run with `poly --script <file.sml>` or compile with `polyc -o <executable> <file.sml>`
+  Note that `polyc` seems to run the program while compiling...
+  The polyc compiler expects a main function, while poly just executes top-level stuff.
+* mlton - compile with `mlton -output <executable> <file.sml>
+  No main function required, it runs top-level code.
+* smlsharp - compile with `smlsharp -o <executable> <file.sml>`
+  !! requires an “interface file” with the same name but extension `.smi`.
+  For my purposes, it probably just needs to contain the line:
+  _require "basis.smi"
+  However, at the time of writing, I have yet to successfully compile anything
+  with smlsharp...
+* sml/NJ - its interface is really weird, and it prints lots of extra crap.
+  I'm not immediately sure how I can run it in a way to be able to diff its output
+  with the other systems.
+|#
 
 (define-basic-spec-component comp)
 
@@ -18,9 +38,10 @@
 (define-generic-type box-type ([type covariant]))
 (define no-child-types (λ (n t) (hash)))
 
-;; TODO - strings -- I'm left somewhat unsure whether SML supports unicode strings
-;; or just ascii strings.  Perhaps it's inconsistent.  I would like to know if
-;; there is a standard way for both...
+;; TODO - strings are required to include ascii, and may support unicode.
+;; But it's implementation-specific.  PolyML doesn't seem to support unicode strings.
+;; TODO - there is also a `text` type, but I'm not sure what the difference is.
+;; A quick glance doesn't seem to me like it supports unicode.
 
 (define random-string-length-max 50)
 (define (random-ascii-string)
@@ -51,6 +72,56 @@
               ]))
      "\""))))
 
+
+;; TODO - integers -- SML has int/Int (int is the type Int is the structure
+;; with functions for operating on them) as fixed-width, LargeInt as some kind
+;; of larger integer that may have a max size, and IntInf as arbitrary precision.
+;; When IntInf is available, LargeInt must be the same type as IntInf.
+;; So not all implementations have arbitrary precision ints, but if they do then
+;; LargeInt is always that size.
+;; I think it's possible that different implementations have different sizes for
+;; the basic int type.  I could maybe implement a “safe-math” set of operations for
+;; int type, but it would have to use the smallest actual int size among the implementations.
+;; So for starters I think I should stick to using IntInf, which has all the functions here:
+;; https://smlfamily.github.io/Basis/int-inf.html#IntInf:STR:SPEC
+;; as well as here:
+;; https://smlfamily.github.io/Basis/integer.html#LargeInt:STR:SPEC
+
+
+(define interesting-integers
+  ;; max/min ints according to Int.maxInt and Int.minInt
+  (let ([polyml-max-int 4611686018427387903]
+        [polyml-min-int -4611686018427387904]
+        [mlton-max-int 2147483647]
+        [mlton-min-int -2147483648]
+        )
+    (list
+     0
+     -1
+     1
+     polyml-max-int
+     polyml-min-int
+     mlton-max-int
+     mlton-min-int
+     (add1 polyml-max-int)
+     (sub1 polyml-min-int)
+     (add1 mlton-max-int)
+     (sub1 mlton-min-int)
+     )))
+(define (random-byte) (random 256))
+(define (biased-random-int)
+  ;; The random function returns word-sized integers.
+  ;; I want more variety, like bigints.
+  (random-expr
+   (random-int)
+   (+ (* (random-int) (random-int)) (random-int))
+   (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))
+   (random-byte)
+   ;(random 10)
+   (random-ref interesting-integers)
+   ))
+
+
 (add-basic-expressions comp
                        #:ProgramWithSequence #t
                        #:ExpressionSequence #t
@@ -61,7 +132,7 @@
                        #:int-type int-type
                        #:number-type int-type
                        ;; TODO - make an int generator that fits within SML bounds and produces interesting numbers.
-                       #:int-literal-value (random 100)
+                       #:int-literal-value (biased-random-int)
                        #:Booleans #t
                        #:Strings #t
                        ;; TODO - make a string generator that fits within SML bounds and produces interesting strings.
@@ -70,6 +141,7 @@
 
 
 ;; TODO - here is a primer on basic syntax: http://rigaux.org/language-study/syntax-across-languages-per-language/SML.html
+;; TODO - here is an actual intro to standard ML, though it says that it's out of date, and is copyright 1998: https://www.cs.cmu.edu/~rwh/introsml/contents.htm
 ;; TODO - bring in a bunch of stuff from “basis” library: https://www.cs.princeton.edu/~appel/smlnj/basis/string.html
 
 
@@ -160,7 +232,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
   (define t (concretize-type t*))
   (unify! t t*)
   (cond
-    [(can-unify? t int-type) "int"]
+    [(can-unify? t int-type) "LargeInt.int"]
     [(can-unify? t string-type) "string"]
     [(can-unify? t bool-type) "bool"]
     [(can-unify? t void-type) "unit"]
@@ -198,7 +270,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                  (cond
                    [(or (can-unify? type int-type)
                         (can-unify? type number-type))
-                    (h-append (text "Int.toString ")
+                    (h-append (text "LargeInt.toString ")
                               pp-obj)]
                    [(can-unify? type bool-type)
                     (h-append (text "Bool.toString ")
@@ -295,7 +367,9 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
  [And (binary-op-renderer (text "andalso"))]
  [Or (binary-op-renderer (text "orelse"))]
 
- [IntLiteral (λ (n) (text (format "~a" (ast-child 'v n))))]
+ [IntLiteral (λ (n) (let ([v (ast-child 'v n)])
+                      ;; SML uses tilde instead of dash for negative numbers.  Weird.
+                      (text (format "~a~a" (if (< v 0) "~" "") (abs v)))))]
  [Plus (binary-op-renderer (text "+"))]
  ;; TODO - unary negation with tilde
  ;; TODO - real division uses /, integer division uses `div`, modulus is `mod`
@@ -319,8 +393,9 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                                 comma space
                                 (att-value 'xsmith_render-node (ast-child 'r n))
                                 rbracket rparen))]
- [StringLength (λ (n) (h-append lparen (text "size ")
+ [StringLength (λ (n) (h-append lparen (text "Int.toLarge(size(")
                                 (att-value 'xsmith_render-node (ast-child 'Expression n))
+                                (text "))")
                                 rparen
                                 ))]
 
