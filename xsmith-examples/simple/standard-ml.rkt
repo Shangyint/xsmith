@@ -11,7 +11,10 @@
  (except-in racket/list empty)
  "../private/util.rkt"
  "../private/xsmith-examples-version.rkt"
- )
+ (for-syntax
+  racket/base
+  syntax/parse
+  ))
 
 #|
 TODO - running / compiling SML
@@ -35,6 +38,7 @@ TODO - running / compiling SML
 (define-basic-spec-component comp)
 
 (define int-type (base-type 'int))
+(define small-int-type (base-type 'small-int))
 (define-generic-type box-type ([type covariant]))
 (define no-child-types (λ (n t) (hash)))
 
@@ -87,27 +91,14 @@ TODO - running / compiling SML
 ;; as well as here:
 ;; https://smlfamily.github.io/Basis/integer.html#LargeInt:STR:SPEC
 
+;; max/min ints according to Int.maxInt and Int.minInt
+(define polyml-max-int 4611686018427387903)
+(define polyml-min-int -4611686018427387904)
+(define mlton-max-int 2147483647)
+(define mlton-min-int -2147483648)
+(define max-small-int (min polyml-max-int mlton-max-int))
+(define min-small-int (max polyml-min-int mlton-min-int))
 
-(define interesting-integers
-  ;; max/min ints according to Int.maxInt and Int.minInt
-  (let ([polyml-max-int 4611686018427387903]
-        [polyml-min-int -4611686018427387904]
-        [mlton-max-int 2147483647]
-        [mlton-min-int -2147483648]
-        )
-    (list
-     0
-     -1
-     1
-     polyml-max-int
-     polyml-min-int
-     mlton-max-int
-     mlton-min-int
-     (add1 polyml-max-int)
-     (sub1 polyml-min-int)
-     (add1 mlton-max-int)
-     (sub1 mlton-min-int)
-     )))
 (define (random-byte) (random 256))
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -118,8 +109,33 @@ TODO - running / compiling SML
    (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))
    (random-byte)
    ;(random 10)
-   (random-ref interesting-integers)
+   (random-expr
+    ;; interesting integers
+    0
+    -1
+    1
+    polyml-max-int
+    polyml-min-int
+    mlton-max-int
+    mlton-min-int
+    (add1 polyml-max-int)
+    (sub1 polyml-min-int)
+    (add1 mlton-max-int)
+    (sub1 mlton-min-int))
    ))
+
+(define (biased-random-small-int)
+  (random-expr
+   (random (add1 max-small-int))
+   (- (random (add1 (abs min-small-int))))
+   (random-byte)
+   (random-expr
+    ;; interesting numbers
+    0
+    -1
+    1
+    max-small-int
+    min-small-int)))
 
 
 (add-basic-expressions comp
@@ -128,14 +144,13 @@ TODO - running / compiling SML
                        #:VariableReference #t
                        #:ProcedureApplication #t
                        #:LambdaWithExpression #t
+                       #:ImmutableList #t
                        #:Numbers #t
                        #:int-type int-type
                        #:number-type int-type
-                       ;; TODO - make an int generator that fits within SML bounds and produces interesting numbers.
                        #:int-literal-value (biased-random-int)
                        #:Booleans #t
                        #:Strings #t
-                       ;; TODO - make a string generator that fits within SML bounds and produces interesting strings.
                        #:string-literal-value (random-ascii-string)
                        )
 
@@ -144,6 +159,41 @@ TODO - running / compiling SML
 ;; TODO - here is an actual intro to standard ML, though it says that it's out of date, and is copyright 1998: https://www.cs.cmu.edu/~rwh/introsml/contents.htm
 ;; TODO - bring in a bunch of stuff from “basis” library: https://www.cs.princeton.edu/~appel/smlnj/basis/string.html
 
+;; No exceptions.
+(define NE? #t)
+
+(define-for-syntax (racr-ize-id id)
+  (datum->syntax id
+                 (string->symbol
+                  (string-titlecase (symbol->string (syntax->datum id))))))
+(define-ag/one-arg ag/one-arg comp racr-ize-id NE?
+  #'int-type
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                (text "(") (render-child 'Expression n) (text ")")))))
+(define-ag/two-arg ag/two-arg comp racr-ize-id NE?
+  #'int-type
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                (text "(")
+                (render-child 'l n)
+                (text ", ")
+                (render-child 'r n)
+                (text ")")))))
+(define-ag/three-arg ag/three-arg comp racr-ize-id NE?
+  #'int-type
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                (text "(")
+                (render-child 'l n)
+                (text ", ")
+                (render-child 'm n)
+                (text ", ")
+                (render-child 'r n)
+                (text ")")))))
 
 (add-to-grammar
  comp
@@ -180,6 +230,11 @@ TODO - running / compiling SML
            #:prop choice-weight 1
            #:prop type-info [void-type no-child-types]
            #:prop render-node-info (λ (n) (text "()"))]
+
+ [SmallIntLiteral Expression ([v = (biased-random-small-int)])
+                  #:prop choice-weight 1
+                  #:prop type-info [small-int-type no-child-types]
+                  #:prop render-node-info render-int-literal]
  )
 
 
@@ -205,12 +260,18 @@ TODO - running / compiling SML
 (define header-definitions-block
   "
 fun safe_divide(a, b) = if 0 = b then a else a div b
+fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
+fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
 
 ")
 
 (define (render-child cname node)
   (att-value 'xsmith_render-node (ast-child cname node)))
 
+(define render-int-literal
+  (λ (n) (let ([v (ast-child 'v n)])
+           ;; SML uses tilde instead of dash for negative numbers.  Weird.
+           (text (format "~a~a" (if (< v 0) "~" "") (abs v))))))
 
 
 
@@ -226,6 +287,12 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                            (hash 'definitions (λ (c) (fresh-type-variable))
                                  'Expression t))]])
 
+(define (list-add-between ls between)
+  (cond [(null? ls) ls]
+        [(null? (cdr ls)) ls]
+        [else (cons (car ls)
+                    (cons between
+                          (list-add-between (cdr ls) between)))]))
 
 (define (type->string t*)
   ;; concretize and unify, just in case.
@@ -233,13 +300,14 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
   (unify! t t*)
   (cond
     [(can-unify? t int-type) "LargeInt.int"]
+    [(can-unify? t small-int-type) "int"]
     [(can-unify? t string-type) "string"]
     [(can-unify? t bool-type) "bool"]
     [(can-unify? t void-type) "unit"]
     [(can-unify? t (box-type (fresh-type-variable)))
      (define inner (fresh-type-variable))
      (unify! (box-type inner) t)
-     (format "(~a) ref" (type->string inner))]
+     (format "(~a ref)" (type->string inner))]
     [(can-unify? t (product-type #f))
      (define inners (product-type-inner-type-list t))
      (if (null? inners)
@@ -250,6 +318,10 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
      (define arg (fresh-type-variable))
      (unify! t (function-type arg ret))
      (format "(~a -> ~a)" (type->string arg) (type->string ret))]
+    [(can-unify? t (immutable (list-type (fresh-type-variable))))
+     (define inner (fresh-type-variable))
+     (unify! t (immutable (list-type inner)))
+     (format "(~a list)" (type->string inner))]
     [else (error 'standard-ml_type->string
                  "Type not implemented yet: ~v" t)]))
 
@@ -264,20 +336,44 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
   (λ (n)
     (define definitions (ast-children (ast-child 'definitions n)))
     (define (print-value pp-obj type)
+      (define (get-string-converter type)
+        (h-append
+         lparen
+         (cond
+           [(can-unify? type int-type)
+            (text "LargeInt.toString")]
+           [(can-unify? type small-int-type)
+            (text "Int.toString")]
+           [(can-unify? type bool-type)
+            (text "Bool.toString")]
+           [(can-unify? type string-type)
+            (text "fn x : string => x")]
+           [(can-unify? type void-type)
+            (text "fn x : unit => \"\"")]
+           [(can-unify? type (box-type (fresh-type-variable)))
+            (define inner (fresh-type-variable))
+            (unify! (box-type inner) type)
+            (h-append (text (format "fn x : ~a => " (type->string type)))
+                      lparen (get-string-converter inner) (text " (!x)") rparen)]
+           [(can-unify? type (function-type (fresh-type-variable)
+                                            (fresh-type-variable)))
+            (text (format "fn x : ~a => \"procedure\"" (type->string type)))]
+           [(can-unify? type (immutable (list-type (fresh-type-variable))))
+            (define inner (fresh-type-variable))
+            (unify! type (immutable (list-type inner)))
+            (h-append (text (format "fn x : ~a => concat(map " (type->string type)))
+                      (get-string-converter inner)
+                      (text " x)"))]
+           [else (error 'type-printing "no rule for type ~v\n" type)]
+           )
+         rparen))
       (v-append
        (h-append (text "val _ = print")
                  lparen
-                 (cond
-                   [(or (can-unify? type int-type)
-                        (can-unify? type number-type))
-                    (h-append (text "LargeInt.toString ")
-                              pp-obj)]
-                   [(can-unify? type bool-type)
-                    (h-append (text "Bool.toString ")
-                              pp-obj)]
-                   [(can-unify? type string-type) pp-obj]
-                   [else (error 'type-printing "no rule for type ~v\n" type)]
-                   )
+                 (get-string-converter type)
+                 lparen
+                 pp-obj
+                 rparen
                  rparen)
        (text "val _ = print \"\\n\"")))
     (v-append
@@ -298,7 +394,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                           (print-value (text (ast-child 'name v)) (ast-child 'type v)))
                         (filter (λ (x)
                                   (let ([t (ast-child 'type x)])
-                                    (and (base-type? t) (not (can-unify? void-type t)))))
+                                    (and #;(base-type? t) (not (can-unify? void-type t)))))
                                 definitions)))))
      (text "in print \"\\n\"")
      (text "end")
@@ -367,9 +463,7 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
  [And (binary-op-renderer (text "andalso"))]
  [Or (binary-op-renderer (text "orelse"))]
 
- [IntLiteral (λ (n) (let ([v (ast-child 'v n)])
-                      ;; SML uses tilde instead of dash for negative numbers.  Weird.
-                      (text (format "~a~a" (if (< v 0) "~" "") (abs v)))))]
+ [IntLiteral render-int-literal]
  [Plus (binary-op-renderer (text "+"))]
  ;; TODO - unary negation with tilde
  ;; TODO - real division uses /, integer division uses `div`, modulus is `mod`
@@ -400,6 +494,27 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
                                 ))]
 
 
+ [ImmutableListLiteral
+  (λ (n) (h-append lbracket
+                   (apply h-append
+                          (list-add-between
+                           (map (λ (c) (att-value 'xsmith_render-node c))
+                                (ast-children (ast-child 'expressions n)))
+                           (text ", ")))
+                   rbracket))]
+ [ImmutableListSafeCar
+  (λ (n) (h-append lparen (text "safe_car")
+                   lparen (render-child 'list n) (text ", ")
+                   (render-child 'fallback n) rparen rparen))]
+ [ImmutableListSafeCdr
+  (λ (n) (h-append lparen (text "safe_cdr")
+                   lparen (render-child 'list n) (text ", ")
+                   (render-child 'fallback n) rparen rparen))]
+ [ImmutableListCons
+  (λ (n) (h-append lparen lbracket (render-child 'newvalue n) rbracket
+                   (text " @ ") (render-child 'list n) rparen))]
+
+
  )
 
 
@@ -409,8 +524,8 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
    (λ()int-type)
    (λ()bool-type)
    (λ()string-type)
-   ;(λ()(mutable (array-type (fresh-type-variable))))
-   ;(λ()(mutable (fresh-structural-record-type)))
+   (λ()(box-type (fresh-type-variable)))
+   (λ()(immutable (list-type (fresh-type-variable))))
    ))
 
 (define (sml-format-render doc)
@@ -421,7 +536,6 @@ fun safe_divide(a, b) = if 0 = b then a else a div b
   #:fuzzer-name simple-sml
   #:fuzzer-version xsmith-examples-version-string/no-name
   #:type-thunks type-thunks-for-concretization
-  ;#:program-node ProgramWithSequence
   #:program-node ProgramWithSequence
   #:format-render sml-format-render
   #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n"))))
