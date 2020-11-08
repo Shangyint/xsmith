@@ -10,6 +10,7 @@
  racket/pretty
  racket/match
  syntax/parse/define
+ "../private/util.rkt"
  "../private/xsmith-examples-version.rkt"
  (for-syntax
   clotho/racket/base
@@ -40,17 +41,6 @@
         1
         ))
 
-(define-syntax (random-expr stx)
-  (syntax-parse stx
-    [(_ e ...+)
-     (define/syntax-parse count
-       (datum->syntax #'here (length (syntax->list #'(e ...)))))
-     (define/syntax-parse (index ...)
-       (for/list ([e-stx (syntax->list #'(e ...))]
-                  [i (in-naturals)])
-         (datum->syntax #'here i)))
-     #'(match (random count)
-         [index e] ...)]))
 
 (define (biased-random-char*)
   ;; Random-char very rarely generates ascii, which is more common.
