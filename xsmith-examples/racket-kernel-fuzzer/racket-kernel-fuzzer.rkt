@@ -235,27 +235,11 @@
 (define-syntax-parser ag [(_ arg ...) #'(add-to-grammar racket-comp arg ...)])
 (define-syntax-parser ap [(_ arg ...) #'(add-property racket-comp arg ...)])
 
-(define-syntax-parser ag/one-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name]))
-           (~optional (~seq #:feature feature-arg)))
-      ...)
-   #'(ag [racr-name Expression (Expression)
-                    #:prop type-info [type ctype]
-                    (~? (~@ #:prop feature feature-arg))
-                    #:prop render-node-info
-                    (λ (n) `(,(if NE? 'NE-name 'name)
-                             ,(render-child 'Expression n)))])])
-(define-syntax-parser Ectype
-  [(_ etype:expr)
-   #'(λ (n t) (hash 'Expression etype))])
+(define-ag/one-arg ag/one-arg racket-comp racr-ize-id NE?
+  #'(fresh-subtype-of number)
+  (λ (name-thunk)
+    (λ (n) `(,(name-thunk)
+             ,(render-child 'Expression n)))))
 
 (define-syntax-parser ag/two-arg
   [(_ name:id

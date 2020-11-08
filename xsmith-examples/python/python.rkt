@@ -12,6 +12,7 @@
  racket/match
  racket/list
  syntax/parse/define
+ "../private/util.rkt"
  "../private/xsmith-examples-version.rkt"
  (for-syntax
   racket/base
@@ -551,29 +552,14 @@
                                 lparen
                                 rparen))])])
 
-(define-syntax-parser ag/one-arg
-  [(_ name:id
-      (~or (~optional (~seq #:type type:expr)
-                      #:defaults ([type #'(fresh-subtype-of number-type)]))
-           (~optional (~seq #:ctype ctype:expr)
-                      #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
-           (~optional (~seq #:racr-name racr-name:id)
-                      #:defaults ([racr-name (racr-ize-id #'name)]))
-           (~optional (~seq #:NE-name NE-name)
-                      #:defaults ([NE-name #'name])))
-      ...)
-   #'(ag [racr-name Expression (Expression)
-                    #:prop type-info [type ctype]
-                    #:prop render-node-info
-                    (λ (n)
-                      (define name (symbol->string (if NE? 'NE-name 'name)))
-                      (h-append (text name)
-                                (text "(")
-                                ($xsmith_render-node (ast-child 'Expression n))
-                                (text ")")))])])
-(define-syntax-parser Ectype
-  [(_ etype:expr)
-   #'(λ (n t) (hash 'Expression etype))])
+(define-ag/one-arg ag/one-arg python-comp racr-ize-id NE?
+  #'(fresh-subtype-of number-type)
+  (λ (name-thunk)
+    (λ (n)
+      (h-append (text (symbol->string (name-thunk)))
+                lparen
+                ($xsmith_render-node (ast-child 'Expression n))
+                rparen))))
 
 (define-syntax-parser ag/two-arg
   [(_ name:id
