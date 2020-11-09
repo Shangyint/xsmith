@@ -199,6 +199,7 @@ TODO - running / compiling SML
  comp
  [BoxLiteral Expression (Expression)
              #:prop wont-over-deepen #t
+             #:prop choice-weight 1
              #:prop type-info
              [(box-type (fresh-type-variable)) (λ (n t)
                                                  (define ct (fresh-type-variable))
