@@ -205,7 +205,7 @@ TODO - running / compiling SML
                                                  (unify! t (box-type ct))
                                                  (hash 'Expression ct))]
              #:prop render-node-info
-             (λ (n) (h-append lparen (text "ref ") (render-child 'Expression n) rparen))]
+             (λ (n) (h-append lparen (text "ref ") lparen (render-child 'Expression n) rparen rparen))]
  [Unbox Expression (Expression)
         #:prop mutable-container-access (read 'box)
         #:prop type-info
@@ -457,9 +457,9 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
                    rparen))]
 
  [BoolLiteral (λ (n) (text (if (ast-child 'v n) "true" "false")))]
- [Not (λ (n) (h-append (text "not") lparen
+ [Not (λ (n) (h-append lparen (text "not") lparen
                        (att-value 'xsmith_render-node (ast-child 'Expression n))
-                       rparen))]
+                       rparen rparen))]
  [And (binary-op-renderer (text "andalso"))]
  [Or (binary-op-renderer (text "orelse"))]
 
