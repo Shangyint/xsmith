@@ -11,6 +11,7 @@
  (except-in racket/list empty)
  "../private/util.rkt"
  "../private/xsmith-examples-version.rkt"
+ syntax/parse/define
  (for-syntax
   racket/base
   syntax/parse
@@ -37,7 +38,7 @@ TODO - running / compiling SML
 
 (define-basic-spec-component comp)
 
-(define int-type (base-type 'int))
+(define large-int-type (base-type 'large-int))
 (define small-int-type (base-type 'small-int))
 (define-generic-type box-type ([type covariant]))
 (define no-child-types (λ (n t) (hash)))
@@ -145,13 +146,14 @@ TODO - running / compiling SML
                        #:ProcedureApplication #t
                        #:LambdaWithExpression #t
                        #:ImmutableList #t
-                       #:Numbers #t
-                       #:int-type int-type
-                       #:number-type int-type
-                       #:int-literal-value (biased-random-int)
                        #:Booleans #t
-                       #:Strings #t
-                       #:string-literal-value (random-ascii-string)
+                       #:index-and-length-type small-int-type
+                       ;#:Numbers #t
+                       ;#:int-type large-int-type
+                       ;#:number-type large-int-type
+                       ;#:int-literal-value (biased-random-int)
+                       ;#:Strings #t
+                       ;#:string-literal-value (random-ascii-string)
                        )
 
 
@@ -167,13 +169,13 @@ TODO - running / compiling SML
                  (string->symbol
                   (string-titlecase (symbol->string (syntax->datum id))))))
 (define-ag/one-arg ag/one-arg comp racr-ize-id NE?
-  #'int-type
+  #'large-int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
                 (text "(") (render-child 'Expression n) (text ")")))))
 (define-ag/two-arg ag/two-arg comp racr-ize-id NE?
-  #'int-type
+  #'large-int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
@@ -183,7 +185,7 @@ TODO - running / compiling SML
                 (render-child 'r n)
                 (text ")")))))
 (define-ag/three-arg ag/three-arg comp racr-ize-id NE?
-  #'int-type
+  #'large-int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
@@ -232,13 +234,115 @@ TODO - running / compiling SML
            #:prop type-info [void-type no-child-types]
            #:prop render-node-info (λ (n) (text "()"))]
 
- [SmallIntLiteral Expression ([v = (biased-random-small-int)])
-                  #:prop choice-weight 1
-                  #:prop type-info [small-int-type no-child-types]
-                  #:prop render-node-info render-int-literal]
  )
 
 
+
+(define-syntax-parser ag/atomic-literal
+  [(_ name:id type:expr fresh-expr:expr render-expr:expr)
+   #'(add-to-grammar comp [name Expression ([v = fresh-expr])
+                                #:prop choice-weight 1
+                                #:prop type-info [type no-child-types]
+                                #:prop render-node-info render-expr])])
+(ag/atomic-literal LargeIntLiteral large-int-type (biased-random-int)
+                   render-int-literal)
+(ag/atomic-literal SmallIntLiteral small-int-type (biased-random-small-int)
+                   render-int-literal)
+(define render-int-literal
+  (λ (n) (let ([v (ast-child 'v n)])
+           ;; SML uses tilde instead of dash for negative numbers.  Weird.
+           (text (format "~a~a" (if (< v 0) "~" "") (abs v))))))
+(ag/atomic-literal StringLiteral string-type (random-ascii-string)
+                   (λ (n) (text (sml-string-format (ast-child 'v n)))))
+
+
+
+(ag/two-arg safeSmallAdd #:type small-int-type)
+(ag/two-arg safeSmallSubtract #:type small-int-type)
+(ag/two-arg safeSmallMultiply #:type small-int-type)
+(ag/two-arg safeSmallDivide #:type small-int-type)
+(ag/two-arg safeSmallModulo #:type small-int-type)
+;(ag/two-arg safeSmallQuotient #:type small-int-type)
+;(ag/two-arg safeSmallRemainder #:type small-int-type)
+(ag/one-arg safeSmallNegation #:type small-int-type)
+(ag/one-arg safeSmallAbs #:type small-int-type)
+(ag/two-arg Int.min #:racr-name SmallMin #:type small-int-type)
+(ag/two-arg Int.max #:racr-name SmallMax #:type small-int-type)
+(ag/one-arg Int.sign #:racr-name SmallSign #:type small-int-type)
+(ag/two-arg Int.sameSign #:racr-name SmallSameSign
+            #:type bool-type #:ctype (E2ctype small-int-type small-int-type))
+;(ag/two-arg safeSmallFmt #:type string-type #:ctype (E2ctype small-int-type small-int-type))
+(ag/one-arg Int.toString #:racr-name SmallToString
+            #:type string-type #:ctype (Ectype small-int-type))
+
+(define-syntax-parser ag/two-infix
+       [(_ name:id
+           (~or (~optional (~seq #:type type:expr)
+                           #:defaults ([type #'large-int-type]))
+                (~optional (~seq #:ctype ctype:expr)
+                           #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
+                (~optional (~seq #:racr-name racr-name:id)
+                           #:defaults ([racr-name (racr-ize-id #'name)]))
+                (~optional (~seq #:NE-name NE-name)
+                           #:defaults ([NE-name #'name]))
+                (~optional (~seq #:feature feature-arg)))
+           ...)
+        #'(add-to-grammar comp
+                          [racr-name Expression ([l : Expression]
+                                                 [r : Expression])
+                                     #:prop type-info [type ctype]
+                                     (~? (~@ #:prop feature feature-arg))
+                                     #:prop render-node-info
+                                     (λ (n) (h-append lparen (render-child 'l n)
+                                                      (text (symbol->string
+                                                             (if NE? 'NE-name 'name)))
+                                                      (render-child 'r n) rparen))])])
+
+(ag/two-infix + #:racr-name LargeAdd #:type large-int-type)
+(ag/two-infix - #:racr-name LargeSubtract #:type large-int-type)
+(ag/two-infix * #:racr-name LargeMultiply #:type large-int-type)
+(ag/two-arg safeLargeDivide #:type large-int-type)
+(ag/two-arg safeLargeModulo #:type large-int-type)
+;(ag/two-arg safeLargeRemainder #:type large-int-type)
+;(ag/two-arg safeLargeQuotient #:type large-int-type)
+(ag/two-arg LargeInt.min #:racr-name LargeMin #:type large-int-type)
+(ag/two-arg LargeInt.max #:racr-name LargeMax #:type large-int-type)
+(ag/one-arg ~ #:racr-name LargeNegate #:type large-int-type)
+(ag/one-arg LargeInt.abs #:racr-name LargeAbs #:type large-int-type)
+(ag/one-arg LargeInt.sign #:racr-name LargeSign #:type large-int-type)
+(ag/two-arg LargeInt.sameSign #:racr-name LargeSameSign
+            #:type bool-type #:ctype (E2ctype large-int-type large-int-type))
+;(ag/two-arg safeLargeFmt #:type string-type #:ctype (E2ctype large-int-type large-int-type))
+(ag/one-arg LargeInt.toString #:racr-name LargeToString
+            #:type string-type #:ctype (Ectype large-int-type))
+
+
+(define-syntax-parser ag/comparison
+  [(_ name racr-name type)
+   #'(ag/two-infix name
+                   #:racr-name racr-name #:type bool-type #:ctype (E2ctype type type))])
+(ag/comparison = SmallIntEqual small-int-type)
+(ag/comparison <> SmallIntNotEqual small-int-type)
+(ag/comparison < SmallIntLess small-int-type)
+(ag/comparison <= SmallIntLessEqual small-int-type)
+(ag/comparison > SmallIntGreater small-int-type)
+(ag/comparison >= SmallIntGreaterEqual small-int-type)
+(ag/comparison = LargeIntEqual large-int-type)
+(ag/comparison <> LargeIntNotEqual large-int-type)
+(ag/comparison < LargeIntLess large-int-type)
+(ag/comparison <= LargeIntLessEqual large-int-type)
+(ag/comparison > LargeIntGreater large-int-type)
+(ag/comparison >= LargeIntGreaterEqual large-int-type)
+(ag/comparison = StringEqual string-type)
+(ag/comparison <> StringNotEqual string-type)
+(ag/comparison < StringLess string-type)
+(ag/comparison <= StringLessEqual string-type)
+(ag/comparison > StringGreater string-type)
+(ag/comparison >= StringGreaterEqual string-type)
+
+
+
+(ag/one-arg size #:racr-name StringSize #:type small-int-type #:ctype (Ectype string-type))
 
 
 (define nest-step 2)
@@ -258,21 +362,77 @@ TODO - running / compiling SML
   (apply h-append
          (apply-infix (h-append comma space)
                       doc-list)))
-(define header-definitions-block
+
+
+(define header-definitions-block*
   "
-fun safe_divide(a, b) = if 0 = b then a else a div b
+fun safeLargeDivide(a, b) = if 0 = b then a else a div b
+fun safeLargeModulo(a, b) = if 0 = b then a else a mod b
+(*fun safeLargeRemainder(a, b) = if 0 = b then a else a rem b*)
+(*fun safeLargeQuotient(a, b) = if 0 = b then a else quot(a, b)*)
 fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
 fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
 
 ")
+(define (make-safe-math-infix/non-div name op)
+  (format "
+fun ~a(a, b) = let
+  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
+  in if ((largeResult > max_as_large) orelse (largeResult < min_as_large))
+     then a else a ~a b
+  end
+"
+          name op op))
+(define (make-safe-math-infix/div name op)
+  (format "
+fun ~a(a, b) = if 0 = b then a
+  else let
+  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
+  in if largeResult > max_as_large orelse largeResult < min_as_large
+     then a else a ~a b
+  end
+"
+          name op op))
+(define (make-safe-math-prefix/div name op)
+  (format "
+fun ~a(a, b) = if 0 = b then a
+  else let
+  val largeResult : LargeInt.int = ~a(Int.toLarge(a), Int.toLarge(b))
+  in if largeResult > max_as_large orelse largeResult < min_as_large
+     then a else ~a(a, b)
+  end
+"
+          name op op))
+(define (make-safe-math-prefix/single name op)
+  (format "
+fun ~a(a) = let
+  val largeResult : LargeInt.int = ~a(Int.toLarge(a))
+  in if largeResult > max_as_large orelse largeResult < min_as_large
+     then a else ~a(a)
+  end
+"
+          name op op))
+(define header-definitions-block
+  (string-join
+   (list
+    (format "val max_as_large : LargeInt.int = ~a" max-small-int)
+    (format "val min_as_large : LargeInt.int = ~~~a" (abs min-small-int))
+    (make-safe-math-infix/non-div "safeSmallAdd" "+")
+    (make-safe-math-infix/non-div "safeSmallSubtract" "-")
+    (make-safe-math-infix/non-div "safeSmallMultiply" "*")
+    (make-safe-math-infix/div "safeSmallDivide" "div")
+    (make-safe-math-infix/div "safeSmallModulo" "mod")
+    ;(make-safe-math-infix/div "safeSmallRemainder" "rem")
+    ;(make-safe-math-prefix/div "safeSmallQuotient" "quot")
+    (make-safe-math-prefix/single "safeSmallNegate" "~")
+    (make-safe-math-prefix/single "safeSmallAbs" "abs")
+    header-definitions-block*
+    )
+   "\n"))
 
 (define (render-child cname node)
   (att-value 'xsmith_render-node (ast-child cname node)))
 
-(define render-int-literal
-  (λ (n) (let ([v (ast-child 'v n)])
-           ;; SML uses tilde instead of dash for negative numbers.  Weird.
-           (text (format "~a~a" (if (< v 0) "~" "") (abs v))))))
 
 
 
@@ -283,7 +443,7 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
                             [Expression])
                         #:prop strict-child-order? #t
                         #:prop type-info
-                        [(fresh-type-variable int-type bool-type string-type)
+                        [(fresh-type-variable large-int-type bool-type string-type)
                          (λ (n t)
                            (hash 'definitions (λ (c) (fresh-type-variable))
                                  'Expression t))]])
@@ -300,7 +460,7 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
   (define t (concretize-type t*))
   (unify! t t*)
   (cond
-    [(can-unify? t int-type) "LargeInt.int"]
+    [(can-unify? t large-int-type) "LargeInt.int"]
     [(can-unify? t small-int-type) "int"]
     [(can-unify? t string-type) "string"]
     [(can-unify? t bool-type) "bool"]
@@ -341,7 +501,7 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
         (h-append
          lparen
          (cond
-           [(can-unify? type int-type)
+           [(can-unify? type large-int-type)
             (text "LargeInt.toString")]
            [(can-unify? type small-int-type)
             (text "Int.toString")]
@@ -464,31 +624,31 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
  [And (binary-op-renderer (text "andalso"))]
  [Or (binary-op-renderer (text "orelse"))]
 
- [IntLiteral render-int-literal]
- [Plus (binary-op-renderer (text "+"))]
+ #;[IntLiteral render-int-literal]
+ #;[Plus (binary-op-renderer (text "+"))]
  ;; TODO - unary negation with tilde
  ;; TODO - real division uses /, integer division uses `div`, modulus is `mod`
- [Minus (binary-op-renderer (text "-"))]
- [Times (binary-op-renderer (text "*"))]
- [LessThan (binary-op-renderer (text "<"))]
- [GreaterThan (binary-op-renderer (text ">"))]
+ #;[Minus (binary-op-renderer (text "-"))]
+ #;[Times (binary-op-renderer (text "*"))]
+ #;[LessThan (binary-op-renderer (text "<"))]
+ #;[GreaterThan (binary-op-renderer (text ">"))]
 
- [SafeDivide (λ (n) (h-append (text "safe_divide") lparen
+ #;[SafeDivide (λ (n) (h-append (text "safe_divide") lparen
                               (att-value 'xsmith_render-node (ast-child 'l n))
                               (text ",") space
                               (att-value 'xsmith_render-node (ast-child 'r n))
                               rparen))]
 
- [StringLiteral (λ (n) (text (sml-string-format (ast-child 'v n))))]
+ #;[StringLiteral (λ (n) (text (sml-string-format (ast-child 'v n))))]
  ;; TODO - SML strings have concat which is [string] -> string.
  ;; I should define my own string stuff rather than bringing in canned components here.
- [StringAppend (λ (n) (h-append lparen
+ #;[StringAppend (λ (n) (h-append lparen
                                 (text "concat ") lbracket
                                 (att-value 'xsmith_render-node (ast-child 'l n))
                                 comma space
                                 (att-value 'xsmith_render-node (ast-child 'r n))
                                 rbracket rparen))]
- [StringLength (λ (n) (h-append lparen (text "Int.toLarge(size(")
+ #;[StringLength (λ (n) (h-append lparen (text "Int.toLarge(size(")
                                 (att-value 'xsmith_render-node (ast-child 'Expression n))
                                 (text "))")
                                 rparen
@@ -522,7 +682,7 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
 
 (define (type-thunks-for-concretization)
   (list
-   (λ()int-type)
+   (λ()large-int-type)
    (λ()bool-type)
    (λ()string-type)
    (λ()(box-type (fresh-type-variable)))
