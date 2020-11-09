@@ -7,6 +7,7 @@
  Ectype
  E2ctype
  E3ctype
+ define-ag/converter
  )
 
 (require
@@ -47,12 +48,17 @@
                            #:defaults ([racr-name (racr-ize-id #'name)]))
                 (~optional (~seq #:NE-name NE-name)
                            #:defaults ([NE-name #'name]))
+                (~optional (~seq #:shallow shallow-arg))
                 (~optional (~seq #:feature feature-arg)))
            (... ...))
-        #'(add-to-grammar component-name
+        #`(add-to-grammar component-name
                           [racr-name Expression (Expression)
                                      #:prop type-info [type ctype]
                                      ((... ~?) ((... ~@) #:prop feature feature-arg))
+                                     #,@(syntax-parse (or (attribute shallow-arg) #'#f)
+                                          [#f #'()]
+                                          [#t #'(#:prop wont-over-deepen #t
+                                                 #:prop depth-increase 0)])
                                      #:prop render-node-info
                                      (mk-render-node (λ () (if no-exception-check-expr
                                                                'NE-name
@@ -123,3 +129,17 @@
 (define-syntax-parser E3ctype
   [(_ etypel:expr etypem:expr etyper:expr)
    #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
+
+(define-syntax-parser define-ag/converter
+  [(_ ag-name:id ag/one-arg-name:id)
+   #'(define-syntax-parser ag-name
+       [(_ name:id from:expr to:expr
+           (~or
+            (~optional (~seq #:NE-name NE-name))
+            (~optional (~seq #:racr-name racr-name))
+            (~optional (~seq #:feature feature-arg))
+            ) (... ...))
+        #'(ag/one-arg-name name #:type to #:ctype (Ectype from) #:shallow #t
+                           ((... ~?) ((... ~@) #:NE-name NE-name))
+                           ((... ~?) ((... ~@) #:racr-name racr-name))
+                           ((... ~?) ((... ~@) #:prop feature feature-arg)))])])

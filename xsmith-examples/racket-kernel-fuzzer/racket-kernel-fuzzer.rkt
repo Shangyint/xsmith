@@ -563,11 +563,7 @@
 (ag/one-arg string-normalize-nfkd/wrap
             #:type immutable-string #:ctype (Ectype string))
 
-(define-syntax-parser ag/converter
-  [(_ name:id from:expr to:expr
-      (~optional (~seq #:NE-name NE-name)
-                 #:defaults ([NE-name #'name])))
-   #'(ag/one-arg name #:type to #:ctype (Ectype from) #:NE-name NE-name)])
+(define-ag/converter ag/converter ag/one-arg)
 (ag/converter char->integer char int)
 (ag/converter number->string number string)
 (ag/converter string->symbol string symbol)
