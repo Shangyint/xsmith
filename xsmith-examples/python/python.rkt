@@ -39,8 +39,18 @@
    (immutable (dictionary-type key-type value-type))))
 (define byte-string-type (base-type 'byte-string))
 (define tuple-max-length 6)
-(define-generic-type sequence-type ([type covariant]))
+(define-generic-type iterator-type ([type covariant]))
 (define-generic-type iterable-type ([type covariant]))
+(define-generic-type sequence-type ([type covariant]))
+(define (fresh-iterator inner)
+  (fresh-type-variable
+   (mutable (fresh-type-variable (iterator-type inner)
+                                 (iterable-type inner)
+                                 (sequence-type inner)
+                                 (array-type inner)))
+   (immutable (fresh-type-variable (iterator-type inner)
+                                   (iterable-type inner)
+                                   (sequence-type inner)))))
 (define (fresh-iterable inner)
   (fresh-type-variable
    (mutable (fresh-type-variable (iterable-type inner)
@@ -213,7 +223,7 @@
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
  #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
- #:collection-type-constructor (λ (elem-type) (fresh-iterable elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
 (add-property
  python-comp render-node-info
  [ArrayComprehension
@@ -229,7 +239,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (fresh-iterable elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
