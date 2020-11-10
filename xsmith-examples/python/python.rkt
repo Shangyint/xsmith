@@ -412,16 +412,16 @@
                                  (unify! t (immutable (iterator-type inner)))
                                  (hash 'Expression (fresh-iterable inner)))]
                               #:prop render-node-info pass-through-render]
- [ImmutableIteratorToMutableSequence Expression ([Expression])
-                                     #:prop depth-increase 0
-                                     #:prop wont-over-deepen #t
-                                     #:prop type-info
-                                     [(mutable (sequence-type (fresh-type-variable)))
-                                      (λ (n t)
-                                        (define inner (fresh-type-variable))
-                                        (unify! t (mutable (sequence-type inner)))
-                                        (hash 'Expression (immutable (iterator-type inner))))]
-                                     #:prop render-node-info render-child-as-list]
+ [ImmutableIteratorToMutableArray Expression ([Expression])
+                                  #:prop depth-increase 0
+                                  #:prop wont-over-deepen #t
+                                  #:prop type-info
+                                  [(mutable (array-type (fresh-type-variable)))
+                                   (λ (n t)
+                                     (define inner (fresh-type-variable))
+                                     (unify! t (mutable (array-type inner)))
+                                     (hash 'Expression (immutable (iterator-type inner))))]
+                                  #:prop render-node-info render-child-as-list]
  [ImmutableIteratorToImmutableSequence Expression ([Expression])
                                        #:prop depth-increase 0
                                        #:prop wont-over-deepen #t
