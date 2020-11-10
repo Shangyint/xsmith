@@ -15,6 +15,7 @@
  (for-syntax
   racket/base
   syntax/parse
+  racket/string
   ))
 
 #|
@@ -185,7 +186,9 @@ TODO - running / compiling SML
 (define-for-syntax (racr-ize-id id)
   (datum->syntax id
                  (string->symbol
-                  (string-titlecase (symbol->string (syntax->datum id))))))
+                  (string-replace
+                   (string-titlecase (symbol->string (syntax->datum id)))
+                   "." "Dot"))))
 (define-ag/one-arg ag/one-arg comp racr-ize-id NE?
   #'large-int-type
   (λ (name-thunk)
@@ -214,6 +217,7 @@ TODO - running / compiling SML
                 (text ", ")
                 (render-child 'r n)
                 (text ")")))))
+(define-ag/converter ag/converter ag/one-arg)
 
 (add-to-grammar
  comp
@@ -338,6 +342,65 @@ TODO - running / compiling SML
             #:type bool-type #:ctype (E2ctype large-int-type large-int-type))
 ;(ag/two-arg safeLargeFmt #:type byte-string-type #:ctype (E2ctype large-int-type large-int-type))
 
+(ag/one-arg safeCharSucc #:type byte-char-type)
+(ag/one-arg safeCharPred #:type byte-char-type)
+(ag/two-arg Char.contains #:type bool-type #:ctype (E2ctype byte-string-type byte-char-type))
+(ag/two-arg Char.notContains #:type bool-type #:ctype (E2ctype byte-string-type byte-char-type))
+(ag/one-arg Char.toLower #:type byte-char-type)
+(ag/one-arg Char.toUpper #:type byte-char-type)
+(ag/one-arg Char.isAlpha #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isAlphaNum #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isAscii #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isCntrl #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isDigit #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isGraph #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isHexDigit #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isLower #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isUpper #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isPrint #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isSpace #:type bool-type #:ctype (Ectype byte-char-type))
+(ag/one-arg Char.isPunct #:type bool-type #:ctype (Ectype byte-char-type))
+;; fromString - probably don't bother
+;; fromCString - probably don't bother
+;; toCString - ?
+
+(ag/two-arg safeStringSub #:type byte-char-type
+            #:ctype (E2ctype byte-string-type small-int-type))
+;; TODO - extract NONE
+;; TODO - extract SOME
+;; TODO - substring
+(ag/one-arg String.concat #:type byte-string-type
+            #:ctype (Ectype (immutable (list-type byte-string-type))))
+(ag/two-infix ^ #:racr-name StringConcatTwo #:type byte-string-type
+              #:ctype (E2ctype byte-string-type byte-string-type))
+(ag/converter String.str byte-char-type byte-string-type)
+(ag/one-arg String.implode #:type byte-string-type
+            #:ctype (Ectype (immutable (list-type byte-char-type))))
+(ag/one-arg String.explode #:type (immutable (list-type byte-char-type))
+            #:ctype (Ectype byte-string-type))
+(ag/two-arg String.map #:type byte-string-type
+            ;; TODO - if/when I support functions without the inner product, change this.
+            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
+                                            byte-char-type)
+                             byte-string-type))
+(ag/two-arg String.translate #:type byte-string-type
+            ;; TODO - if/when I support functions without the inner product, change this.
+            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
+                                            byte-string-type)
+                             byte-string-type))
+(ag/two-arg String.tokens #:type (immutable (list-type byte-string-type))
+            ;; TODO - if/when I support functions without the inner product, change this.
+            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
+                                            bool-type)
+                             byte-string-type))
+(ag/two-arg String.fields #:type (immutable (list-type byte-string-type))
+            ;; TODO - if/when I support functions without the inner product, change this.
+            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
+                                            bool-type)
+                             byte-string-type))
+;; TODO - isPrefix
+;; TODO - compare
+;; TODO - collate
 
 (define-syntax-parser ag/comparison
   [(_ name racr-name type)
@@ -371,7 +434,6 @@ TODO - running / compiling SML
 (ag/comparison > StringGreater byte-string-type)
 (ag/comparison >= StringGreaterEqual byte-string-type)
 
-(define-ag/converter ag/converter ag/one-arg)
 (ag/converter Int.toLarge
               small-int-type large-int-type
               #:racr-name SmallIntTolargeInt)
@@ -384,6 +446,9 @@ TODO - running / compiling SML
               #:racr-name LargeIntToString)
 (ag/converter Int.toString small-int-type byte-string-type
               #:racr-name SmallToString)
+(ag/converter Char.ord byte-char-type small-int-type
+              #:racr-name CharToSmallInt)
+(ag/converter safeChr small-int-type byte-char-type)
 
 
 
@@ -417,6 +482,10 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
 fun safeLargeIntToSmallInt(x : LargeInt.int) =
   if x > 0 then LargeInt.toInt(x mod max_as_large)
      else LargeInt.toInt(x mod min_as_large)
+
+fun safeStringSub(s, i) =
+if (String.size s) = 0 then #\"a\"
+  else String.sub(safeSmallAbs(i) mod (String.size s))
 
 ")
 (define (make-safe-math-infix/non-div name op)
@@ -453,7 +522,7 @@ fun ~a(a, b) = if 0 = b then a
 fun ~a(a) = let
   val largeResult : LargeInt.int = ~a(Int.toLarge(a))
   in if largeResult > max_as_large orelse largeResult < min_as_large
-     then a else ~a(a)
+     then 0 else ~a(a)
   end
 "
           name op op))
@@ -462,6 +531,11 @@ fun ~a(a) = let
    (list
     (format "val max_as_large : LargeInt.int = ~a" max-small-int)
     (format "val min_as_large : LargeInt.int = ~~~a" (abs min-small-int))
+    (format "fun safeChr(x) = let val ax = safeSmallAbs(x) in chr(ax mod ~a) end"
+            max-byte-char)
+    (format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c) end"
+            max-byte-char)
+    (format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c) end")
     (make-safe-math-infix/non-div "safeSmallAdd" "+")
     (make-safe-math-infix/non-div "safeSmallSubtract" "-")
     (make-safe-math-infix/non-div "safeSmallMultiply" "*")
