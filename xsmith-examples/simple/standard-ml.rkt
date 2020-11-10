@@ -109,6 +109,8 @@ TODO - running / compiling SML
 (define polyml-min-int -4611686018427387904)
 (define mlton-max-int 2147483647)
 (define mlton-min-int -2147483648)
+;; mosml and mlkit have the same max/min values as polyml
+;; hamlet inherits its max/min values from whatever SML compiles it.
 (define max-small-int (min polyml-max-int mlton-max-int))
 (define min-small-int (max polyml-min-int mlton-min-int))
 
