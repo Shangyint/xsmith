@@ -56,11 +56,6 @@
    (mutable (fresh-type-variable (iterable-type inner)
                                  (sequence-type inner)
                                  (array-type inner)))))
-#;(define (fresh-iterator inner)
-  (fresh-type-variable
-   (immutable (fresh-type-variable (iterator-type inner)
-                                   (iterable-type inner)
-                                   (sequence-type inner)))))
 (define (fresh-iterator-or-iterable-or-sequence inner)
   (fresh-type-variable
    (immutable (fresh-type-variable (iterator-type inner)
@@ -69,6 +64,8 @@
    (mutable (fresh-type-variable (iterable-type inner)
                                  (sequence-type inner)
                                  (array-type inner)))))
+(define (fresh-iterator inner)
+  (immutable (iterator-type inner)))
 (define (fresh-iterable inner)
   (fresh-type-variable
    (immutable (fresh-type-variable (iterable-type inner)))
@@ -238,7 +235,7 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence elem-type))
  #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
 (add-property
  python-comp render-node-info
@@ -256,8 +253,8 @@
  python-comp
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
- #:loop-type-constructor (λ (elem-type) (immutable (iterator-type elem-type))))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence elem-type))
+ #:loop-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
 (add-property
  python-comp render-node-info
  [SimpleGenerator
@@ -273,7 +270,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
@@ -422,21 +419,22 @@
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
 
- [IterableToImmutableIterator Expression ([Expression])
-                              #:prop depth-increase 0
-                              #:prop wont-over-deepen #t
-                              #:prop type-info
-                              [(immutable (iterator-type (fresh-type-variable)))
-                               (λ (n t)
-                                 (define inner (fresh-type-variable))
-                                 (unify! t (immutable (iterator-type inner)))
-                                 (hash 'Expression (fresh-iterable inner)))]
-                              #:prop render-node-info
-                              (λ (n)
-                                (h-append (text "iter")
-                                          lparen
-                                          ($xsmith_render-node (ast-child 'Expression n))
-                                          rparen))]
+ [IterableOrSequenceToImmutableIterator Expression ([Expression])
+                                        #:prop depth-increase 0
+                                        #:prop wont-over-deepen #t
+                                        #:prop choice-weight 1
+                                        #:prop type-info
+                                        [(fresh-iterator (fresh-type-variable))
+                                         (λ (n t)
+                                           (define inner (fresh-type-variable))
+                                           (unify! t (fresh-iterator inner))
+                                           (hash 'Expression (fresh-iterable-or-sequence inner)))]
+                                        #:prop render-node-info
+                                        (λ (n)
+                                          (h-append (text "iter")
+                                                    lparen
+                                                    ($xsmith_render-node (ast-child 'Expression n))
+                                                    rparen))]
  [ImmutableIteratorToMutableArray Expression ([Expression])
                                   #:prop depth-increase 0
                                   #:prop wont-over-deepen #t
@@ -445,7 +443,7 @@
                                    (λ (n t)
                                      (define inner (fresh-type-variable))
                                      (unify! t (mutable (array-type inner)))
-                                     (hash 'Expression (immutable (iterator-type inner))))]
+                                     (hash 'Expression (fresh-iterator inner)))]
                                   #:prop render-node-info render-child-as-list]
  [ImmutableIteratorToImmutableSequence Expression ([Expression])
                                        #:prop depth-increase 0
@@ -455,7 +453,7 @@
                                         (λ (n t)
                                           (define inner (fresh-type-variable))
                                           (unify! t (immutable (sequence-type inner)))
-                                          (hash 'Expression (immutable (iterator-type inner))))]
+                                          (hash 'Expression (fresh-iterator inner)))]
                                        #:prop render-node-info render-child-as-tuple]
  [ISequenceToIterable Expression ([Expression])
                       #:prop depth-increase 0
@@ -721,20 +719,20 @@
 ;; TODO - enumerate returns an 'enumerate object', which is not reversible but is fairly similar to a list.
 ;;        Also, their should be a constraint that the returned tuples' second elements are of the same type as the elements of the passed-in iterable.
 (ag/one-arg enumerate
-            #:type (immutable (iterator-type (product-type (list int-type (fresh-type-variable)))))
+            #:type (fresh-iterator (product-type (list int-type (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-iterator (immutable (iterator-type arg-elem)))
+                      (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
                       (define arg-iterable (fresh-iterator-or-iterable-or-sequence arg-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
-            #:type (immutable (iterator-type (fresh-type-variable)))
+            #:type (fresh-iterator (fresh-type-variable))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-iterator (immutable (iterator-type arg-elem)))
+                      (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
                       (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
@@ -775,10 +773,10 @@
 ;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
 (ag/two-arg map
             #:racr-name MapTwo
-            #:type (immutable (iterator-type (fresh-type-variable)))
+            #:type (fresh-iterator (fresh-type-variable))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-iterator (immutable (iterator-type return-elem)))
+                      (define return-iterator (fresh-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
                       (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
@@ -787,10 +785,10 @@
                             'r arg-array)))
 (ag/three-arg map
               #:racr-name MapThree
-              #:type (immutable (iterator-type (fresh-type-variable)))
+              #:type (fresh-iterator (fresh-type-variable))
               #:ctype (λ (n t)
                         (define return-elem (fresh-type-variable))
-                        (define return-iterator (immutable (iterator-type return-elem)))
+                        (define return-iterator (fresh-iterator return-elem))
                         (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
                         (define arg1-array (fresh-iterator-or-iterable-or-sequence arg1-elem))
@@ -814,7 +812,7 @@
 (ag/one-arg next
             #:type (fresh-type-variable)
             #:ctype (λ (n t)
-                      (hash 'Expression (iterator-type t))))
+                      (hash 'Expression (fresh-iterator t))))
 ;; TODO - object()
 (ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
