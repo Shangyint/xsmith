@@ -371,35 +371,36 @@ TODO - running / compiling SML
 ;; TODO - extract NONE
 ;; TODO - extract SOME
 ;; TODO - substring
-(ag/one-arg String.concat #:type byte-string-type
-            #:ctype (Ectype (immutable (list-type byte-string-type))))
 (ag/two-infix ^ #:racr-name StringConcatTwo #:type byte-string-type
               #:ctype (E2ctype byte-string-type byte-string-type))
+(ag/one-arg String.concat #:type byte-string-type
+            #:ctype (Ectype (immutable (list-type byte-string-type))))
+;; TODO - concatWith
 (ag/converter String.str byte-char-type byte-string-type)
 (ag/one-arg String.implode #:type byte-string-type
             #:ctype (Ectype (immutable (list-type byte-char-type))))
 (ag/one-arg String.explode #:type (immutable (list-type byte-char-type))
             #:ctype (Ectype byte-string-type))
-(ag/two-arg String.map #:type byte-string-type
+(ag/one-arg String.map #:type (function-type (product-type (list byte-string-type))
+                                             byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
-                                            byte-char-type)
-                             byte-string-type))
-(ag/two-arg String.translate #:type byte-string-type
+            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+                                            byte-char-type)))
+(ag/one-arg String.translate #:type (function-type (product-type (list byte-string-type))
+                                                   byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
-                                            byte-string-type)
-                             byte-string-type))
-(ag/two-arg String.tokens #:type (immutable (list-type byte-string-type))
+            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+                                           byte-char-type)))
+(ag/one-arg String.tokens #:type (function-type (product-type (list byte-string-type))
+                                                byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
-                                            bool-type)
-                             byte-string-type))
-(ag/two-arg String.fields #:type (immutable (list-type byte-string-type))
+            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+                                           bool-type)))
+(ag/one-arg String.fields #:type (function-type (product-type (list byte-string-type))
+                                                byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (E2ctype (function-type (product-type (list byte-char-type))
-                                            bool-type)
-                             byte-string-type))
+            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+                                           bool-type)))
 ;; TODO - isPrefix
 ;; TODO - compare
 ;; TODO - collate
