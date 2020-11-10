@@ -340,9 +340,15 @@ TODO - running / compiling SML
 (ag/comparison > StringGreater string-type)
 (ag/comparison >= StringGreaterEqual string-type)
 
+(define-ag/converter ag/converter ag/one-arg)
+(ag/converter Int.toLarge
+              small-int-type large-int-type
+              #:racr-name SmallIntTolargeInt)
+(ag/converter safeLargeIntToSmallInt large-int-type small-int-type)
+(ag/converter size
+              string-type small-int-type
+              #:racr-name StringSize)
 
-
-(ag/one-arg size #:racr-name StringSize #:type small-int-type #:ctype (Ectype string-type))
 
 
 (define nest-step 2)
@@ -372,6 +378,9 @@ fun safeLargeModulo(a, b) = if 0 = b then a else a mod b
 (*fun safeLargeQuotient(a, b) = if 0 = b then a else quot(a, b)*)
 fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
 fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
+fun safeLargeIntToSmallInt(x : LargeInt.int) =
+  if x > 0 then LargeInt.toInt(x mod max_as_large)
+     else LargeInt.toInt(x mod min_as_large)
 
 ")
 (define (make-safe-math-infix/non-div name op)
@@ -682,6 +691,7 @@ fun ~a(a) = let
 
 (define (type-thunks-for-concretization)
   (list
+   (λ()small-int-type)
    (λ()large-int-type)
    (λ()bool-type)
    (λ()string-type)
