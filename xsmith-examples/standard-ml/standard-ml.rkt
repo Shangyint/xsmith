@@ -535,9 +535,9 @@ fun ~a(a) = let
     (format "val min_as_large : LargeInt.int = ~~~a" (abs min-small-int))
     (format "fun safeChr(x) = let val ax = safeSmallAbs(x) in chr(ax mod ~a) end"
             max-byte-char)
-    (format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c) end"
+    (format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
             max-byte-char)
-    (format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c) end")
+    (format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
     (make-safe-math-infix/non-div "safeSmallAdd" "+")
     (make-safe-math-infix/non-div "safeSmallSubtract" "-")
     (make-safe-math-infix/non-div "safeSmallMultiply" "*")
