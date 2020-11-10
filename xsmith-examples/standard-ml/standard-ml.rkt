@@ -276,9 +276,22 @@ TODO - running / compiling SML
 (ag/atomic-literal SmallIntLiteral small-int-type (biased-random-small-int)
                    render-int-literal)
 (define render-int-literal
-  (λ (n) (let ([v (ast-child 'v n)])
-           ;; SML uses tilde instead of dash for negative numbers.  Weird.
-           (text (format "~a~a" (if (< v 0) "~" "") (abs v))))))
+  (λ (n)
+    (define (format-too-large x)
+      (define-values (q r) (quotient/remainder x max-small-int))
+      (if (equal? q 0)
+          r
+          (format "((~a * ~a) + ~a)" (format-too-large q) max-small-int r)))
+    (let ([v (ast-child 'v n)])
+      ;; SML uses tilde instead of dash for negative numbers.  Weird.
+      (text (format "~a~a"
+                    (if (< v 0) "~" "")
+                    ;; Some implementations only allow literals that are as large as
+                    ;; the small int type.  So we need to make them small enough.
+                    ;; Actually, I don't think this is really the case, it
+                    ;; looks like those versions perhaps just don't support
+                    ;; IntInf.int or LargeInt.int...
+                    (format-too-large (abs v)))))))
 (ag/atomic-literal ByteCharLiteral byte-char-type (random max-byte-char)
                    (λ (n) (text (string-append
                                  "#"
