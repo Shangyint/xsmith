@@ -289,6 +289,18 @@
 
 (define no-child-types (λ (n t) (hash)))
 (define pass-through-render (λ (n) ($xsmith_render-node (ast-child 'Expression n))))
+(define render-child-as-tuple
+  (λ (n)
+    (h-append (text "tuple")
+              lparen
+              ($xsmith_render-node (ast-child 'Expression n))
+              rparen)))
+(define render-child-as-list
+  (λ (n)
+    (h-append (text "list")
+              lparen
+              ($xsmith_render-node (ast-child 'Expression n))
+              rparen)))
 
 (add-to-grammar
  python-comp
@@ -390,6 +402,36 @@
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
 
+ [IterableToImmutableIterator Expression ([Expression])
+                              #:prop depth-increase 0
+                              #:prop wont-over-deepen #t
+                              #:prop type-info
+                              [(immutable (iterator-type (fresh-type-variable)))
+                               (λ (n t)
+                                 (define inner (fresh-type-variable))
+                                 (unify! t (immutable (iterator-type inner)))
+                                 (hash 'Expression (fresh-iterable inner)))]
+                              #:prop render-node-info pass-through-render]
+ [ImmutableIteratorToMutableSequence Expression ([Expression])
+                                     #:prop depth-increase 0
+                                     #:prop wont-over-deepen #t
+                                     #:prop type-info
+                                     [(mutable (sequence-type (fresh-type-variable)))
+                                      (λ (n t)
+                                        (define inner (fresh-type-variable))
+                                        (unify! t (mutable (sequence-type inner)))
+                                        (hash 'Expression (immutable (iterator-type inner))))]
+                                     #:prop render-node-info render-child-as-list]
+ [ImmutableIteratorToImmutableSequence Expression ([Expression])
+                                       #:prop depth-increase 0
+                                       #:prop wont-over-deepen #t
+                                       #:prop type-info
+                                       [(immutable (sequence-type (fresh-type-variable)))
+                                        (λ (n t)
+                                          (define inner (fresh-type-variable))
+                                          (unify! t (immutable (sequence-type inner)))
+                                          (hash 'Expression (immutable (iterator-type inner))))]
+                                       #:prop render-node-info render-child-as-tuple]
  [ISequenceToIterable Expression ([Expression])
                       #:prop depth-increase 0
                       #:prop wont-over-deepen #t
@@ -419,11 +461,7 @@
                                  (define inner (fresh-type-variable))
                                  (unify! t (immutable (sequence-type inner)))
                                  (hash 'Expression (fresh-iterable inner)))]
-                              #:prop render-node-info
-                              (λ (n) (h-append
-                                      (text "tuple(")
-                                      ($xsmith_render-node (ast-child 'Expression n))
-                                      (text ")")))]
+                              #:prop render-node-info render-child-as-tuple]
  [SequenceToImmutableSequence Expression (Expression)
                               #:prop depth-increase 0
                               #:prop wont-over-deepen #t
@@ -433,11 +471,7 @@
                                  (define inner (fresh-type-variable))
                                  (unify! t (immutable (sequence-type inner)))
                                  (hash 'Expression (fresh-sequence inner)))]
-                              #:prop render-node-info
-                              (λ (n) (h-append
-                                      (text "tuple(")
-                                      ($xsmith_render-node (ast-child 'Expression n))
-                                      (text ")")))]
+                              #:prop render-node-info render-child-as-tuple]
  [IterableToMutableSequence Expression (Expression)
                             #:prop depth-increase 0
                             #:prop wont-over-deepen #t
@@ -447,11 +481,7 @@
                                (define inner (fresh-type-variable))
                                (unify! t (mutable (sequence-type inner)))
                                (hash 'Expression (fresh-iterable inner)))]
-                            #:prop render-node-info
-                            (λ (n) (h-append
-                                    (text "list(")
-                                    ($xsmith_render-node (ast-child 'Expression n))
-                                    (text ")")))]
+                            #:prop render-node-info render-child-as-list]
  [MutableArrayToSequence Expression (Expression)
                          #:prop depth-increase 0
                          #:prop wont-over-deepen #t
