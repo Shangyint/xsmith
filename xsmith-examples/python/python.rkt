@@ -238,6 +238,24 @@
 
 (add-loop-over-container
  python-comp
+ ;; This produces simple generator comprehensions.
+ #:name SimpleGenerator
+ #:loop-type-constructor (λ (elem-type) (immutable (iterator-type elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
+(add-property
+ python-comp render-node-info
+ [SimpleGenerator
+  ;; (body for binder_name in collection)
+  (λ (n) (h-append lparen
+                   ($xsmith_render-node (ast-child 'body n))
+                   (text " for ")
+                   (text (ast-child 'name (ast-child 'elemname n)))
+                   (text " in ")
+                   ($xsmith_render-node (ast-child 'collection n))
+                   rparen))])
+
+(add-loop-over-container
+ python-comp
  #:name LoopOverArray
  #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
