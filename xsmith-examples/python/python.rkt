@@ -44,10 +44,6 @@
 (define-generic-type sequence-type ([type covariant]))
 (define (fresh-iterator inner)
   (fresh-type-variable
-   (mutable (fresh-type-variable (iterator-type inner)
-                                 (iterable-type inner)
-                                 (sequence-type inner)
-                                 (array-type inner)))
    (immutable (fresh-type-variable (iterator-type inner)
                                    (iterable-type inner)
                                    (sequence-type inner)))))
