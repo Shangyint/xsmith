@@ -690,28 +690,21 @@
 ;; TODO - enumerate returns an 'enumerate object', which is not reversible but is fairly similar to a list.
 ;;        Also, their should be a constraint that the returned tuples' second elements are of the same type as the elements of the passed-in iterable.
 (ag/one-arg enumerate
-            #:type (immutable (fresh-iterable (product-type (list int-type (fresh-type-variable)))))
+            #:type (immutable (iterator-type (product-type (list int-type (fresh-type-variable)))))
             #:ctype (λ (n t)
-                      ;; The inner type we will tell the child to take.
-                      (define inner-type (fresh-type-variable))
-                      ;; The inner type as dictated by the parent's type.
-                      (define inner-type-to-return
-                        ;; Get the list of type variables. The innermost is listed first.
-                        ;; TODO - Is the return order of `type->type-variable-list` guaranteed?
-                        (car
-                         (type->type-variable-list t)))
-                      ;; Unify the two types.
-                      (unify! inner-type inner-type-to-return)
-                      ;; Assign the child's type. It must be an iterable of the chosen type.
-                      (hash 'Expression (fresh-iterable inner-type-to-return))))
+                      (define arg-elem (fresh-type-variable))
+                      (define return-iterator (immutable (iterator-type arg-elem)))
+                      (unify! t return-iterator)
+                      (define arg-iterable (fresh-iterable arg-elem))
+                      (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
-            #:type (immutable (iterable-type (fresh-type-variable)))
+            #:type (immutable (iterator-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-array (immutable (iterable-type arg-elem)))
-                      (unify! t return-array)
+                      (define return-iterator (immutable (iterator-type arg-elem)))
+                      (unify! t return-iterator)
                       (define arg-array (fresh-iterable arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
@@ -736,7 +729,14 @@
 ;; TODO - int()
 ;; TODO - isinstance()
 ;; TODO - issubclass()
-;; TODO - iter()
+(ag/one-arg iter
+            #:type (immutable (iterator-type (fresh-type-variable)))
+            #:ctype (λ (n t)
+                      (define arg-elem (fresh-type-variable))
+                      (define return-iterator (immutable (iterator-type arg-elem)))
+                      (unify! t return-iterator)
+                      (define arg-iterable (fresh-iterable arg-elem))
+                      (hash 'Expression arg-iterable)))
 (ag/one-arg len #:type int-type
             #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
 (ag/one-arg list #:type (mutable (array-type (fresh-type-variable)))
@@ -751,11 +751,11 @@
 ;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
 (ag/two-arg map
             #:racr-name MapTwo
-            #:type (immutable (iterable-type (fresh-type-variable)))
+            #:type (immutable (iterator-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-array (immutable (iterable-type return-elem)))
-                      (unify! t return-array)
+                      (define return-iterator (immutable (iterator-type return-elem)))
+                      (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
                       (define arg-array (fresh-iterable arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
@@ -763,11 +763,11 @@
                             'r arg-array)))
 (ag/three-arg map
               #:racr-name MapThree
-              #:type (immutable (iterable-type (fresh-type-variable)))
+              #:type (immutable (iterator-type (fresh-type-variable)))
               #:ctype (λ (n t)
                         (define return-elem (fresh-type-variable))
-                        (define return-array (immutable (iterable-type return-elem)))
-                        (unify! t return-array)
+                        (define return-iterator (immutable (iterator-type return-elem)))
+                        (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
                         (define arg1-array (fresh-iterable arg1-elem))
                         (define arg2-elem (fresh-type-variable))
@@ -787,7 +787,10 @@
             #:type (fresh-comparable-type)
             #:ctype (λ (n t) (hash 'l (fresh-sequence t)
                                    'r t)))
-;; TODO - next()
+(ag/one-arg next
+            #:type (fresh-type-variable)
+            #:ctype (λ (n t)
+                      (hash 'Expression (immutable (iterator-type t)))))
 ;; TODO - object()
 (ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
@@ -814,7 +817,14 @@
 ;; TODO - set()
 ;; TODO - setattr()
 ;; TODO - slice()
-(ag/one-arg sorted #:type (immutable (iterable-type (fresh-comparable-type))))
+(ag/one-arg sorted
+            #:type (mutable (array-type (fresh-comparable-type)))
+            #:ctype (λ (n t)
+                      (define return-elem (fresh-type-variable))
+                      (define return-array (mutable (array-type return-elem)))
+                      (unify! t return-array)
+                      (define arg-iterable (fresh-iterable return-elem))
+                      (hash 'Expression arg-iterable)))
 ;; TODO - staticmethod()
 ;; TODO - str()
 ;; TODO - sum()
