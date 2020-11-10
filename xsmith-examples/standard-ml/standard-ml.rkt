@@ -291,7 +291,7 @@ TODO - running / compiling SML
                     ;; Actually, I don't think this is really the case, it
                     ;; looks like those versions perhaps just don't support
                     ;; IntInf.int or LargeInt.int...
-                    (format-too-large (abs v)))))))
+                    (abs v))))))
 (ag/atomic-literal ByteCharLiteral byte-char-type (random max-byte-char)
                    (λ (n) (text (string-append
                                  "#"
