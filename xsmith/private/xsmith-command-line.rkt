@@ -799,6 +799,8 @@
                      (if fmt
                          (fmt ppr)
                          (format "~a\n" ppr))))
+                 ;; Notify beginning of generation with seed.
+                 (verbose-eprintf "Generating from seed: ~a.\n" random-input)
                  ;; Attempt to generate the AST.
                  (define error? #f)
                  (define error-root #f)
