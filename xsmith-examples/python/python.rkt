@@ -218,8 +218,8 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
- #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
+ #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
 (add-property
  python-comp render-node-info
  [ArrayComprehension
@@ -236,8 +236,8 @@
  python-comp
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
- #:loop-type-constructor (λ (elem-type) (immutable (iterator-type elem-type)))
- #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
+ #:loop-type-constructor (λ (elem-type) (immutable (iterator-type elem-type))))
 (add-property
  python-comp render-node-info
  [SimpleGenerator
