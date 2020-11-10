@@ -487,7 +487,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
 
 fun safeStringSub(s, i) =
 if (String.size s) = 0 then #\"a\"
-  else String.sub(safeSmallAbs(i) mod (String.size s))
+  else String.sub(s, (safeSmallAbs(i) mod (String.size s)))
 
 ")
 (define (make-safe-math-infix/non-div name op)
