@@ -38,15 +38,39 @@ TODO - running / compiling SML
 
 (define-basic-spec-component comp)
 
+;;;; Types
+
+;; Integers -- SML has int/Int (int is the type Int is the structure
+;; with functions for operating on them) as fixed-width, LargeInt as some kind
+;; of larger integer that may have a max size, and IntInf as arbitrary precision.
+;; When IntInf is available, LargeInt must be the same type as IntInf.
+;; So not all implementations have arbitrary precision ints, but if they do then
+;; LargeInt is always that size.
+;; I think it's possible that different implementations have different sizes for
+;; the basic int type.  I could maybe implement a “safe-math” set of operations for
+;; int type, but it would have to use the smallest actual int size among the implementations.
+;; So for starters I think I should stick to using IntInf, which has all the functions here:
+;; https://smlfamily.github.io/Basis/int-inf.html#IntInf:STR:SPEC
+;; as well as here:
+;; https://smlfamily.github.io/Basis/integer.html#LargeInt:STR:SPEC
+
+;; Strings - the string type is essentially (extended) ascii strings,
+;; presumably a byte string.  It's a vector of char type.
+;; the WideString.string type is a vector of widechar type, and
+;; is not a byte string.  It's not guaranteed to be unicode, but
+;; probably any sane implementation uses unicode.
+;; HOWEVER - poly/ML doesn't seem to implement WideString or WideChar.
+;; So maybe I'll not use them for now.
+
 (define large-int-type (base-type 'large-int))
 (define small-int-type (base-type 'small-int))
+(define byte-char-type (base-type 'byte-char))
+(define byte-string-type (base-type 'byte-string))
+(define wide-char-type (base-type 'wide-char))
+(define wide-string-type (base-type 'wide-string))
 (define-generic-type box-type ([type covariant]))
 (define no-child-types (λ (n t) (hash)))
 
-;; TODO - strings are required to include ascii, and may support unicode.
-;; But it's implementation-specific.  PolyML doesn't seem to support unicode strings.
-;; TODO - there is also a `text` type, but I'm not sure what the difference is.
-;; A quick glance doesn't seem to me like it supports unicode.
 
 (define random-string-length-max 50)
 (define (random-ascii-string)
@@ -78,19 +102,6 @@ TODO - running / compiling SML
      "\""))))
 
 
-;; TODO - integers -- SML has int/Int (int is the type Int is the structure
-;; with functions for operating on them) as fixed-width, LargeInt as some kind
-;; of larger integer that may have a max size, and IntInf as arbitrary precision.
-;; When IntInf is available, LargeInt must be the same type as IntInf.
-;; So not all implementations have arbitrary precision ints, but if they do then
-;; LargeInt is always that size.
-;; I think it's possible that different implementations have different sizes for
-;; the basic int type.  I could maybe implement a “safe-math” set of operations for
-;; int type, but it would have to use the smallest actual int size among the implementations.
-;; So for starters I think I should stick to using IntInf, which has all the functions here:
-;; https://smlfamily.github.io/Basis/int-inf.html#IntInf:STR:SPEC
-;; as well as here:
-;; https://smlfamily.github.io/Basis/integer.html#LargeInt:STR:SPEC
 
 ;; max/min ints according to Int.maxInt and Int.minInt
 (define polyml-max-int 4611686018427387903)
@@ -99,6 +110,13 @@ TODO - running / compiling SML
 (define mlton-min-int -2147483648)
 (define max-small-int (min polyml-max-int mlton-max-int))
 (define min-small-int (max polyml-min-int mlton-min-int))
+
+(define polyml-max-char 255)
+(define polyml-min-char 0)
+(define mlton-max-char 255)
+(define mlton-min-char 0)
+(define max-byte-char (max polyml-max-char mlton-max-char))
+(define min-byte-char (min polyml-min-char mlton-min-char))
 
 (define (random-byte) (random 256))
 (define (biased-random-int)
@@ -122,8 +140,8 @@ TODO - running / compiling SML
     (add1 polyml-max-int)
     (sub1 polyml-min-int)
     (add1 mlton-max-int)
-    (sub1 mlton-min-int))
-   ))
+    (sub1 mlton-min-int)
+    )))
 
 (define (biased-random-small-int)
   (random-expr
@@ -203,12 +221,15 @@ TODO - running / compiling SML
              #:prop wont-over-deepen #t
              #:prop choice-weight 1
              #:prop type-info
-             [(box-type (fresh-type-variable)) (λ (n t)
-                                                 (define ct (fresh-type-variable))
-                                                 (unify! t (box-type ct))
-                                                 (hash 'Expression ct))]
+             [(box-type (fresh-type-variable))
+              (λ (n t)
+                (define ct (fresh-type-variable))
+                (unify! t (box-type ct))
+                (hash 'Expression ct))]
              #:prop render-node-info
-             (λ (n) (h-append lparen (text "ref ") lparen (render-child 'Expression n) rparen rparen))]
+             (λ (n) (h-append lparen (text "ref ")
+                              lparen (render-child 'Expression n) rparen
+                              rparen))]
  [Unbox Expression (Expression)
         #:prop mutable-container-access (read 'box)
         #:prop type-info
@@ -252,7 +273,12 @@ TODO - running / compiling SML
   (λ (n) (let ([v (ast-child 'v n)])
            ;; SML uses tilde instead of dash for negative numbers.  Weird.
            (text (format "~a~a" (if (< v 0) "~" "") (abs v))))))
-(ag/atomic-literal StringLiteral string-type (random-ascii-string)
+(ag/atomic-literal ByteCharLiteral byte-char-type (random max-byte-char)
+                   (λ (n) (text (string-append
+                                 "#"
+                                 (sml-string-format
+                                  (string (integer->char (ast-child 'v n))))))))
+(ag/atomic-literal ByteStringLiteral byte-string-type (random-ascii-string)
                    (λ (n) (text (sml-string-format (ast-child 'v n)))))
 
 
@@ -271,9 +297,7 @@ TODO - running / compiling SML
 (ag/one-arg Int.sign #:racr-name SmallSign #:type small-int-type)
 (ag/two-arg Int.sameSign #:racr-name SmallSameSign
             #:type bool-type #:ctype (E2ctype small-int-type small-int-type))
-;(ag/two-arg safeSmallFmt #:type string-type #:ctype (E2ctype small-int-type small-int-type))
-(ag/one-arg Int.toString #:racr-name SmallToString
-            #:type string-type #:ctype (Ectype small-int-type))
+;(ag/two-arg safeSmallFmt #:type byte-string-type #:ctype (E2ctype small-int-type small-int-type))
 
 (define-syntax-parser ag/two-infix
        [(_ name:id
@@ -312,9 +336,7 @@ TODO - running / compiling SML
 (ag/one-arg LargeInt.sign #:racr-name LargeSign #:type large-int-type)
 (ag/two-arg LargeInt.sameSign #:racr-name LargeSameSign
             #:type bool-type #:ctype (E2ctype large-int-type large-int-type))
-;(ag/two-arg safeLargeFmt #:type string-type #:ctype (E2ctype large-int-type large-int-type))
-(ag/one-arg LargeInt.toString #:racr-name LargeToString
-            #:type string-type #:ctype (Ectype large-int-type))
+;(ag/two-arg safeLargeFmt #:type byte-string-type #:ctype (E2ctype large-int-type large-int-type))
 
 
 (define-syntax-parser ag/comparison
@@ -327,27 +349,41 @@ TODO - running / compiling SML
 (ag/comparison <= SmallIntLessEqual small-int-type)
 (ag/comparison > SmallIntGreater small-int-type)
 (ag/comparison >= SmallIntGreaterEqual small-int-type)
+
 (ag/comparison = LargeIntEqual large-int-type)
 (ag/comparison <> LargeIntNotEqual large-int-type)
 (ag/comparison < LargeIntLess large-int-type)
 (ag/comparison <= LargeIntLessEqual large-int-type)
 (ag/comparison > LargeIntGreater large-int-type)
 (ag/comparison >= LargeIntGreaterEqual large-int-type)
-(ag/comparison = StringEqual string-type)
-(ag/comparison <> StringNotEqual string-type)
-(ag/comparison < StringLess string-type)
-(ag/comparison <= StringLessEqual string-type)
-(ag/comparison > StringGreater string-type)
-(ag/comparison >= StringGreaterEqual string-type)
+
+(ag/comparison = CharEqual byte-char-type)
+(ag/comparison <> CharNotEqual byte-char-type)
+(ag/comparison < CharLess byte-char-type)
+(ag/comparison <= CharLessEqual byte-char-type)
+(ag/comparison > CharGreater byte-char-type)
+(ag/comparison >= CharGreaterEqual byte-char-type)
+
+(ag/comparison = StringEqual byte-string-type)
+(ag/comparison <> StringNotEqual byte-string-type)
+(ag/comparison < StringLess byte-string-type)
+(ag/comparison <= StringLessEqual byte-string-type)
+(ag/comparison > StringGreater byte-string-type)
+(ag/comparison >= StringGreaterEqual byte-string-type)
 
 (define-ag/converter ag/converter ag/one-arg)
 (ag/converter Int.toLarge
               small-int-type large-int-type
               #:racr-name SmallIntTolargeInt)
 (ag/converter safeLargeIntToSmallInt large-int-type small-int-type)
-(ag/converter size
-              string-type small-int-type
+(ag/converter size byte-string-type small-int-type
               #:racr-name StringSize)
+(ag/converter Char.toString byte-char-type byte-string-type
+              #:racr-name ByteCharToByteString)
+(ag/converter LargeInt.toString large-int-type byte-string-type
+              #:racr-name LargeIntToString)
+(ag/converter Int.toString small-int-type byte-string-type
+              #:racr-name SmallToString)
 
 
 
@@ -446,16 +482,7 @@ fun ~a(a) = let
 
 
 
-(add-to-grammar
- comp
- [ProgramWithExpression #f ([definitions : Definition *]
-                            [Expression])
-                        #:prop strict-child-order? #t
-                        #:prop type-info
-                        [(fresh-type-variable large-int-type bool-type string-type)
-                         (λ (n t)
-                           (hash 'definitions (λ (c) (fresh-type-variable))
-                                 'Expression t))]])
+
 
 (define (list-add-between ls between)
   (cond [(null? ls) ls]
@@ -471,7 +498,10 @@ fun ~a(a) = let
   (cond
     [(can-unify? t large-int-type) "LargeInt.int"]
     [(can-unify? t small-int-type) "int"]
-    [(can-unify? t string-type) "string"]
+    [(can-unify? t byte-string-type) "string"]
+    [(can-unify? t byte-char-type) "char"]
+    [(can-unify? t wide-string-type) "WideString.string"]
+    [(can-unify? t byte-char-type) "WideChar.char"]
     [(can-unify? t bool-type) "bool"]
     [(can-unify? t void-type) "unit"]
     [(can-unify? t (box-type (fresh-type-variable)))
@@ -516,8 +546,16 @@ fun ~a(a) = let
             (text "Int.toString")]
            [(can-unify? type bool-type)
             (text "Bool.toString")]
-           [(can-unify? type string-type)
-            (text "fn x : string => x")]
+           [(can-unify? type byte-char-type)
+            (text "Char.toString")]
+           [(can-unify? type wide-char-type)
+            (text "WideChar.toString")]
+           [(can-unify? type byte-string-type)
+            ;; we could just do the identity function, but
+            ;; String.toString escapes non-printing characters.
+            (text "String.toString")]
+           [(can-unify? type wide-string-type)
+            (text "WideString.toString")]
            [(can-unify? type void-type)
             (text "fn x : unit => \"\"")]
            [(can-unify? type (box-type (fresh-type-variable)))
@@ -556,16 +594,17 @@ fun ~a(a) = let
                ,(text "")
                ,@(map (λ (cn) (att-value 'xsmith_render-node cn))
                       definitions)
-               ,(h-append (text "val mainresult = ") (att-value 'xsmith_render-node (ast-child 'ExpressionSequence n)))))
+               ,(h-append (text "val mainresult = ")
+                          (render-child 'ExpressionSequence n))))
             (text "")
-            (print-value (text "mainresult") (att-value 'xsmith_type (ast-child 'ExpressionSequence n)))
+            (print-value (text "mainresult")
+                         (att-value 'xsmith_type
+                                    (ast-child 'ExpressionSequence n)))
             (apply v-append
                    (map (λ (v)
-                          (print-value (text (ast-child 'name v)) (ast-child 'type v)))
-                        (filter (λ (x)
-                                  (let ([t (ast-child 'type x)])
-                                    (and #;(base-type? t) (not (can-unify? void-type t)))))
-                                definitions)))))
+                          (print-value (text (ast-child 'name v))
+                                       (ast-child 'type v)))
+                        definitions))))
      (text "in print \"\\n\"")
      (text "end")
      (text "val _ = main()")
@@ -585,7 +624,7 @@ fun ~a(a) = let
      (nest nest-step
            (v-append
             (text "in")
-            (att-value 'xsmith_render-node (ast-child 'finalexpression n))))
+            (render-child 'finalexpression n)))
      (text "end")))]
 
  [Definition (λ (n) (h-append (text "val ")
@@ -597,7 +636,7 @@ fun ~a(a) = let
                               space
                               equals
                               space
-                              (att-value 'xsmith_render-node (ast-child 'Expression n))))]
+                              (render-child 'Expression n)))]
 
 
  [VariableReference (λ (n) (text (format "~a" (ast-child 'name n))))]
@@ -633,36 +672,6 @@ fun ~a(a) = let
  [And (binary-op-renderer (text "andalso"))]
  [Or (binary-op-renderer (text "orelse"))]
 
- #;[IntLiteral render-int-literal]
- #;[Plus (binary-op-renderer (text "+"))]
- ;; TODO - unary negation with tilde
- ;; TODO - real division uses /, integer division uses `div`, modulus is `mod`
- #;[Minus (binary-op-renderer (text "-"))]
- #;[Times (binary-op-renderer (text "*"))]
- #;[LessThan (binary-op-renderer (text "<"))]
- #;[GreaterThan (binary-op-renderer (text ">"))]
-
- #;[SafeDivide (λ (n) (h-append (text "safe_divide") lparen
-                              (att-value 'xsmith_render-node (ast-child 'l n))
-                              (text ",") space
-                              (att-value 'xsmith_render-node (ast-child 'r n))
-                              rparen))]
-
- #;[StringLiteral (λ (n) (text (sml-string-format (ast-child 'v n))))]
- ;; TODO - SML strings have concat which is [string] -> string.
- ;; I should define my own string stuff rather than bringing in canned components here.
- #;[StringAppend (λ (n) (h-append lparen
-                                (text "concat ") lbracket
-                                (att-value 'xsmith_render-node (ast-child 'l n))
-                                comma space
-                                (att-value 'xsmith_render-node (ast-child 'r n))
-                                rbracket rparen))]
- #;[StringLength (λ (n) (h-append lparen (text "Int.toLarge(size(")
-                                (att-value 'xsmith_render-node (ast-child 'Expression n))
-                                (text "))")
-                                rparen
-                                ))]
-
 
  [ImmutableListLiteral
   (λ (n) (h-append lbracket
@@ -694,7 +703,11 @@ fun ~a(a) = let
    (λ()small-int-type)
    (λ()large-int-type)
    (λ()bool-type)
-   (λ()string-type)
+   (λ()byte-char-type)
+   (λ()byte-string-type)
+   ;; poly/ML doesn't seem to support wide chars and wide strings
+   ;(λ()wide-char-type)
+   ;(λ()wide-string-type)
    (λ()(box-type (fresh-type-variable)))
    (λ()(immutable (list-type (fresh-type-variable))))
    ))
