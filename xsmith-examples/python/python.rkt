@@ -411,7 +411,12 @@
                                  (define inner (fresh-type-variable))
                                  (unify! t (immutable (iterator-type inner)))
                                  (hash 'Expression (fresh-iterable inner)))]
-                              #:prop render-node-info pass-through-render]
+                              #:prop render-node-info
+                              (λ (n)
+                                (h-append (text "iter")
+                                          lparen
+                                          ($xsmith_render-node (ast-child 'Expression n))
+                                          rparen))]
  [ImmutableIteratorToMutableArray Expression ([Expression])
                                   #:prop depth-increase 0
                                   #:prop wont-over-deepen #t
@@ -729,14 +734,7 @@
 ;; TODO - int()
 ;; TODO - isinstance()
 ;; TODO - issubclass()
-(ag/one-arg iter
-            #:type (immutable (iterator-type (fresh-type-variable)))
-            #:ctype (λ (n t)
-                      (define arg-elem (fresh-type-variable))
-                      (define return-iterator (immutable (iterator-type arg-elem)))
-                      (unify! t return-iterator)
-                      (define arg-iterable (fresh-iterable arg-elem))
-                      (hash 'Expression arg-iterable)))
+;; NOTE - iter() is handled as IterableToImmutableIterator because it is a node that adds no depth, providing conversion at any point in AST generation.
 (ag/one-arg len #:type int-type
             #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
 (ag/one-arg list #:type (mutable (array-type (fresh-type-variable)))
