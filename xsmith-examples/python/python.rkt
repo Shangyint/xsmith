@@ -42,23 +42,43 @@
 (define-generic-type iterator-type ([type covariant]))
 (define-generic-type iterable-type ([type covariant]))
 (define-generic-type sequence-type ([type covariant]))
-(define (fresh-iterator inner)
+;; NOTE - The Python perspective on iterables, iterators, sequences, etc. is...
+;;        difficult.
+;; Sequences are not iterables, but the `iter` function is able to treat any
+;; sequence as an iterable. However, whether a function uses `iter` to allow
+;; sequences as arguments is an implementation detail and cannot be dictated by
+;; the type system. Therefore, we must handle them separately and explicitly
+;; allow either in those cases where it is permissible.
+(define (fresh-iterable-or-sequence inner)
+  (fresh-type-variable
+   (immutable (fresh-type-variable (iterable-type inner)
+                                   (sequence-type inner)))
+   (mutable (fresh-type-variable (iterable-type inner)
+                                 (sequence-type inner)
+                                 (array-type inner)))))
+#;(define (fresh-iterator inner)
   (fresh-type-variable
    (immutable (fresh-type-variable (iterator-type inner)
                                    (iterable-type inner)
                                    (sequence-type inner)))))
-(define (fresh-iterable inner)
+(define (fresh-iterator-or-iterable-or-sequence inner)
   (fresh-type-variable
+   (immutable (fresh-type-variable (iterator-type inner)
+                                   (iterable-type inner)
+                                   (sequence-type inner)))
    (mutable (fresh-type-variable (iterable-type inner)
                                  (sequence-type inner)
-                                 (array-type inner)))
-   (immutable (fresh-type-variable (iterable-type inner)
-                                   (sequence-type inner)))))
+                                 (array-type inner)))))
+(define (fresh-iterable inner)
+  (fresh-type-variable
+   (immutable (fresh-type-variable (iterable-type inner)))
+   (mutable (fresh-type-variable (iterable-type inner)
+                                 (array-type inner)))))  ;; TODO - mark MutableArray as instance of MutableIterable
 (define (fresh-sequence inner)
   (fresh-type-variable
+   (immutable (sequence-type inner))
    (mutable (fresh-type-variable (sequence-type inner)
-                                 (array-type inner)))
-   (immutable (sequence-type inner))))
+                                 (array-type inner)))))
 ;;
 ;; NOTE: These are just some notes about the strange lazy iterable-esque data
 ;;       types in Python. Most of this is written in a pseudo-Haskell notation.
@@ -218,7 +238,7 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
  #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
 (add-property
  python-comp render-node-info
@@ -236,7 +256,7 @@
  python-comp
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
- #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
  #:loop-type-constructor (λ (elem-type) (immutable (iterator-type elem-type))))
 (add-property
  python-comp render-node-info
@@ -253,7 +273,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (fresh-iterator elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
@@ -678,16 +698,22 @@
 (ag/one-arg dict
             #:racr-name DictOne
             #:type (fresh-dictionary (dictionary-key-type) (dictionary-value-type))
-            #:ctype (Ectype (fresh-iterable (product-type (list (dictionary-key-type) (dictionary-value-type))))))
+            ;; TODO - This is actually incorrect. The note on Python's sequences:
+            ;;          https://docs.python.org/3/glossary.html#term-sequence
+            ;;        explains that while dictionaries support getitem and len,
+            ;;        they are actually considered 'mappings' instead of
+            ;;        'sequences' due to the necessity of the key type being
+            ;;        immutable.
+            #:ctype (Ectype (fresh-sequence (product-type (list (dictionary-key-type) (dictionary-value-type))))))
 ;; Zero-arg dir returns a list of names bound in the current scope.
 (ag/zero-arg dir
              #:racr-name DirZero
-             #:type (fresh-iterable string-type))
+             #:type (array-type string-type))
 ;; One-arg dir returns a list of attributes of the passed-in object.
 ;; TODO - Figure a way to use the returned strings in, e.g., `getattr`, `delattr`.
 (ag/one-arg dir
             #:racr-name DirOne
-            #:type (fresh-iterable string-type)
+            #:type (array-type string-type)
             #:ctype (Ectype (fresh-type-variable)))
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
@@ -700,7 +726,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (immutable (iterator-type arg-elem)))
                       (unify! t return-iterator)
-                      (define arg-iterable (fresh-iterable arg-elem))
+                      (define arg-iterable (fresh-iterator-or-iterable-or-sequence arg-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
@@ -710,7 +736,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (immutable (iterator-type arg-elem)))
                       (unify! t return-iterator)
-                      (define arg-array (fresh-iterable arg-elem))
+                      (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
                             'r arg-array)))
@@ -741,7 +767,7 @@
             #:ctype (λ (n t)
                       (define inner (fresh-type-variable))
                       (unify! (mutable (array-type inner)) t)
-                      (hash 'Expression (fresh-iterable inner))))
+                      (hash 'Expression (fresh-iterator-or-iterable-or-sequence inner))))
 ;; TODO - locals()
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
@@ -755,7 +781,7 @@
                       (define return-iterator (immutable (iterator-type return-elem)))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-iterable arg-elem))
+                      (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
@@ -767,9 +793,9 @@
                         (define return-iterator (immutable (iterator-type return-elem)))
                         (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
-                        (define arg1-array (fresh-iterable arg1-elem))
+                        (define arg1-array (fresh-iterator-or-iterable-or-sequence arg1-elem))
                         (define arg2-elem (fresh-type-variable))
-                        (define arg2-array (fresh-iterable arg2-elem))
+                        (define arg2-array (fresh-iterator-or-iterable-or-sequence arg2-elem))
                         (hash 'l (function-type (product-type (list arg1-elem arg2-elem))
                                                 return-elem)
                               'm arg1-array
@@ -788,7 +814,7 @@
 (ag/one-arg next
             #:type (fresh-type-variable)
             #:ctype (λ (n t)
-                      (hash 'Expression (immutable (iterator-type t)))))
+                      (hash 'Expression (iterator-type t))))
 ;; TODO - object()
 (ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
