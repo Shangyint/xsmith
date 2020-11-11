@@ -503,15 +503,13 @@ fun safeSmallSubtract(a, b) =
 if Int.sameSign(a, b)
 then a - b
 else
-  (if ((0 < a) andalso ((max_as_small + b) > a))
+  (if ((0 < a) andalso ((max_as_small + b) < a))
    then a
-   else if ((max_as_small + b) > a) then a else a - b)
+   else if ((max_as_small + a) < b) then a else a - b)
 
 fun safeSmallMultiply(a, b) =
 if (a = 0 orelse b = 0 orelse a = 1 orelse b = 1) then a * b else
 (* just rule out max values because they aren't safe in the abs function *)
-if ((a = ~1 andalso b = min_as_small) orelse (a = min_as_small andalso b = ~1))
-  then a else
 if (a = max_as_small orelse a = min_as_small orelse b = max_as_small orelse b = max_as_small)
   then a else
 if Int.sameSign(a, b)
@@ -519,8 +517,8 @@ then
   if (a > 0) andalso ((max_as_small div b) > a) then a * b else
   if (max_as_small div (abs b) > (abs a)) then a * b else a
 else
-  if (a > 0) andalso ((min_as_small div b) > a) then a * b else
-  if (max_as_small div a) > b then a * b else a
+  if (a > 0) andalso ((min_as_small div b) > (abs a)) then a * b else
+  if (a < 0) andalso (max_as_small div a) > b then a * b else a
 
 fun safeSmallNegate(x) =
 if x = min_as_small then min_as_small else ~x
