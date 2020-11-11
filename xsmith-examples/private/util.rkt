@@ -142,4 +142,4 @@
         #'(ag/one-arg-name name #:type to #:ctype (Ectype from) #:shallow #t
                            ((... ~?) ((... ~@) #:NE-name NE-name))
                            ((... ~?) ((... ~@) #:racr-name racr-name))
-                           ((... ~?) ((... ~@) #:prop feature feature-arg)))])])
+                           ((... ~?) ((... ~@) #:feature feature-arg)))])])
