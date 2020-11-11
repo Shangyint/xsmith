@@ -537,7 +537,7 @@ if b = 0 then a else a mod b
 fun safeSmallRemainder(a, b) =
 if b = 0 then a else Int.rem(a, b)
 
-fun safeSmallQuotent(a, b) =
+fun safeSmallQuotient(a, b) =
 if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else Int.quot(a, b)
 
 fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
