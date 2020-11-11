@@ -1675,7 +1675,7 @@ The second arm is a function that takes the type that the node has been assigned
                      [else (do-error t)]))))))
     (define _xsmith_my-type-constraint-info/attribute
       (if (dict-empty? this-prop-info)
-          (hash #f #'(λ () default-base-type))
+          (hash #f #'(λ (node) default-base-type))
           (for/hash ([n (dict-keys get-constraints-checked)])
             (values n #`(λ (node)
                           (#,(dict-ref get-constraints-checked n) node 'att))))))
