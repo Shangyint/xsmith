@@ -508,15 +508,20 @@ fun safeSmallSubtract(a, b) =
 if Int.sameSign(a, b)
 then a - b
 else
-  (if ((0 < a) andalso ((max_as_small + b) < a))
+  (if ((b <= 0) andalso ((max_as_small + b) < a))
    then a
-   else if ((max_as_small + a) < b) then a else a - b)
+   else if (a <= 0) andalso ((max_as_small + a) < b) then a else a - b)
 
 fun safeSmallMultiply(a, b) =
 if (a = 0 orelse b = 0 orelse a = 1 orelse b = 1) then a * b else
 (* just rule out max values because they aren't safe in the abs function *)
-if (a = max_as_small orelse a = min_as_small orelse b = max_as_small orelse b = max_as_small)
+if (a = max_as_small orelse
+    a = min_as_small orelse
+    b = max_as_small orelse
+    b = min_as_small)
   then a else
+(* Now that max/min are out, let's short circuit on -1 so we can divide. *)
+if (a = ~1) orelse (b = ~1) then a * b else
 if Int.sameSign(a, b)
 then
   if (a > 0) andalso ((max_as_small div b) > a) then a * b else
@@ -594,6 +599,34 @@ if (String.size s) = 0 then #\"a\"
 ;"
 ;          name op op))
 
+(define safe-math-tests
+  ;; These should cause no exceptions.
+  (let ([test-constants (list "max_as_small"
+                              "min_as_small"
+                              "0"
+                              "~1"
+                              "1"
+                              "10"
+                              "~10"
+                              "(max_as_small - 1000)"
+                              "(min_as_small + 1000)")])
+    (string-join
+     (flatten
+      (list
+       (for/list ([i test-constants])
+         (format "val _ = safeSmallAbs(~a)" i)
+         (format "val _ = safeSmallNegate(~a)" i)
+         (for/list ([j test-constants])
+           (list
+            (format "val _ = safeSmallAdd(~a, ~a)" i j)
+            (format "val _ = safeSmallSubtract(~a, ~a)" i j)
+            (format "val _ = safeSmallMultiply(~a, ~a)" i j)
+            (format "val _ = safeSmallDivide(~a, ~a)" i j)
+            (format "val _ = safeSmallModulo(~a, ~a)" i j)
+            (format "val _ = safeSmallRemainder(~a, ~a)" i j)
+            (format "val _ = safeSmallQuotient(~a, ~a)" i j)
+            )))))
+     "\n")))
 
 (define (header-definitions-block)
   (string-join
@@ -632,6 +665,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
      ,(format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
               max-byte-char)
      ,(format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
+     ,safe-math-tests
      )
    "\n"))
 
