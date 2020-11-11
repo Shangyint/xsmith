@@ -314,7 +314,7 @@ TODO - running / compiling SML
 (ag/two-arg safeSmallModulo #:type small-int-type)
 (ag/two-arg safeSmallQuotient #:type small-int-type)
 (ag/two-arg safeSmallRemainder #:type small-int-type)
-(ag/one-arg safeSmallNegation #:type small-int-type)
+(ag/one-arg safeSmallNegate #:type small-int-type)
 (ag/one-arg safeSmallAbs #:type small-int-type)
 (ag/two-arg Int.min #:racr-name SmallMin #:type small-int-type)
 (ag/two-arg Int.max #:racr-name SmallMax #:type small-int-type)
