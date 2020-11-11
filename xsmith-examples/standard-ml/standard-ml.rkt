@@ -408,7 +408,7 @@ TODO - running / compiling SML
                                                    byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
             #:ctype (Ectype (function-type (product-type (list byte-char-type))
-                                           byte-char-type)))
+                                           byte-string-type)))
 (ag/one-arg String.tokens #:type (function-type (product-type (list byte-string-type))
                                                 byte-string-type)
             ;; TODO - if/when I support functions without the inner product, change this.
