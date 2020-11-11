@@ -742,10 +742,10 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
                  rparen)
        (text "val _ = print \"\\n\"")))
     (v-append
-     (text (header-definitions-block))
      (nest nest-step
            (v-append
             (text "fun main() = let\n")
+            (text (header-definitions-block))
             (vb-concat
              `(,(text "")
                ,(text "")
