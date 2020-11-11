@@ -298,10 +298,9 @@ TODO - running / compiling SML
                     ;; IntInf.int or LargeInt.int...
                     (abs v))))))
 (ag/atomic-literal ByteCharLiteral byte-char-type (random max-byte-char)
-                   (λ (n) (text (string-append
-                                 "#"
-                                 (sml-string-format
-                                  (string (integer->char (ast-child 'v n))))))))
+                   (λ (n) (text (format "(#~a)"
+                                        (sml-string-format
+                                         (string (integer->char (ast-child 'v n))))))))
 (ag/atomic-literal ByteStringLiteral byte-string-type (random-ascii-string)
                    (λ (n) (text (sml-string-format (ast-child 'v n)))))
 
