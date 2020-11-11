@@ -192,13 +192,13 @@ TODO - running / compiling SML
                    (string-titlecase (symbol->string (syntax->datum id)))
                    "." "Dot"))))
 (define-ag/one-arg ag/one-arg comp racr-ize-id NE?
-  #'large-int-type
+  #'int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
                 (text "(") (render-child 'Expression n) (text ")")))))
 (define-ag/two-arg ag/two-arg comp racr-ize-id NE?
-  #'large-int-type
+  #'int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
@@ -208,7 +208,7 @@ TODO - running / compiling SML
                 (render-child 'r n)
                 (text ")")))))
 (define-ag/three-arg ag/three-arg comp racr-ize-id NE?
-  #'large-int-type
+  #'int-type
   (λ (name-thunk)
     (λ (n)
       (h-append (text (symbol->string (name-thunk)))
@@ -266,13 +266,18 @@ TODO - running / compiling SML
 
 
 (define-syntax-parser ag/atomic-literal
-  [(_ name:id type:expr fresh-expr:expr render-expr:expr)
+  [(_ name:id type:expr fresh-expr:expr render-expr:expr
+      (~or
+       (~optional (~seq #:feature feature-arg)))
+      ...)
    #'(add-to-grammar comp [name Expression ([v = fresh-expr])
+                                (~? (~@ #:prop feature feature-arg))
                                 #:prop choice-weight 1
                                 #:prop type-info [type no-child-types]
                                 #:prop render-node-info render-expr])])
 (ag/atomic-literal LargeIntLiteral large-int-type (biased-random-int)
-                   render-int-literal)
+                   render-int-literal
+                   #:feature large-int)
 (ag/atomic-literal SmallIntLiteral small-int-type (biased-random-small-int)
                    render-int-literal)
 (define render-int-literal
@@ -321,7 +326,7 @@ TODO - running / compiling SML
 (define-syntax-parser ag/two-infix
        [(_ name:id
            (~or (~optional (~seq #:type type:expr)
-                           #:defaults ([type #'large-int-type]))
+                           #:defaults ([type #'int-type]))
                 (~optional (~seq #:ctype ctype:expr)
                            #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
                 (~optional (~seq #:racr-name racr-name:id)
@@ -341,19 +346,19 @@ TODO - running / compiling SML
                                                              (if NE? 'NE-name 'name)))
                                                       (render-child 'r n) rparen))])])
 
-(ag/two-infix + #:racr-name LargeAdd #:type large-int-type)
-(ag/two-infix - #:racr-name LargeSubtract #:type large-int-type)
-(ag/two-infix * #:racr-name LargeMultiply #:type large-int-type)
-(ag/two-arg safeLargeDivide #:type large-int-type)
-(ag/two-arg safeLargeModulo #:type large-int-type)
-;(ag/two-arg safeLargeRemainder #:type large-int-type)
-;(ag/two-arg safeLargeQuotient #:type large-int-type)
-(ag/two-arg LargeInt.min #:racr-name LargeMin #:type large-int-type)
-(ag/two-arg LargeInt.max #:racr-name LargeMax #:type large-int-type)
-(ag/one-arg ~ #:racr-name LargeNegate #:type large-int-type)
-(ag/one-arg LargeInt.abs #:racr-name LargeAbs #:type large-int-type)
-(ag/one-arg LargeInt.sign #:racr-name LargeSign #:type large-int-type)
-(ag/two-arg LargeInt.sameSign #:racr-name LargeSameSign
+(ag/two-infix + #:racr-name LargeAdd #:type large-int-type #:feature large-int)
+(ag/two-infix - #:racr-name LargeSubtract #:type large-int-type #:feature large-int)
+(ag/two-infix * #:racr-name LargeMultiply #:type large-int-type #:feature large-int)
+(ag/two-arg safeLargeDivide #:type large-int-type #:feature large-int)
+(ag/two-arg safeLargeModulo #:type large-int-type #:feature large-int)
+;(ag/two-arg safeLargeRemainder #:type large-int-type #:feature large-int)
+;(ag/two-arg safeLargeQuotient #:type large-int-type #:feature large-int)
+(ag/two-arg LargeInt.min #:racr-name LargeMin #:type large-int-type #:feature large-int)
+(ag/two-arg LargeInt.max #:racr-name LargeMax #:type large-int-type #:feature large-int)
+(ag/one-arg ~ #:racr-name LargeNegate #:type large-int-type #:feature large-int)
+(ag/one-arg LargeInt.abs #:racr-name LargeAbs #:type large-int-type #:feature large-int)
+(ag/one-arg LargeInt.sign #:racr-name LargeSign #:type large-int-type #:feature large-int)
+(ag/two-arg LargeInt.sameSign #:racr-name LargeSameSign #:feature large-int
             #:type bool-type #:ctype (E2ctype large-int-type large-int-type))
 ;(ag/two-arg safeLargeFmt #:type byte-string-type #:ctype (E2ctype large-int-type large-int-type))
 
@@ -419,9 +424,10 @@ TODO - running / compiling SML
 ;; TODO - collate
 
 (define-syntax-parser ag/comparison
-  [(_ name racr-name type)
+  [(_ name racr-name type (~or (~optional (~seq #:feature feature-arg))) ...)
    #'(ag/two-infix name
-                   #:racr-name racr-name #:type bool-type #:ctype (E2ctype type type))])
+                   #:racr-name racr-name #:type bool-type #:ctype (E2ctype type type)
+                   (~? (~@ #:feature feature-arg)))])
 (ag/comparison = SmallIntEqual small-int-type)
 (ag/comparison <> SmallIntNotEqual small-int-type)
 (ag/comparison < SmallIntLess small-int-type)
@@ -429,12 +435,12 @@ TODO - running / compiling SML
 (ag/comparison > SmallIntGreater small-int-type)
 (ag/comparison >= SmallIntGreaterEqual small-int-type)
 
-(ag/comparison = LargeIntEqual large-int-type)
-(ag/comparison <> LargeIntNotEqual large-int-type)
-(ag/comparison < LargeIntLess large-int-type)
-(ag/comparison <= LargeIntLessEqual large-int-type)
-(ag/comparison > LargeIntGreater large-int-type)
-(ag/comparison >= LargeIntGreaterEqual large-int-type)
+(ag/comparison = LargeIntEqual large-int-type #:feature large-int)
+(ag/comparison <> LargeIntNotEqual large-int-type #:feature large-int)
+(ag/comparison < LargeIntLess large-int-type #:feature large-int)
+(ag/comparison <= LargeIntLessEqual large-int-type #:feature large-int)
+(ag/comparison > LargeIntGreater large-int-type #:feature large-int)
+(ag/comparison >= LargeIntGreaterEqual large-int-type #:feature large-int)
 
 (ag/comparison = CharEqual byte-char-type)
 (ag/comparison <> CharNotEqual byte-char-type)
@@ -452,18 +458,14 @@ TODO - running / compiling SML
 
 (ag/converter Int.toLarge
               small-int-type large-int-type
-              #:racr-name SmallIntTolargeInt)
-(ag/converter safeLargeIntToSmallInt large-int-type small-int-type)
+              #:feature large-int)
+(ag/converter safeLargeIntToSmallInt large-int-type small-int-type #:feature large-int)
 (ag/converter size byte-string-type small-int-type
               #:racr-name StringSize)
-(ag/converter Char.toString byte-char-type byte-string-type
-              #:racr-name ByteCharToByteString)
-(ag/converter LargeInt.toString large-int-type byte-string-type
-              #:racr-name LargeIntToString)
-(ag/converter Int.toString small-int-type byte-string-type
-              #:racr-name SmallToString)
-(ag/converter Char.ord byte-char-type small-int-type
-              #:racr-name CharToSmallInt)
+(ag/converter Char.toString byte-char-type byte-string-type)
+(ag/converter LargeInt.toString large-int-type byte-string-type #:feature large-int)
+(ag/converter Int.toString small-int-type byte-string-type)
+(ag/converter Char.ord byte-char-type small-int-type)
 (ag/converter safeChr small-int-type byte-char-type)
 
 
@@ -489,80 +491,146 @@ TODO - running / compiling SML
 
 (define header-definitions-block*
   "
-fun safeLargeDivide(a, b) = if 0 = b then a else a div b
-fun safeLargeModulo(a, b) = if 0 = b then a else a mod b
-(*fun safeLargeRemainder(a, b) = if 0 = b then a else a rem b*)
-(*fun safeLargeQuotient(a, b) = if 0 = b then a else quot(a, b)*)
+fun safeSmallAdd(a, b) =
+if samesign(a, b)
+then
+  (if ((0 < a) andalso ((max_as_small - a) < b))
+   then a
+   else if ((min_as_small - a) > b) then a else a + b)
+else a + b
+
+fun safeSmallSubtract(a, b) =
+if samesign(a, b)
+then a - b
+else
+  (if ((0 < a) andalso ((max_as_small + b) > a))
+   then a
+   else if ((max_as_small + b) > a) then a else a - b)
+
+fun safeSmallMultiply(a, b) =
+if (a = 0 orelse b = 0 orelse a = 1 orelse b = 1) then a * b else
+(* just rule out max values because they aren't safe in the abs function *)
+if ((a = ~1 andalso b = min_as_small) orelse (a = min_as_small andalso b = ~1))
+  then a else
+if (a = max_as_small orelse a = min_as_small orelse b = max_as_small orelse b = max_as_small)
+  then a else
+if samesign(a, b)
+then
+  if (a > 0) andalso ((max_as_small div b) > a) then a * b else
+  if (max_as_small div (abs b) > (abs a)) then a * b else a
+else
+  if (a > 0) andalso ((min_as_small div b) > a) then a * b else
+  if (max_as_small div a) > b then a * b else a
+
+fun safeSmallNegate(x) =
+if x = min_as_small then min_as_small else ~x
+fun safeSmallAbs(x) =
+(* I want to use safeSmallAbs in other functions to ensure I have a non-negative *)
+if x = min_as_small then 0 else abs x
+
+fun safeSmallDivide(a, b) =
+if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else a div b
+
+fun safeSmallModulo(a, b) =
+if b = 0 then a else a mod b
+
+(*
+fun safeSmallRemainder(a, b) =
+if b = 0 then a else a rem b
+
+fun safeSmallQuotent(a, b) =
+if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else quot(a, b)
+*)
+
 fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
 fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
-fun safeLargeIntToSmallInt(x : LargeInt.int) =
-  if x > 0 then LargeInt.toInt(x mod max_as_large)
-     else LargeInt.toInt(x mod min_as_large)
 
 fun safeStringSub(s, i) =
 if (String.size s) = 0 then #\"a\"
   else String.sub(s, (safeSmallAbs(i) mod (String.size s)))
 
 ")
-(define (make-safe-math-infix/non-div name op)
-  (format "
-fun ~a(a, b) = let
-  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
-  in if ((largeResult > max_as_large) orelse (largeResult < min_as_large))
-     then a else a ~a b
-  end
-"
-          name op op))
-(define (make-safe-math-infix/div name op)
-  (format "
-fun ~a(a, b) = if 0 = b then a
-  else let
-  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
-  in if largeResult > max_as_large orelse largeResult < min_as_large
-     then a else a ~a b
-  end
-"
-          name op op))
-(define (make-safe-math-prefix/div name op)
-  (format "
-fun ~a(a, b) = if 0 = b then a
-  else let
-  val largeResult : LargeInt.int = ~a(Int.toLarge(a), Int.toLarge(b))
-  in if largeResult > max_as_large orelse largeResult < min_as_large
-     then a else ~a(a, b)
-  end
-"
-          name op op))
-(define (make-safe-math-prefix/single name op)
-  (format "
-fun ~a(a) = let
-  val largeResult : LargeInt.int = ~a(Int.toLarge(a))
-  in if largeResult > max_as_large orelse largeResult < min_as_large
-     then 0 else ~a(a)
-  end
-"
-          name op op))
-(define header-definitions-block
+
+;; These make safe math wrappers for fixed-width integers that rely on LargeInt
+;; to do the tests.  Easier to write, but I can't use them for implementations
+;; that don't support LargeInt...
+;(define (make-safe-math-infix/non-div name op)
+;  (format "
+;fun ~a(a, b) = let
+;  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
+;  in if ((largeResult > max_as_large) orelse (largeResult < min_as_large))
+;     then a else a ~a b
+;  end
+;"
+;          name op op))
+;(define (make-safe-math-infix/div name op)
+;  (format "
+;fun ~a(a, b) = if 0 = b then a
+;  else let
+;  val largeResult : LargeInt.int = Int.toLarge(a) ~a Int.toLarge(b)
+;  in if largeResult > max_as_large orelse largeResult < min_as_large
+;     then a else a ~a b
+;  end
+;"
+;          name op op))
+;(define (make-safe-math-prefix/div name op)
+;  (format "
+;fun ~a(a, b) = if 0 = b then a
+;  else let
+;  val largeResult : LargeInt.int = ~a(Int.toLarge(a), Int.toLarge(b))
+;  in if largeResult > max_as_large orelse largeResult < min_as_large
+;     then a else ~a(a, b)
+;  end
+;"
+;          name op op))
+;(define (make-safe-math-prefix/single name op)
+;  (format "
+;fun ~a(a) = let
+;  val largeResult : LargeInt.int = ~a(Int.toLarge(a))
+;  in if largeResult > max_as_large orelse largeResult < min_as_large
+;     then 0 else ~a(a)
+;  end
+;"
+;          name op op))
+
+
+(define (header-definitions-block)
   (string-join
-   (list
-    (format "val max_as_large : LargeInt.int = ~a" max-small-int)
-    (format "val min_as_large : LargeInt.int = ~~~a" (abs min-small-int))
-    (make-safe-math-infix/non-div "safeSmallAdd" "+")
-    (make-safe-math-infix/non-div "safeSmallSubtract" "-")
-    (make-safe-math-infix/non-div "safeSmallMultiply" "*")
-    (make-safe-math-infix/div "safeSmallDivide" "div")
-    (make-safe-math-infix/div "safeSmallModulo" "mod")
-    ;(make-safe-math-infix/div "safeSmallRemainder" "rem")
-    ;(make-safe-math-prefix/div "safeSmallQuotient" "quot")
-    (make-safe-math-prefix/single "safeSmallNegate" "~")
-    (make-safe-math-prefix/single "safeSmallAbs" "abs")
-    (format "fun safeChr(x) = let val ax = safeSmallAbs(x) in chr(ax mod ~a) end"
-            max-byte-char)
-    (format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
-            max-byte-char)
-    (format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
-    header-definitions-block*
-    )
+   `(,(format "val max_as_small : int = ~a" max-small-int)
+     ,(format "val min_as_small : int = ~~~a" (abs min-small-int))
+     ,@(if (xsmith-feature-enabled? 'large-int)
+           (list
+            (format "val max_as_large : LargeInt.int = ~a" max-small-int)
+            (format "val min_as_large : LargeInt.int = ~~~a" (abs min-small-int))
+            "fun safeLargeDivide(a, b) = if 0 = b then a else a div b"
+            "fun safeLargeModulo(a, b) = if 0 = b then a else a mod b"
+            ;"fun safeLargeRemainder(a, b) = if 0 = b then a else a rem b"
+            ;"fun safeLargeQuotient(a, b) = if 0 = b then a else quot(a, b)"
+            "
+fun safeLargeIntToSmallInt(x : LargeInt.int) =
+  if x > 0 then LargeInt.toInt(x mod max_as_large)
+     else LargeInt.toInt(x mod min_as_large)
+"
+            )
+           '())
+     ;,(make-safe-math-infix/non-div "safeSmallAdd" "+")
+     ;,(make-safe-math-infix/non-div "safeSmallSubtract" "-")
+     ;,(make-safe-math-infix/non-div "safeSmallMultiply" "*")
+     ;,(make-safe-math-infix/div "safeSmallDivide" "div")
+     ;,(make-safe-math-prefix/div "safeSmallQuotient" "quot")
+     ;,(make-safe-math-prefix/single "safeSmallNegate" "~")
+     ;,(make-safe-math-prefix/single "safeSmallAbs" "abs")
+
+     ;,(make-safe-math-infix/div "safeSmallModulo" "mod")
+     ;,(make-safe-math-infix/div "safeSmallRemainder" "rem")
+
+     ,(format "fun safeChr(x) = let val ax = safeSmallAbs(x) in chr(ax mod ~a) end"
+              max-byte-char)
+     ,(format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
+              max-byte-char)
+     ,(format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
+     ,header-definitions-block*
+     )
    "\n"))
 
 (define (render-child cname node)
@@ -675,7 +743,7 @@ fun ~a(a) = let
                  rparen)
        (text "val _ = print \"\\n\"")))
     (v-append
-     (text header-definitions-block)
+     (text (header-definitions-block))
      (nest nest-step
            (v-append
             (text "fun main() = let\n")
@@ -791,7 +859,9 @@ fun ~a(a) = let
 (define (type-thunks-for-concretization)
   (list
    (λ()small-int-type)
-   (λ()large-int-type)
+   (if (xsmith-feature-enabled? 'large-int)
+       (λ()large-int-type)
+       #f)
    (λ()bool-type)
    (λ()byte-char-type)
    (λ()byte-string-type)
@@ -812,6 +882,8 @@ fun ~a(a) = let
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithSequence
   #:format-render sml-format-render
-  #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n"))))
+  #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n")))
+  #:features ([large-int #f])
+  )
 
 (module+ main (simple-sml-command-line))
