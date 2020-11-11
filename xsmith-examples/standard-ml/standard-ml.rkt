@@ -312,8 +312,8 @@ TODO - running / compiling SML
 (ag/two-arg safeSmallMultiply #:type small-int-type)
 (ag/two-arg safeSmallDivide #:type small-int-type)
 (ag/two-arg safeSmallModulo #:type small-int-type)
-;(ag/two-arg safeSmallQuotient #:type small-int-type)
-;(ag/two-arg safeSmallRemainder #:type small-int-type)
+(ag/two-arg safeSmallQuotient #:type small-int-type)
+(ag/two-arg safeSmallRemainder #:type small-int-type)
 (ag/one-arg safeSmallNegation #:type small-int-type)
 (ag/one-arg safeSmallAbs #:type small-int-type)
 (ag/two-arg Int.min #:racr-name SmallMin #:type small-int-type)
@@ -492,7 +492,7 @@ TODO - running / compiling SML
 (define header-definitions-block*
   "
 fun safeSmallAdd(a, b) =
-if samesign(a, b)
+if Int.sameSign(a, b)
 then
   (if ((0 < a) andalso ((max_as_small - a) < b))
    then a
@@ -500,7 +500,7 @@ then
 else a + b
 
 fun safeSmallSubtract(a, b) =
-if samesign(a, b)
+if Int.sameSign(a, b)
 then a - b
 else
   (if ((0 < a) andalso ((max_as_small + b) > a))
@@ -514,7 +514,7 @@ if ((a = ~1 andalso b = min_as_small) orelse (a = min_as_small andalso b = ~1))
   then a else
 if (a = max_as_small orelse a = min_as_small orelse b = max_as_small orelse b = max_as_small)
   then a else
-if samesign(a, b)
+if Int.sameSign(a, b)
 then
   if (a > 0) andalso ((max_as_small div b) > a) then a * b else
   if (max_as_small div (abs b) > (abs a)) then a * b else a
@@ -534,13 +534,11 @@ if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else a div b
 fun safeSmallModulo(a, b) =
 if b = 0 then a else a mod b
 
-(*
 fun safeSmallRemainder(a, b) =
-if b = 0 then a else a rem b
+if b = 0 then a else Int.rem(a, b)
 
 fun safeSmallQuotent(a, b) =
-if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else quot(a, b)
-*)
+if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else Int.quot(a, b)
 
 fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
 fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
@@ -624,12 +622,13 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
      ;,(make-safe-math-infix/div "safeSmallModulo" "mod")
      ;,(make-safe-math-infix/div "safeSmallRemainder" "rem")
 
+     ,header-definitions-block*
+
      ,(format "fun safeChr(x) = let val ax = safeSmallAbs(x) in chr(ax mod ~a) end"
               max-byte-char)
      ,(format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
               max-byte-char)
      ,(format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
-     ,header-definitions-block*
      )
    "\n"))
 
