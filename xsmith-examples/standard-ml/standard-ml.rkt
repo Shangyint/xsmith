@@ -496,7 +496,7 @@ if Int.sameSign(a, b)
 then
   (if ((0 < a) andalso ((max_as_small - a) < b))
    then a
-   else if ((min_as_small - a) > b) then a else a + b)
+   else if (0 > a) andalso ((min_as_small - a) > b) then a else a + b)
 else a + b
 
 fun safeSmallSubtract(a, b) =
