@@ -665,7 +665,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
      ,(format "fun safeCharSucc(c) = if c = chr(~a) then c else Char.succ(c)"
               max-byte-char)
      ,(format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
-     ,safe-math-tests
+     ;,safe-math-tests
      )
    "\n"))
 
