@@ -364,8 +364,14 @@ TODO - running / compiling SML
 
 (ag/one-arg safeCharSucc #:type byte-char-type)
 (ag/one-arg safeCharPred #:type byte-char-type)
-(ag/two-arg Char.contains #:type bool-type #:ctype (E2ctype byte-string-type byte-char-type))
-(ag/two-arg Char.notContains #:type bool-type #:ctype (E2ctype byte-string-type byte-char-type))
+(ag/one-arg Char.contains
+            #:type (function-type (product-type (list byte-char-type))
+                                  bool-type)
+            #:ctype (Ectype byte-string-type))
+(ag/one-arg Char.notContains
+            #:type (function-type (product-type (list byte-char-type))
+                                  bool-type)
+            #:ctype (Ectype byte-string-type))
 (ag/one-arg Char.toLower #:type byte-char-type)
 (ag/one-arg Char.toUpper #:type byte-char-type)
 (ag/one-arg Char.isAlpha #:type bool-type #:ctype (Ectype byte-char-type))
