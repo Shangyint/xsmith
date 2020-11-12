@@ -72,6 +72,8 @@ TODO - running / compiling SML
 (define-generic-type box-type ([type covariant]))
 (define no-child-types (λ (n t) (hash)))
 
+(define tuple-max-length 6)
+
 
 (define random-string-length-max 50)
 (define (random-ascii-string)
@@ -165,7 +167,9 @@ TODO - running / compiling SML
                        #:ExpressionSequence #t
                        #:VariableReference #t
                        #:ProcedureApplication #t
+                       #:ProcedureApplicationSingle #t
                        #:LambdaWithExpression #t
+                       #:LambdaSingleWithExpression #t
                        #:ImmutableList #t
                        #:Booleans #t
                        #:index-and-length-type small-int-type
@@ -195,30 +199,38 @@ TODO - running / compiling SML
   #'int-type
   (λ (name-thunk)
     (λ (n)
-      (h-append (text (symbol->string (name-thunk)))
-                (text "(") (render-child 'Expression n) (text ")")))))
+      (h-append lparen
+                (text (symbol->string (name-thunk)))
+                lparen
+                (render-child 'Expression n)
+                rparen
+                rparen))))
 (define-ag/two-arg ag/two-arg comp racr-ize-id NE?
   #'int-type
   (λ (name-thunk)
     (λ (n)
-      (h-append (text (symbol->string (name-thunk)))
-                (text "(")
+      (h-append lparen
+                (text (symbol->string (name-thunk)))
+                lparen
                 (render-child 'l n)
                 (text ", ")
                 (render-child 'r n)
-                (text ")")))))
+                rparen
+                rparen))))
 (define-ag/three-arg ag/three-arg comp racr-ize-id NE?
   #'int-type
   (λ (name-thunk)
     (λ (n)
-      (h-append (text (symbol->string (name-thunk)))
-                (text "(")
+      (h-append lparen
+                (text (symbol->string (name-thunk)))
+                lparen
                 (render-child 'l n)
                 (text ", ")
                 (render-child 'm n)
                 (text ", ")
                 (render-child 'r n)
-                (text ")")))))
+                rparen
+                rparen))))
 (define-ag/converter ag/converter ag/one-arg)
 
 (add-to-grammar
@@ -261,6 +273,41 @@ TODO - running / compiling SML
            #:prop type-info [void-type no-child-types]
            #:prop render-node-info (λ (n) (text "()"))]
 
+
+ [TupleLiteral Expression ([values : Expression *])
+               ;; TODO - SML supports tuple projection with the `#N` operator, where
+               ;; you get out the Nth value, index starting at 1.
+               ;; HOWEVER, it does not support tuples of length 1!
+               ;; I think I'll just allow tuples for function arguments.
+               #:prop wont-over-deepen #t
+               ;; Because it's going to just be a wrapper for function arguments,
+               ;; make the depth increase 0.
+               #:prop depth-increase 0
+               #:prop choice-weight 1
+               #:prop fresh (let* ([t (att-value 'xsmith_type (current-hole))]
+                                   [pt (product-type #f)]
+                                   [_ (unify! t pt)]
+                                   [inners (product-type-inner-type-list pt)]
+                                   [len (if inners
+                                            (length inners)
+                                            (random tuple-max-length))])
+                              (hash 'values len))
+               #:prop type-info
+               [(product-type #f)
+                (λ (n t)
+                  (define children (ast-children (ast-child 'values n)))
+                  (define child-types (map (λ (x) (fresh-type-variable)) children))
+                  (unify! t (product-type child-types))
+                  (for/hash ([c children] [ct child-types]) (values c ct)))]
+               #:prop render-node-info
+               (λ (n) (h-append
+                       (text "(")
+                       (h-concat
+                        (list-add-between (for/list ([c (ast-children
+                                                         (ast-child 'values n))])
+                                            (att-value 'xsmith_render-node c))
+                                          (text ", ")))
+                       (text ")")))]
  )
 
 
@@ -796,7 +843,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
      (if (null? inners)
          "unit"
          (format "(~a)" (string-join (map type->string inners) " * ")))]
-    [(can-unify? t (function-type (product-type #f) (fresh-type-variable)))
+    [(can-unify? t (function-type (fresh-type-variable) (fresh-type-variable)))
      (define ret (fresh-type-variable))
      (define arg (fresh-type-variable))
      (unify! t (function-type arg ret))
@@ -839,13 +886,26 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
             (text "String.toString")]
            [(can-unify? type wide-string-type)
             (text "WideString.toString")]
-           [(can-unify? type void-type)
-            (text "fn x : unit => \"\"")]
            [(can-unify? type (box-type (fresh-type-variable)))
             (define inner (fresh-type-variable))
             (unify! (box-type inner) type)
             (h-append (text (format "fn x : ~a => " (type->string type)))
                       lparen (get-string-converter inner) (text " (!x)") rparen)]
+           [(or (can-unify? type void-type)
+                (can-unify? type (product-type (list))))
+            (text "fn x : unit => \"\"")]
+           [(can-unify? type (product-type (list (fresh-type-variable))))
+            ;; This is just an artifact of the Xsmith type system, SML doesn't
+            ;; support products with a single element.
+            (define inner (fresh-type-variable))
+            (unify! type (product-type (list inner)))
+            (get-string-converter inner)]
+           [(can-unify? type (product-type #f))
+            (define ct (concretize-type type))
+            (define inners (product-type-inner-type-list ct))
+            ;; Well, there's a way to get them out.
+            ;; But now I'm feeling lazy.  It's late.  I just want to get this going.
+            (text (format "fn x : ~a => \"Tuples should be printed better than this.\""))]
            [(can-unify? type (function-type (fresh-type-variable)
                                             (fresh-type-variable)))
             (text (format "fn x : ~a => \"procedure\"" (type->string type)))]
@@ -924,11 +984,19 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
 
  [VariableReference (λ (n) (text (format "~a" (ast-child 'name n))))]
 
- ;; TODO - I could *actually* use my single-argument function type for SML and
- ;; have it take tuple objects, I think.
+ [ProcedureApplicationSingle
+  (λ (n) (h-append lparen
+                   (render-child 'procedure n)
+                   space
+                   ;; I can get rid of these extra parens if I am more careful
+                   ;; about making sure everything is outer-parenthesized elsewhere.
+                   lparen
+                   (render-child 'argument n)
+                   rparen
+                   rparen))]
  [ProcedureApplication
   (λ (n) (h-append lparen
-                   (att-value 'xsmith_render-node (ast-child 'procedure n))
+                   (render-child 'procedure n)
                    lparen
                    (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
                                     (ast-children (ast-child 'arguments n))))
@@ -939,13 +1007,19 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
           (text (format "~a" (ast-child 'name n)))
           space colon space
           (text (type->string (ast-child 'type n)))))]
+ [LambdaSingleWithExpression
+  (λ (n) (h-append lparen (text "fn ")
+                   (render-child 'parameter n)
+                   (text " => ")
+                   (render-child 'body n)
+                   rparen))]
  [LambdaWithExpression
   (λ (n) (h-append lparen (text "fn") lparen
                    (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
                                     (ast-children (ast-child 'parameters n))))
                    rparen
                    (text " => ")
-                   (att-value 'xsmith_render-node (ast-child 'body n))
+                   (render-child 'body n)
                    rparen))]
 
  [BoolLiteral (λ (n) (text (if (ast-child 'v n) "true" "false")))]
