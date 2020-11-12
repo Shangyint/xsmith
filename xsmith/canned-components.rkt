@@ -558,7 +558,11 @@
                      Expression
                      ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1
+                     #:prop choice-weight
+                     (λ () (if (att-value 'xsmith_at-max-depth?
+                                          (current-hole))
+                               10
+                               1))
                      #:prop type-info
                      [(immutable (list-type (fresh-type-variable)))
                       (λ (n t)

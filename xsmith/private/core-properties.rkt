@@ -572,7 +572,9 @@ hole for the type.
 
 (define-property wont-over-deepen
   #:reads (grammar)
-  #:appends (choice-method _xsmith_wont-over-deepen)
+  #:appends
+  (choice-method _xsmith_wont-over-deepen)
+  (attribute xsmith_at-max-depth?)
   #:transformer
   (λ (this-prop-info grammar-info)
     (define nodes (dict-keys grammar-info))
@@ -618,7 +620,9 @@ hole for the type.
                       ;; But my basic heuristic that I first used is bad in the face
                       ;; of nominal record variable reference.
                       (or ok? override-ok? (current-force-deepen)))))))
-    (list wont-over-deepen-info)))
+    (define xsmith_at-max-depth?-info
+      (hash #f #'(λ (n) (<= (xsmith-max-depth) (att-value 'xsmith_ast-depth n)))))
+    (list wont-over-deepen-info xsmith_at-max-depth?-info)))
 
 
 #|
