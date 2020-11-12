@@ -217,7 +217,10 @@
          (~optional (~seq #:IfExpression use-if-expression:boolean))
          (~optional (~seq #:LambdaWithExpression use-LWE:boolean))
          (~optional (~seq #:LambdaWithBlock use-LWB:boolean))
+         (~optional (~seq #:LambdaSingleWithExpression use-LSWE:boolean))
          (~optional (~seq #:ProcedureApplication use-procedure-application:boolean))
+         (~optional (~seq #:ProcedureApplicationSingle
+                          use-procedure-application-single:boolean))
          (~optional (~seq #:LetSequential use-let-sequential:boolean))
          (~optional (~seq #:ExpressionSequence use-expression-sequence:boolean))
          (~optional (~seq #:Numbers use-numbers:boolean))
@@ -290,8 +293,7 @@
                                                   1
                                                   variable-reference-weight))]))
                 #'())
-
-         #,@(if (use? use-procedure-application)
+#,@(if (use? use-procedure-application)
                 #'((add-to-grammar
                     component
                     [ProcedureApplication
@@ -343,6 +345,23 @@
                              (hash))
                          'procedure
                          (function-type args-type t)))]]))
+                #'())
+         #,@(if (use? use-procedure-application-single)
+                #'((add-to-grammar
+                    component
+                    [ProcedureApplicationSingle
+                     Expression
+                     ([procedure : Expression]
+                      [argument : Expression])
+                     #:prop type-info
+                     [(fresh-type-variable)
+                      (λ (n t)
+                        (define proc (ast-child 'procedure n))
+                        (define args-node (ast-child 'argument n))
+                        (define arg-type (fresh-type-variable))
+                        (define procedure-type (function-type arg-type t))
+                        (hash 'procedure procedure-type
+                              'argument arg-type))]]))
                 #'())
 
          #,@(if (use? use-numbers)
@@ -454,6 +473,38 @@
                 #'())
 
 
+         #,@(if (use? use-LSWE)
+                #'((add-to-grammar
+                    component
+                    [LambdaSingleWithExpression
+                     Expression ([parameter : FormalParameter]
+                                 [body : Expression])
+                     #:prop wont-over-deepen #t
+                     #:prop choice-weight 1
+                     #:prop fresh
+                     (let* ([type (att-value 'xsmith_type (current-hole))]
+                            [arg-type (fresh-type-variable)]
+                            [ftype (function-type
+                                    arg-type
+                                    (fresh-type-variable))]
+                            [unification-dumb-return-value (unify! ftype type)]
+                            [force-exploration-return
+                             (force-type-exploration-for-node! (current-hole))]
+                            [parameter
+                             (make-fresh-node 'FormalParameter
+                                              (hash 'type arg-type))])
+                       (hash
+                        'type type
+                        'parameter parameter))
+                     #:prop type-info
+                     [(function-type (fresh-type-variable) (fresh-type-variable))
+                      (λ (n t)
+                        (define arg-type (fresh-type-variable))
+                        (define return-type (fresh-type-variable))
+                        (unify! t (function-type arg-type return-type))
+                        (hash 'parameter arg-type
+                              'body return-type))]]))
+                #'())
          #,@(if (use? use-LWE)
                 #'((add-to-grammar
                     component
