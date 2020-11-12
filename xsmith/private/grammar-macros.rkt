@@ -759,7 +759,15 @@
                           (format "Type of this node expected by its parent: ~a\n"
                                   (att-value '_xsmith_type-constraint-from-parent n))
                           "")))
-              (send (choose-ast filtered) _xsmith_fresh)))
+              (begin
+                (when (inspect-serial? n)
+                  (xd-printf "Making choice for node with serial number: ~v\n"
+                             (ast-child 'xsmithserialnumber n))
+                  (for ([cr choices-or-reasons])
+                    (if (choice? cr)
+                        (xd-printf "Choice: ~v available\n" cr)
+                        (xd-printf "~a\n" cr))))
+                (send (choose-ast filtered) _xsmith_fresh))))
         (error '_xsmith_hole->replacement
                "called on non-hole node"))))
 (define _xsmith_resolve-reference-name-function

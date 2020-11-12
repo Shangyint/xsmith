@@ -37,6 +37,9 @@
  datt-value
  xd-printf
  get-xsmith-debug-log!
+
+ current-inspection-serials
+ inspect-serial?
  )
 (module+ for-private
   (provide
@@ -205,6 +208,11 @@
       (get-output-string xsmith-debug-log-port)
     (set! xsmith-debug-log-port (open-output-string))))
 
+(define current-inspection-serials (make-parameter (list)))
+(define (inspect-serial? n)
+  (define member-result
+    (member (ast-child 'xsmithserialnumber n) (current-inspection-serials)))
+  (and member-result n))
 
 (define (datt-value sym node . args)
   (xd-printf "calling att-value ~v on node ~v with args ~v\n"

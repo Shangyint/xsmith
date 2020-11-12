@@ -39,6 +39,7 @@
  racket/pretty
  (submod "types.rkt" for-private)
  "core-macros-and-properties.rkt"
+ "xsmith-utils.rkt"
  (for-syntax
   racket/base
   syntax/parse
@@ -308,6 +309,7 @@
            (define print-debug? print-debug-default)
            (define verbose? verbose-default)
            (define output-file-name output-file-default)
+           (define inspection-serials '())
            (define options (xsmith-options-defaults))
 
            (define command-line-to-print (current-command-line-arguments))
@@ -451,6 +453,13 @@
                 [["Show (hidden) base fields when printing s-exp representation (for debugging)"
                   "t to show all fields, f for none, xsmithserialnumber for serial numbers"]
                  "Defaults to false."]]
+               [("--inspection-serials")
+                ,(λ (flag serials)
+                   (set! inspection-serials
+                         (map string->number
+                              (string-split serials ","))))
+                (["Comma separated serial numbers for extra debug printing."]
+                 "Defaults to none.")]
                [("--print-debug")
                 ,(λ (flag print-debug)
                    (set! print-debug? (string->bool print-debug 'print-debug?)))
@@ -544,6 +553,7 @@
             #:print-debug print-debug?
             #:verbose verbose?
             #:output-file output-file-name
+            #:inspection-serials inspection-serials
 
             #:command-line-to-print command-line-to-print))
 
@@ -577,6 +587,7 @@
                   #:timeout [timeout-arg not-given]
                   #:print-debug [print-debug not-given]
                   #:verbose [verbose? not-given]
+                  #:inspection-serials [inspection-serials not-given]
                   )
 
 
@@ -655,6 +666,7 @@
             #:command-line-to-print command-line-to-print
             #:print-debug (arg print-debug print-debug-default)
             #:verbose (arg verbose? verbose-default)
+            #:inspection-serials (arg inspection-serials '())
             )
            )
 
@@ -686,6 +698,7 @@
                   #:command-line-to-print command-line-to-print
                   #:print-debug print-debug-with-no-error?
                   #:verbose verbose?
+                  #:inspection-serials inspection-serials
                   )
 
 
@@ -723,6 +736,7 @@
                             [current-xsmith-features features]
                             [xsmith-options options]
                             [xsmith-state (make-generator-state)]
+                            [current-inspection-serials inspection-serials]
                             [current-random-source (make-random-source random-input)])
                (let/ec abort
                  (define option-lines
