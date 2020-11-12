@@ -166,9 +166,7 @@ TODO - running / compiling SML
                        #:ProgramWithSequence #t
                        #:ExpressionSequence #t
                        #:VariableReference #t
-                       #:ProcedureApplication #t
                        #:ProcedureApplicationSingle #t
-                       #:LambdaWithExpression #t
                        #:LambdaSingleWithExpression #t
                        #:ImmutableList #t
                        #:Booleans #t
@@ -414,12 +412,10 @@ TODO - running / compiling SML
 (ag/one-arg safeCharSucc #:type byte-char-type)
 (ag/one-arg safeCharPred #:type byte-char-type)
 (ag/one-arg Char.contains
-            #:type (function-type (product-type (list byte-char-type))
-                                  bool-type)
+            #:type (function-type byte-char-type bool-type)
             #:ctype (Ectype byte-string-type))
 (ag/one-arg Char.notContains
-            #:type (function-type (product-type (list byte-char-type))
-                                  bool-type)
+            #:type (function-type byte-char-type bool-type)
             #:ctype (Ectype byte-string-type))
 (ag/one-arg Char.toLower #:type byte-char-type)
 (ag/one-arg Char.toUpper #:type byte-char-type)
@@ -456,25 +452,19 @@ TODO - running / compiling SML
             #:ctype (Ectype (immutable (list-type byte-char-type))))
 (ag/one-arg String.explode #:type (immutable (list-type byte-char-type))
             #:ctype (Ectype byte-string-type))
-(ag/one-arg String.map #:type (function-type (product-type (list byte-string-type))
+(ag/one-arg String.map #:type (function-type byte-string-type
                                              byte-string-type)
-            ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (Ectype (function-type (product-type (list byte-char-type))
-                                            byte-char-type)))
-(ag/one-arg String.translate #:type (function-type (product-type (list byte-string-type))
-                                                   byte-string-type)
-            ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+            #:ctype (Ectype (function-type byte-char-type byte-char-type)))
+(ag/one-arg String.translate #:type (function-type byte-string-type byte-string-type)
+            #:ctype (Ectype (function-type byte-char-type
                                            byte-string-type)))
-(ag/one-arg String.tokens #:type (function-type (product-type (list byte-string-type))
+(ag/one-arg String.tokens #:type (function-type byte-string-type
                                                 (immutable (list-type byte-string-type)))
-            ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+            #:ctype (Ectype (function-type byte-char-type
                                            bool-type)))
-(ag/one-arg String.fields #:type (function-type (product-type (list byte-string-type))
+(ag/one-arg String.fields #:type (function-type byte-string-type
                                                 (immutable (list-type byte-string-type)))
-            ;; TODO - if/when I support functions without the inner product, change this.
-            #:ctype (Ectype (function-type (product-type (list byte-char-type))
+            #:ctype (Ectype (function-type byte-char-type
                                            bool-type)))
 ;; TODO - isPrefix
 ;; TODO - compare
@@ -555,48 +545,43 @@ TODO - running / compiling SML
 (ag/two-arg List.revAppend #:type (immutable (list-type (fresh-type-variable))))
 (ag/one-arg List.app
             #:type (function-type
-                    (product-type
-                     (list (immutable (list-type (fresh-type-variable)))))
+                    (immutable (list-type (fresh-type-variable)))
                     void-type)
             #:ctype (λ (n t)
                       (define inner (fresh-type-variable))
                       (unify! (function-type
-                               (product-type
-                                (list (immutable (list-type inner))))
+                               (immutable (list-type inner))
                                void-type)
                               t)
-                      (hash 'Expression (function-type (product-type (list inner))
+                      (hash 'Expression (function-type inner
                                                        void-type))))
 (ag/one-arg List.map
             #:type (function-type
-                             (product-type
-                              (list (immutable (list-type (fresh-type-variable)))))
-                             (immutable (list-type (fresh-type-variable))))
+                    (immutable (list-type (fresh-type-variable)))
+                    (immutable (list-type (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define inner-l (fresh-type-variable))
                       (define inner-r (fresh-type-variable))
                       (unify! (function-type
-                               (product-type
-                                (list (immutable (list-type inner-l))))
+                               (immutable (list-type inner-l))
                                (immutable (list-type inner-r)))
                               t)
-                      (hash 'Expression (function-type (product-type (list inner-l))
-                                                       inner-r))))
+                      (hash 'Expression (function-type inner-l inner-r))))
 (add-property comp choice-weight [ListDotmap 200])
 ;; TODO - List.mapPartial (needs option type)
 ;; TODO - List.find (needs option type)
 (ag/one-arg List.filter
             #:type (let ([inner (fresh-type-variable)])
                      (function-type
-                      (product-type (list (immutable (list-type inner))))
+                      (immutable (list-type inner))
                       (immutable (list-type inner))))
             #:ctype (λ (n t)
                       (define inner (fresh-type-variable))
                       (unify! (function-type
-                               (product-type (list (immutable (list-type inner))))
+                               (immutable (list-type inner))
                                (immutable (list-type inner)))
                               t)
-                      (hash 'Expression (function-type (product-type (list inner))
+                      (hash 'Expression (function-type inner
                                                        bool-type))))
 ;; TODO - List.partition
 ;; TODO - List.foldl
@@ -994,14 +979,6 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
                    (render-child 'argument n)
                    rparen
                    rparen))]
- [ProcedureApplication
-  (λ (n) (h-append lparen
-                   (render-child 'procedure n)
-                   lparen
-                   (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
-                                    (ast-children (ast-child 'arguments n))))
-                   rparen
-                   rparen))]
  [FormalParameter
   (λ (n) (h-append
           (text (format "~a" (ast-child 'name n)))
@@ -1010,14 +987,6 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
  [LambdaSingleWithExpression
   (λ (n) (h-append lparen (text "fn ")
                    (render-child 'parameter n)
-                   (text " => ")
-                   (render-child 'body n)
-                   rparen))]
- [LambdaWithExpression
-  (λ (n) (h-append lparen (text "fn") lparen
-                   (comma-list (map (λ (cn) (att-value 'xsmith_render-node cn))
-                                    (ast-children (ast-child 'parameters n))))
-                   rparen
                    (text " => ")
                    (render-child 'body n)
                    rparen))]
