@@ -21,6 +21,10 @@
 
 (define-basic-spec-component python-comp)
 
+;; Helper parsers for easily adding elements to the grammar.
+(define-syntax-parser ag [(_ arg ...) #'(add-to-grammar python-comp arg ...)])
+(define-syntax-parser ap [(_ arg ...) #'(add-property python-comp arg ...)])
+
 ;; TODO - types - add characters, sets, iterables, what else?
 
 (define number-type (base-type 'number #:leaf? #f))
@@ -608,8 +612,6 @@
   (datum->syntax id
                  (string->symbol
                   (string-titlecase (symbol->string (syntax->datum id))))))
-(define-syntax-parser ag [(_ arg ...) #'(add-to-grammar python-comp arg ...)])
-(define-syntax-parser ap [(_ arg ...) #'(add-property python-comp arg ...)])
 
 (define-syntax-parser ag/zero-arg
   [(_ name:id
