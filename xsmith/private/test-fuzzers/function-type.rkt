@@ -124,20 +124,20 @@
                                           (ast-children (ast-child 'es n)))))])
 
 (add-property arith fresh
-              [Lambda (let* ([type (att-value 'xsmith_type current-hole)]
+              [Lambda (let* ([type (att-value 'xsmith_type (current-hole))]
                              [atype (fresh-type-variable)]
                              [rtype (fresh-type-variable)]
                              [ftype (function-type atype rtype)]
                              [unification-dumb-return-value (unify! ftype type)]
                              ;; this exploration should be unnecessary
-                             ;[_ (force-type-exploration-for-node! current-hole)]
+                             ;[_ (force-type-exploration-for-node! (current-hole))]
                              [FormalParam (make-fresh-node 'FormalParam
                                                            (hash 'type atype))])
                         (hash
                          'type type
                          'FormalParam FormalParam))]
-              [Definition (hash 'name (if (equal? (top-ancestor-node current-hole)
-                                                  (parent-node current-hole))
+              [Definition (hash 'name (if (equal? (top-ancestor-node (current-hole))
+                                                  (parent-node (current-hole)))
                                           (fresh-var-name "global-")
                                           (fresh-var-name "local-"))
                                 'type int)])

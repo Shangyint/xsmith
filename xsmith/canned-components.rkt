@@ -278,7 +278,7 @@
                                        [(fresh-type-variable) no-child-types]
                                        #:prop choice-weight
                                        (λ () (if (ast-subtype? (parent-node
-                                                                current-hole)
+                                                                (current-hole))
                                                                'Definition)
                                                  1
                                                  variable-reference-weight))]))
@@ -456,7 +456,7 @@
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
-                     (lambda-fresh-implementation current-hole make-fresh-node)
+                     (lambda-fresh-implementation (current-hole) make-fresh-node)
                      #:prop type-info
                      [(function-type (product-type #f) (fresh-type-variable))
                       (make-lambda-type-rhs (λ (rt) rt))]]))
@@ -471,7 +471,7 @@
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
-                     (lambda-fresh-implementation current-hole make-fresh-node)
+                     (lambda-fresh-implementation (current-hole) make-fresh-node)
                      #:prop type-info
                      [(function-type (product-type #f) (fresh-type-variable))
                       (make-lambda-type-rhs (λ (rt) (return-type rt)))]]))
@@ -926,7 +926,7 @@
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
-                     (lambda-fresh-implementation current-hole make-fresh-node)
+                     (lambda-fresh-implementation (current-hole) make-fresh-node)
                      #:prop type-info
                      [(function-type (product-type #f) (fresh-type-variable))
                       (make-lambda-type-rhs (λ (rt) (return-type rt)))]])

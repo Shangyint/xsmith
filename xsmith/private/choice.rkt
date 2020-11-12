@@ -56,9 +56,12 @@ Choices for AST growth should be some sort of object.
 |#
 
 (define-syntax (current-hole stx)
-  ;; identifier macro to make it slightly easier to access the hole node.
   (syntax-case stx ()
-    [current-hole #'(get-field hole this)]))
+    [(_) #'(get-field hole this)]
+    [current-hole
+     (raise-syntax-error 'current-hole
+                         "Previously current-hole was allowed as an identifier macro, but now it needs to be wrapped in parentheses like a normal macro.  This is technically backwards-incompatible, but it's a really small change, and xsmith is research software."
+                         stx)]))
 
 (define ast-choice%
   (class object%

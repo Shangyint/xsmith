@@ -331,12 +331,12 @@
 (add-property
  schemely-core
  fresh
- [Lambda (let* ([type (att-value 'xsmith_type current-hole)]
+ [Lambda (let* ([type (att-value 'xsmith_type (current-hole))]
                 [ftype (function-type
                         (product-type #f)
                         (fresh-type-variable))]
                 [unification-dumb-return-value (unify! ftype type)]
-                [force-exploration-return (force-type-exploration-for-node! current-hole)]
+                [force-exploration-return (force-type-exploration-for-node! (current-hole))]
                 [params (map (λ (t)
                                (xd-printf "making fresh FormalParam with type: ~v\n" t)
                                (make-fresh-node 'FormalParam
@@ -356,8 +356,8 @@
             'type type
             'params params))]
  ;; TODO -- these name and type fields should have sensible default values given by Xsmith (so the user doesn't have to provide a value), because due to the binder-info property the xsmith machinery knows what these fields mean.
- [Definition (hash 'name (if (equal? (top-ancestor-node current-hole)
-                                     (parent-node current-hole))
+ [Definition (hash 'name (if (equal? (top-ancestor-node (current-hole))
+                                     (parent-node (current-hole)))
                              (fresh-var-name "global-")
                              (fresh-var-name "local-"))
                    'type (fresh-concrete-var-type))]

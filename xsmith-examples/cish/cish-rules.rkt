@@ -1287,7 +1287,7 @@
          ;(define w (or bw (super choice-weight)))
          ;; TODO - use super choice-weight, not 5.  This is a temporary fix to move debugging along.
          (define w (or bw 5))
-         (if (member hint-name (att-value 'hints current-hole))
+         (if (member hint-name (att-value 'hints (current-hole)))
              (* (hint-weight-multiplier hint-name)
                 w)
              w))]
@@ -1301,7 +1301,7 @@
     [(_ base-weight)
      #'(max 0
             (- base-weight
-               (* 2 (att-value 'xsmith_ast-depth current-hole))))]))
+               (* 2 (att-value 'xsmith_ast-depth (current-hole)))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1323,9 +1323,9 @@
     [AssignmentExpression
      (set-empty? (set-intersect '(constant no-assignment)
                                 (att-value 'misc-constraints
-                                           current-hole)))]
+                                           (current-hole))))]
     [FunctionDefinition
-     (equal? (node-type (parent-node current-hole)) 'Program)])
+     (equal? (node-type (parent-node (current-hole))) 'Program)])
 
 (add-property
  cish-rules
@@ -1346,7 +1346,7 @@
   (hinted-choice-weight application-hint)]
  [VariableDeclaration 20]
  ;; Don't choose variable reference often when I'm already in a max-depth lift.
- [VariableReference (if (>= (att-value 'xsmith_ast-depth current-hole)
+ [VariableReference (if (>= (att-value 'xsmith_ast-depth (current-hole))
                             (xsmith-max-depth))
                         3
                         15)]

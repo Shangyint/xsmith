@@ -215,7 +215,7 @@ Fixes:
   (λ (lift-fields)
     (let* ([parent (parent-node (current-hole))]
            [main? (and (eq? (node-type parent) 'Program)
-                       (eq? (ast-child 'main parent) current-hole))]
+                       (eq? (ast-child 'main parent) (current-hole)))]
            [name (or (dict-ref lift-fields 'name #f)
                      (if main?
                          "inner_main"

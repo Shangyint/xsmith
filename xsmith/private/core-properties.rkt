@@ -243,10 +243,10 @@
                            ;; parent node is a binding, let's automatically give
                            ;; minimum weight to stop reference chains quickly.
                            [(and (send this _xsmith_is-read-reference-choice?)
-                                 (parent-node current-hole)
+                                 (parent-node (current-hole))
                                  ;; using this attribute as a binder? predicate...
                                  (att-value '_xsmith_binder-type-field
-                                            (parent-node current-hole)))
+                                            (parent-node (current-hole))))
                             1]
                            [(procedure? node-val) (node-val)]
                            [(number? node-val) node-val]
@@ -495,9 +495,9 @@ hole for the type.
                                     (hash-ref all-values-hash binder-name-field)
                                     t)
                                    (force-type-exploration-for-node!
-                                    current-hole)
+                                    (current-hole))
                                    (define ct
-                                     (concretize-type t #:at-node current-hole))
+                                     (concretize-type t #:at-node (current-hole)))
                                    (xd-printf "concretized to: ~v\n" ct)
                                    (unify! ct t)
                                    ct))])
@@ -539,7 +539,7 @@ hole for the type.
                (enqueue-re-type result-node)
                result-node)))))
     (define _xsmith_current-hole-info
-      (hash #f #'(λ () current-hole)))
+      (hash #f #'(λ () (current-hole))))
     (list _xsmith_fresh-info _xsmith_field-names-info _xsmith_current-hole-info)))
 
 (define-property child-node-name-dict
@@ -602,7 +602,7 @@ hole for the type.
       (for/hash ([node nodes])
         (values node
                 #`(λ ()
-                    (let ([ok? (<= (att-value 'xsmith_ast-depth current-hole)
+                    (let ([ok? (<= (att-value 'xsmith_ast-depth (current-hole))
                                    (xsmith-max-depth))]
                           [override-ok? #,(dict-ref
                                            this-prop-info
@@ -610,7 +610,7 @@ hole for the type.
                                            (dict-ref wont-over-deepen-info-defaults
                                                      node))]
                           [ref-in-lift? (and (att-value '_xsmith_in-lift-branch
-                                                        current-hole)
+                                                        (current-hole))
                                              (send
                                               this
                                               _xsmith_is-read-reference-choice?))])
@@ -1687,7 +1687,7 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ () default-base-type))
           (for/hash ([n (dict-keys get-constraints-checked)])
-            (values n #`(λ () (#,(dict-ref get-constraints-checked n) current-hole 'choice))))))
+            (values n #`(λ () (#,(dict-ref get-constraints-checked n) (current-hole) 'choice))))))
 
     (define node-child-dict-funcs
       (let ()
@@ -1870,7 +1870,7 @@ The second arm is a function that takes the type that the node has been assigned
     (define xsmith_get-reference-for-child!-info
       (hash #f #'(λ (type write?)
                    (xsmith_get-reference-for-child!-func
-                    current-hole
+                    (current-hole)
                     type
                     write?))))
 
@@ -1988,7 +1988,7 @@ The second arm is a function that takes the type that the node has been assigned
                  (findf (λ (e) (or (any-effect? e)
                                    (and (effect-write-mutable-container? e)
                                         (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects current-hole))))]
+                        (att-value '_xsmith_effects (current-hole)))))]
            [((~datum write) container-key:expr)
             #'(λ ()
                 (define key container-key)
@@ -1997,7 +1997,7 @@ The second arm is a function that takes the type that the node has been assigned
                                    (and (or (effect-write-mutable-container? e)
                                             (effect-read-mutable-container? e))
                                         (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects current-hole))))]
+                        (att-value '_xsmith_effects (current-hole)))))]
            [#f #'(λ () #t)]))))
     (list _xsmith_mutable-container-effects-info
           _xsmith_no-mutable-container-effect-conflict?)))

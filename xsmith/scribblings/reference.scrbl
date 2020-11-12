@@ -1417,11 +1417,11 @@ In this code snippet, we define a choice method encoding this restriction, and a
  no-lambda-except-global-def
  [#f (λ () #t)]
  [Lambda (λ ()
-           (and (parent-node current-hole)
-                (equal? (ast-node-type (parent-node current-hole))
+           (and (parent-node (current-hole))
+                (equal? (ast-node-type (parent-node (current-hole)))
                         'Definition)
-                (parent-node (parent-node current-hole))
-                (equal? (ast-node-type (parent-node (parent-node current-hole)))
+                (parent-node (parent-node (current-hole)))
+                (equal? (ast-node-type (parent-node (parent-node (current-hole))))
                         'Program)))])
 (add-property my-component
           choice-filters-to-apply

@@ -292,12 +292,12 @@
   (λ (lift-fields)
     (let* ([parent (parent-node (current-hole))]
            [main? (and (eq? (node-type parent) 'Program)
-                       (eq? (ast-child 'main parent) current-hole))]
+                       (eq? (ast-child 'main parent) (current-hole)))]
            [name (or (dict-ref lift-fields 'name #f)
                      (if main?
                          "main_inner"
                          (fresh-var-name "func_")))]
-           [_side-effect (force-type-exploration-for-node! current-hole)]
+           [_side-effect (force-type-exploration-for-node! (current-hole))]
            [type (or (dict-ref lift-fields 'type #f)
                      (if main?
                          (function-type (product-type '()) int)
