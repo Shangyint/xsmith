@@ -417,12 +417,12 @@ TODO - running / compiling SML
             #:ctype (Ectype (function-type (product-type (list byte-char-type))
                                            byte-string-type)))
 (ag/one-arg String.tokens #:type (function-type (product-type (list byte-string-type))
-                                                byte-string-type)
+                                                (immutable (list-type byte-string-type)))
             ;; TODO - if/when I support functions without the inner product, change this.
             #:ctype (Ectype (function-type (product-type (list byte-char-type))
                                            bool-type)))
 (ag/one-arg String.fields #:type (function-type (product-type (list byte-string-type))
-                                                byte-string-type)
+                                                (immutable (list-type byte-string-type)))
             ;; TODO - if/when I support functions without the inner product, change this.
             #:ctype (Ectype (function-type (product-type (list byte-char-type))
                                            bool-type)))
