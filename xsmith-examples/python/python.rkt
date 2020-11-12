@@ -308,20 +308,43 @@
                              (ast-children (ast-child 'statements body))))))))
      line))])
 
+(define-syntax-parser ag/zero-cost-converter
+  [(_ name:id
+      ;; `consumes` and `produces` are functions that take an inner type as
+      ;; argument and create a new wrapper type.
+      (~seq #:consumes consumes:expr)
+      (~seq #:produces produces:expr)
+      ;; `renderer` is a function that takes a node as argument and renders it.
+      (~seq #:renderer render-func:expr))
+   #'(ag [name Expression ([Expression])
+               #:prop depth-increase 0
+               #:prop wont-over-deepen #t
+               #:prop type-info
+               [(produces (fresh-type-variable))
+                (λ (n t)
+                  (define inner-type (fresh-type-variable))
+                  (define produced-type (produces inner-type))
+                  (unify! t produced-type)
+                  (define consumed-type (consumes inner-type))
+                  (hash 'Expression consumed-type))]
+               #:prop render-node-info render-func])])
+
 (define no-child-types (λ (n t) (hash)))
-(define pass-through-render (λ (n) ($xsmith_render-node (ast-child 'Expression n))))
-(define render-child-as-tuple
+(define render-expression-child
   (λ (n)
-    (h-append (text "tuple")
-              lparen
-              ($xsmith_render-node (ast-child 'Expression n))
-              rparen)))
-(define render-child-as-list
+    ($xsmith_render-node (ast-child 'Expression n))))
+(define (render-child-in func-name)
   (λ (n)
-    (h-append (text "list")
+    (h-append (text func-name)
               lparen
-              ($xsmith_render-node (ast-child 'Expression n))
+              (render-expression-child n)
               rparen)))
+(define render-child-in-iter
+  (render-child-in "iter"))
+(define render-child-in-tuple
+  (render-child-in "tuple"))
+(define render-child-in-list
+  (render-child-in "list"))
 
 (add-to-grammar
  python-comp
@@ -335,7 +358,7 @@
                    #:prop wont-over-deepen #t
                    #:prop type-info [(immutable (sequence-type char-type))
                                      (λ (n t) (hash 'Expression string-type))]
-                   #:prop render-node-info pass-through-render]
+                   #:prop render-node-info render-expression-child]
  [CharsToString Expression (Expression)
                 #:prop type-info
                 [string-type (λ (n t) (hash 'Expression (fresh-sequence char-type)))]
@@ -349,7 +372,7 @@
                        #:prop type-info
                        [(immutable (sequence-type int-type))
                         (λ (n t) (hash 'Expression byte-string-type))]
-                       #:prop render-node-info pass-through-render]
+                       #:prop render-node-info render-expression-child]
  [ByteStringLiteral Expression ([v = (random-byte-string)])
                     #:prop type-info [byte-string-type no-child-types]
                     #:prop choice-weight 1
@@ -423,102 +446,135 @@
                  (λ (n) (h-append ($xsmith_render-node (ast-child 'tuple n))
                                   (text (format "[~a]" (ast-child 'index n)))))]
 
- [IterableOrSequenceToImmutableIterator Expression ([Expression])
-                                        #:prop depth-increase 0
-                                        #:prop wont-over-deepen #t
-                                        #:prop choice-weight 1
-                                        #:prop type-info
-                                        [(fresh-iterator (fresh-type-variable))
-                                         (λ (n t)
-                                           (define inner (fresh-type-variable))
-                                           (unify! t (fresh-iterator inner))
-                                           (hash 'Expression (fresh-iterable-or-sequence inner)))]
-                                        #:prop render-node-info
-                                        (λ (n)
-                                          (h-append (text "iter")
-                                                    lparen
-                                                    ($xsmith_render-node (ast-child 'Expression n))
-                                                    rparen))]
- [ImmutableIteratorToMutableArray Expression ([Expression])
-                                  #:prop depth-increase 0
-                                  #:prop wont-over-deepen #t
-                                  #:prop type-info
-                                  [(mutable (array-type (fresh-type-variable)))
-                                   (λ (n t)
-                                     (define inner (fresh-type-variable))
-                                     (unify! t (mutable (array-type inner)))
-                                     (hash 'Expression (fresh-iterator inner)))]
-                                  #:prop render-node-info render-child-as-list]
- [ImmutableIteratorToImmutableSequence Expression ([Expression])
-                                       #:prop depth-increase 0
-                                       #:prop wont-over-deepen #t
-                                       #:prop type-info
-                                       [(immutable (sequence-type (fresh-type-variable)))
-                                        (λ (n t)
-                                          (define inner (fresh-type-variable))
-                                          (unify! t (immutable (sequence-type inner)))
-                                          (hash 'Expression (fresh-iterator inner)))]
-                                       #:prop render-node-info render-child-as-tuple]
- [ISequenceToIterable Expression ([Expression])
-                      #:prop depth-increase 0
-                      #:prop wont-over-deepen #t
-                      #:prop type-info
-                      [(immutable (iterable-type (fresh-type-variable)))
-                       (λ (n t)
-                         (define inner (fresh-type-variable))
-                         (unify! t (immutable (iterable-type inner)))
-                         (hash 'Expression (immutable (sequence-type inner))))]
-                      #:prop render-node-info pass-through-render]
- [MSequenceToIterable Expression ([Expression])
-                      #:prop depth-increase 0
-                      #:prop wont-over-deepen #t
-                      #:prop type-info
-                      [(mutable (iterable-type (fresh-type-variable)))
-                       (λ (n t)
-                         (define inner (fresh-type-variable))
-                         (unify! t (mutable (iterable-type inner)))
-                         (hash 'Expression (mutable (sequence-type inner))))]
-                      #:prop render-node-info pass-through-render]
- [IterableToImmutableSequence Expression (Expression)
-                              #:prop depth-increase 0
-                              #:prop wont-over-deepen #t
-                              #:prop type-info
-                              [(immutable (sequence-type (fresh-type-variable)))
-                               (λ (n t)
-                                 (define inner (fresh-type-variable))
-                                 (unify! t (immutable (sequence-type inner)))
-                                 (hash 'Expression (fresh-iterable inner)))]
-                              #:prop render-node-info render-child-as-tuple]
- [SequenceToImmutableSequence Expression (Expression)
-                              #:prop depth-increase 0
-                              #:prop wont-over-deepen #t
-                              #:prop type-info
-                              [(immutable (sequence-type (fresh-type-variable)))
-                               (λ (n t)
-                                 (define inner (fresh-type-variable))
-                                 (unify! t (immutable (sequence-type inner)))
-                                 (hash 'Expression (fresh-sequence inner)))]
-                              #:prop render-node-info render-child-as-tuple]
- [IterableToMutableSequence Expression (Expression)
-                            #:prop depth-increase 0
-                            #:prop wont-over-deepen #t
-                            #:prop type-info
-                            [(mutable (sequence-type (fresh-type-variable)))
-                             (λ (n t)
-                               (define inner (fresh-type-variable))
-                               (unify! t (mutable (sequence-type inner)))
-                               (hash 'Expression (fresh-iterable inner)))]
-                            #:prop render-node-info render-child-as-list]
- [MutableArrayToSequence Expression (Expression)
-                         #:prop depth-increase 0
-                         #:prop wont-over-deepen #t
-                         #:prop type-info
-                         [(mutable (sequence-type (fresh-type-variable)))
-                          (λ (n t)
-                            (define inner (fresh-type-variable))
-                            (unify! t (mutable (sequence-type inner)))
-                            (hash 'Expression (mutable (array-type inner))))]
-                         #:prop render-node-info pass-through-render]
+
+ ;; iterator/iterable/sequence/array(list)
+ ;;
+ ;; iterator
+ ;;   -> iterable = is-a
+ ;;   -> sequence
+ ;;     -> immutable = tuple
+ ;;     -> mutable = list
+ ;; iterable
+ ;;   -> iterator = iter
+ ;;   -> sequence
+ ;;     -> immutable = tuple
+ ;;     -> mutable = list
+ ;; sequence
+ ;;   -> iterator = iter
+ ;;   * immutable
+ ;;     -> iterable
+ ;;       -> immutable = is-a
+ ;;     -> sequence
+ ;;       -> mutable = list
+ ;;   * mutable
+ ;;     -> iterable
+ ;;       -> mutable = is-a
+ ;;     -> sequence
+ ;;       -> immutable = tuple
+ ;; array
+ ;;   -> iterator = iter
+ ;;   * mutable
+ ;;     -> sequence
+ ;;       -> immutable = tuple
+ ;;       -> mutable = is-a
+
+
+ ;; [IterableOrSequenceToImmutableIterator Expression ([Expression])
+ ;;                                        #:prop depth-increase 0
+ ;;                                        #:prop wont-over-deepen #t
+ ;;                                        #:prop choice-weight 1
+ ;;                                        #:prop type-info
+ ;;                                        [(fresh-iterator (fresh-type-variable))
+ ;;                                         (λ (n t)
+ ;;                                           (define inner (fresh-type-variable))
+ ;;                                           (unify! t (fresh-iterator inner))
+ ;;                                           (hash 'Expression (fresh-iterable-or-sequence inner)))]
+ ;;                                        #:prop render-node-info
+ ;;                                        (λ (n)
+ ;;                                          (h-append (text "iter")
+ ;;                                                    lparen
+ ;;                                                    ($xsmith_render-node (ast-child 'Expression n))
+ ;;                                                    rparen))]
+ ;; [ImmutableIteratorToMutableArray Expression ([Expression])
+ ;;                                  #:prop depth-increase 0
+ ;;                                  #:prop wont-over-deepen #t
+ ;;                                  #:prop type-info
+ ;;                                  [(mutable (array-type (fresh-type-variable)))
+ ;;                                   (λ (n t)
+ ;;                                     (define inner (fresh-type-variable))
+ ;;                                     (unify! t (mutable (array-type inner)))
+ ;;                                     (hash 'Expression (fresh-iterator inner)))]
+ ;;                                  #:prop render-node-info render-child-in-list]
+ ;; [ImmutableIteratorToImmutableSequence Expression ([Expression])
+ ;;                                       #:prop depth-increase 0
+ ;;                                       #:prop wont-over-deepen #t
+ ;;                                       #:prop type-info
+ ;;                                       [(immutable (sequence-type (fresh-type-variable)))
+ ;;                                        (λ (n t)
+ ;;                                          (define inner (fresh-type-variable))
+ ;;                                          (unify! t (immutable (sequence-type inner)))
+ ;;                                          (hash 'Expression (fresh-iterator inner)))]
+ ;;                                       #:prop render-node-info render-child-in-tuple]
+ ;; [ImmutableSequenceToImmutableIterable Expression ([Expression])
+ ;;                                       #:prop depth-increase 0
+ ;;                                       #:prop wont-over-deepen #t
+ ;;                                       #:prop type-info
+ ;;                                       [(immutable (iterable-type (fresh-type-variable)))
+ ;;                                        (λ (n t)
+ ;;                                          (define inner (fresh-type-variable))
+ ;;                                          (unify! t (immutable (iterable-type inner)))
+ ;;                                          (hash 'Expression (immutable (sequence-type inner))))]
+ ;;                                       #:prop render-node-info render-expression-child]
+ ;; [MutableSequenceToMutableIterable Expression ([Expression])
+ ;;                                   #:prop depth-increase 0
+ ;;                                   #:prop wont-over-deepen #t
+ ;;                                   #:prop type-info
+ ;;                                   [(mutable (iterable-type (fresh-type-variable)))
+ ;;                                    (λ (n t)
+ ;;                                      (define inner (fresh-type-variable))
+ ;;                                      (unify! t (mutable (iterable-type inner)))
+ ;;                                      (hash 'Expression (mutable (sequence-type inner))))]
+ ;;                                   #:prop render-node-info render-expression-child]
+ ;; [IterableToImmutableSequence Expression (Expression)
+ ;;                              #:prop depth-increase 0
+ ;;                              #:prop wont-over-deepen #t
+ ;;                              #:prop type-info
+ ;;                              [(immutable (sequence-type (fresh-type-variable)))
+ ;;                               (λ (n t)
+ ;;                                 (define inner (fresh-type-variable))
+ ;;                                 (unify! t (immutable (sequence-type inner)))
+ ;;                                 (hash 'Expression (fresh-iterable inner)))]
+ ;;                              #:prop render-node-info render-child-in-tuple]
+ ;; [SequenceToImmutableSequence Expression (Expression)
+ ;;                              #:prop depth-increase 0
+ ;;                              #:prop wont-over-deepen #t
+ ;;                              #:prop type-info
+ ;;                              [(immutable (sequence-type (fresh-type-variable)))
+ ;;                               (λ (n t)
+ ;;                                 (define inner (fresh-type-variable))
+ ;;                                 (unify! t (immutable (sequence-type inner)))
+ ;;                                 (hash 'Expression (fresh-sequence inner)))]
+ ;;                              #:prop render-node-info render-child-in-tuple]
+ ;; [IterableToMutableSequence Expression (Expression)
+ ;;                            #:prop depth-increase 0
+ ;;                            #:prop wont-over-deepen #t
+ ;;                            #:prop type-info
+ ;;                            [(mutable (sequence-type (fresh-type-variable)))
+ ;;                             (λ (n t)
+ ;;                               (define inner (fresh-type-variable))
+ ;;                               (unify! t (mutable (sequence-type inner)))
+ ;;                               (hash 'Expression (fresh-iterable inner)))]
+ ;;                            #:prop render-node-info render-child-in-list]
+ ;; [MutableArrayToSequence Expression (Expression)
+ ;;                         #:prop depth-increase 0
+ ;;                         #:prop wont-over-deepen #t
+ ;;                         #:prop type-info
+ ;;                         [(mutable (sequence-type (fresh-type-variable)))
+ ;;                          (λ (n t)
+ ;;                            (define inner (fresh-type-variable))
+ ;;                            (unify! t (mutable (sequence-type inner)))
+ ;;                            (hash 'Expression (mutable (array-type inner))))]
+ ;;                         #:prop render-node-info render-expression-child]
  [DictKeys Expression (Expression)
            #:prop type-info
            ;; I'm not sure about the mutability of this...
@@ -532,6 +588,122 @@
            (λ (n) (h-append ($xsmith_render-node (ast-child 'Expression n))
                             (text ".keys()")))]
  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;; Zero-Cost Converters
+;;;;
+
+(define (make-immutable-iterable inner-type)
+  (immutable (iterable-type inner-type)))
+(define (make-mutable-iterable inner-type)
+  (mutable (iterable-type inner-type)))
+(define (make-immutable-sequence inner-type)
+  (immutable (sequence-type inner-type)))
+(define (make-mutable-sequence inner-type)
+  (mutable (sequence-type inner-type)))
+(define (make-mutable-array inner-type)
+  (mutable (array-type inner-type)))
+
+;;;;;;;;
+;; Iterator consumers
+
+;; Iterator==Iterable
+(ag/zero-cost-converter
+ IteratorIsAnIterable
+ #:consumes fresh-iterator
+ #:produces fresh-iterable
+ #:renderer render-expression-child)
+;; Iterator->ImmutableSequence
+(ag/zero-cost-converter
+ IteratorToImmutableSequence
+ #:consumes fresh-iterator
+ #:produces make-immutable-sequence
+ #:renderer render-child-in-tuple)
+;; Iterator->MutableArray
+(ag/zero-cost-converter
+ IteratorToMutableArray
+ #:consumes fresh-iterator
+ #:produces make-mutable-array
+ #:renderer render-child-in-list)
+
+;;;;;;;;
+;; Iterable consumers
+
+;; Iterable->Iterator
+(ag/zero-cost-converter
+ IterableToIterator
+ #:consumes fresh-iterable
+ #:produces fresh-iterator
+ #:renderer render-child-in-iter)
+;; Iterable->ImmutableSequence
+(ag/zero-cost-converter
+ IterableToImmutableSequence
+ #:consumes fresh-iterable
+ #:produces make-immutable-sequence
+ #:renderer render-child-in-tuple)
+;; Iterable->MutableArray
+(ag/zero-cost-converter
+ IterableToMutableArray
+ #:consumes fresh-iterable
+ #:produces make-mutable-array
+ #:renderer render-child-in-list)
+
+;;;;;;;;
+;; Sequence consumers
+
+;; Sequence->Iterator
+(ag/zero-cost-converter
+ SequenceToIterator
+ #:consumes fresh-sequence
+ #:produces fresh-iterator
+ #:renderer render-child-in-iter)
+;; ImmutableSequence==ImmutableIterable
+(ag/zero-cost-converter
+ ImmutableSequenceIsAnImmutableIterable
+ #:consumes make-immutable-sequence
+ #:produces make-immutable-iterable
+ #:renderer render-expression-child)
+;; ImmutableSequence->MutableArray
+(ag/zero-cost-converter
+ ImmutableSequenceToMutableArray
+ #:consumes make-immutable-sequence
+ #:produces make-mutable-array
+ #:renderer render-child-in-list)
+;; MutableSequence==MutableIterable
+(ag/zero-cost-converter
+ MutableSequenceIsAMutableIterable
+ #:consumes make-mutable-sequence
+ #:produces make-mutable-iterable
+ #:renderer render-expression-child)
+;; MutableSequence->ImmutableSequence
+(ag/zero-cost-converter
+ MutableSequenceToImmutableSequence
+ #:consumes make-mutable-sequence
+ #:produces make-immutable-sequence
+ #:renderer render-child-in-tuple)
+
+;;;;;;;;
+;; Array consumers
+
+;; MutableArray->Iterator
+(ag/zero-cost-converter
+ MutableArrayToIterator
+ #:consumes make-mutable-array
+ #:produces fresh-iterator
+ #:renderer render-child-in-iter)
+;; MutableArray->ImmutableSequence
+(ag/zero-cost-converter
+ MutableArrayToImmutableSequence
+ #:consumes make-mutable-array
+ #:produces make-immutable-sequence
+ #:renderer render-child-in-tuple)
+;; MutableArray==MutableSequence
+(ag/zero-cost-converter
+ MutableArrayIsAMutableSequence
+ #:consumes make-mutable-array
+ #:produces make-mutable-sequence
+ #:renderer render-expression-child)
 
 ;; Numbers.  The canned-components numbers aren't quite right if we allow complex numbers.
 (add-to-grammar
@@ -726,7 +898,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
-                      (define arg-iterable (fresh-iterator-or-iterable-or-sequence arg-elem))
+                      (define arg-iterable (fresh-iterable-or-sequence arg-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
@@ -736,7 +908,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
-                      (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
+                      (define arg-array (fresh-iterable-or-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
                             'r arg-array)))
@@ -760,15 +932,27 @@
 ;; TODO - int()
 ;; TODO - isinstance()
 ;; TODO - issubclass()
-;; NOTE - iter() is handled as IterableToImmutableIterator because it is a node that adds no depth, providing conversion at any point in AST generation.
+;; NOTE - iter() is handled in the zero-cost converters.
 (ag/one-arg len #:type int-type
             #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
-(ag/one-arg list #:type (mutable (array-type (fresh-type-variable)))
-            #:ctype (λ (n t)
-                      (define inner (fresh-type-variable))
-                      (unify! (mutable (array-type inner)) t)
-                      (hash 'Expression (fresh-iterator-or-iterable-or-sequence inner))))
+;; NOTE - list() is handled in the zero-cost converters.
 ;; TODO - locals()
+
+#|#<immutable (#<iterator-type
+               (#<product-type
+                (#<bool>
+                 #<product-type (#<mutable
+                                 (#<dictionary-type
+                                  (#<string>
+                                   #<function-type #<product-type ()>
+                                   â†’
+                                   #<mutable (#<structural-record-type final?:#t, fields: #hash()>)>>)>)>
+                                 #<bool>
+                                 #<string>
+                                 #<bool>)>
+                 #<bool>
+                 #<int>)>)>)>
+|#
 
 ;; Map is actually variadic, but xsmith doesn't really support variadic types.
 ;; I could define multiple instances, though.
@@ -781,7 +965,7 @@
                       (define return-iterator (fresh-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-iterator-or-iterable-or-sequence arg-elem))
+                      (define arg-array (fresh-iterable-or-sequence arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
@@ -793,9 +977,9 @@
                         (define return-iterator (fresh-iterator return-elem))
                         (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
-                        (define arg1-array (fresh-iterator-or-iterable-or-sequence arg1-elem))
+                        (define arg1-array (fresh-iterable-or-sequence arg1-elem))
                         (define arg2-elem (fresh-type-variable))
-                        (define arg2-array (fresh-iterator-or-iterable-or-sequence arg2-elem))
+                        (define arg2-array (fresh-iterable-or-sequence arg2-elem))
                         (hash 'l (function-type (product-type (list arg1-elem arg2-elem))
                                                 return-elem)
                               'm arg1-array
@@ -829,7 +1013,18 @@
                 #:ctype (E3ctype int-type int-type int-type))
 ;; TODO - print()
 ;; TODO - property()
-;; TODO - range()
+(ag/one-arg range
+            #:racr-name RangeOne
+            #:type (fresh-iterator int-type)
+            #:ctype (Ectype int-type))
+(ag/two-arg range
+            #:racr-name RangeTwo
+            #:type (fresh-iterator int-type)
+            #:ctype (E2ctype int-type int-type))
+(ag/three-arg range
+              #:racr-name RangeThree
+              #:type (fresh-iterator int-type)
+              #:ctype (E3ctype int-type int-type int-type))
 ;; TODO - repr()
 ;; TODO - a reversed object is not reversible!  What kind of nonsense is that?!
 ;;        I'm not going to muck up my fuzzer's type system even more right now
@@ -1531,6 +1726,7 @@ def to_string(x) -> str:
    (λ()int-type)
    (λ()bool-type)
    (λ()string-type)
+   (λ()(immutable (iterator-type (fresh-type-variable))))
    (λ()(mutable (array-type (fresh-type-variable))))
    (λ()(mutable (dictionary-type (dictionary-key-type) (dictionary-value-type))))
    (λ()(mutable (fresh-structural-record-type)))
