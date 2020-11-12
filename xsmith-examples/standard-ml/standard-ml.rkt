@@ -341,8 +341,10 @@ TODO - running / compiling SML
                                      (~? (~@ #:prop feature feature-arg))
                                      #:prop render-node-info
                                      (λ (n) (h-append lparen (render-child 'l n)
+                                                      space
                                                       (text (symbol->string
                                                              (if NE? 'NE-name 'name)))
+                                                      space
                                                       (render-child 'r n) rparen))])])
 
 (ag/two-infix + #:racr-name LargeAdd #:type large-int-type #:feature large-int)
