@@ -480,6 +480,85 @@ TODO - running / compiling SML
 
 
 
+(ag/one-arg List.null #:type bool-type
+            #:ctype (Ectype (immutable (list-type (fresh-type-variable))))
+            #:racr-name ListNull)
+(ag/one-arg List.length
+            #:type small-int-type
+            #:ctype (Ectype (immutable (list-type (fresh-type-variable)))))
+(ag/two-infix @ #:racr-name ListAppend
+                #:type (immutable (list-type (fresh-type-variable))))
+(ag/two-arg safeLast #:type (fresh-type-variable)
+            #:ctype (λ (n t) (hash 'l (immutable (list-type t))
+                                   'r t)))
+;; TODO List.getItem
+(ag/three-arg safeListNth #:type (fresh-type-variable)
+              #:ctype (λ (n t) (hash 'l (immutable (list-type t))
+                                     'm small-int-type
+                                     'r t)))
+(ag/two-arg safeListTake #:type (immutable (list-type (fresh-type-variable)))
+            #:ctype (λ (n t) (hash 'l t
+                                   'r small-int-type)))
+(ag/two-arg safeListDrop #:type (immutable (list-type (fresh-type-variable)))
+            #:ctype (λ (n t) (hash 'l t
+                                   'r small-int-type)))
+(ag/one-arg List.rev #:type (immutable (list-type (fresh-type-variable))))
+(ag/one-arg List.concat #:type (immutable (list-type (fresh-type-variable)))
+            #:ctype (λ (n t) (hash 'Expression (immutable (list-type t)))))
+(ag/two-arg List.revAppend #:type (immutable (list-type (fresh-type-variable))))
+(ag/one-arg List.app
+            #:type (function-type
+                    (product-type
+                     (list (immutable (list-type (fresh-type-variable)))))
+                    void-type)
+            #:ctype (λ (n t)
+                      (define inner (fresh-type-variable))
+                      (unify! (function-type
+                               (product-type
+                                (list (immutable (list-type inner))))
+                               void-type)
+                              t)
+                      (hash 'Expression (function-type (product-type (list inner))
+                                                       void-type))))
+(ag/one-arg List.map
+            #:type (function-type
+                             (product-type
+                              (list (immutable (list-type (fresh-type-variable)))))
+                             (immutable (list-type (fresh-type-variable))))
+            #:ctype (λ (n t)
+                      (define inner-l (fresh-type-variable))
+                      (define inner-r (fresh-type-variable))
+                      (unify! (function-type
+                               (product-type
+                                (list (immutable (list-type inner-l))))
+                               (immutable (list-type inner-r)))
+                              t)
+                      (hash 'Expression (function-type (product-type (list inner-l))
+                                                       inner-r))))
+(add-property comp choice-weight [ListDotmap 200])
+;; TODO - List.mapPartial (needs option type)
+;; TODO - List.find (needs option type)
+(ag/one-arg List.filter
+            #:type (let ([inner (fresh-type-variable)])
+                     (function-type
+                      (product-type (list (immutable (list-type inner))))
+                      (immutable (list-type inner))))
+            #:ctype (λ (n t)
+                      (define inner (fresh-type-variable))
+                      (unify! (function-type
+                               (product-type (list (immutable (list-type inner))))
+                               (immutable (list-type inner)))
+                              t)
+                      (hash 'Expression (function-type (product-type (list inner))
+                                                       bool-type))))
+;; TODO - List.partition
+;; TODO - List.foldl
+;; TODO - List.foldr
+;; TODO - List.exists
+;; TODO - List.all
+;; TODO - List.tabulate
+
+
 (define nest-step 2)
 
 (define (binary-op-renderer op-rendered)
@@ -553,8 +632,13 @@ if b = 0 then a else Int.rem(a, b)
 fun safeSmallQuotient(a, b) =
 if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else Int.quot(a, b)
 
-fun safe_car(l, fallback) = if (null l) then fallback else (hd l)
-fun safe_cdr(l, fallback) = if (null l) then fallback else (tl l)
+fun safe_car(l, fallback) = if (null l) then fallback else (List.hd l)
+fun safe_cdr(l, fallback) = if (null l) then fallback else (List.tl l)
+fun safeLast(l, fallback) = if (null l) then fallback else (List.last l)
+fun safeListNth(l, index, fallback) = if (null l) then fallback
+  else let val i = index mod (List.length l) in List.nth(l, i) end
+fun safeListTake(l, amount) = List.take(l, amount mod (List.length l))
+fun safeListDrop(l, amount) = List.drop(l, amount mod (List.length l))
 
 fun safeStringSub(s, i) =
 if (String.size s) = 0 then #\"a\"
