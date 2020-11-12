@@ -74,78 +74,78 @@
            #:prop choice-weight 50])
 
 (add-property arith fresh
-          [TupleRef (let ([len (add1 (random 5))])
-                      (hash 'tuplelength len
-                            'index (random len)))])
+              [TupleRef (let ([len (add1 (random 5))])
+                          (hash 'tuplelength len
+                                'index (random len)))])
 
 (add-attribute arith tuple-depth
-              [#f (λ (n) (if (ast-has-parent? n)
-                             (att-value 'tuple-depth (parent-node n))
-                             0))]
-              [Tuple (λ (n) (add1 (att-value 'tuple-depth (parent-node n))))])
+               [#f (λ (n) (if (ast-has-parent? n)
+                              (att-value 'tuple-depth (parent-node n))
+                              0))]
+               [Tuple (λ (n) (add1 (att-value 'tuple-depth (parent-node n))))])
 (add-choice-method arith tuple-not-too-deep?
-                 [#f (λ () (not #f))]
-                 [Tuple (λ () (not (> (att-value 'tuple-depth (current-hole))
-                                      4)))])
+                   [#f (λ () (not #f))]
+                   [Tuple (λ () (not (> (att-value 'tuple-depth (current-hole))
+                                        4)))])
 
 (add-property arith choice-filters-to-apply
-          [#f [tuple-not-too-deep?]])
+              [#f [tuple-not-too-deep?]])
 
 (define int (base-type 'int))
 (add-property arith type-info
-          [Definition [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
-          [LetStar [(fresh-type-variable)
-                    (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
-                                   'sideEs (λ (cn) (fresh-type-variable))
-                                   'Expression t))]]
-          [Tuple [(product-type #f)
-                  (λ (n t)
-                    (define cs (ast-children (ast-child 'expressions n)))
-                    (define ts (map (λ (x) (fresh-type-variable)) cs))
-                    (define pt (product-type ts))
-                    (xd-printf "about to unify in tuple type-info rule\n")
-                    (unify! pt t)
-                    (xd-printf "post unify in tuple type-info rule\n")
-                    (for/hash ([c cs]
-                               [t ts])
-                      (values c t)))]]
-          [TupleRef [(fresh-type-variable)
-                     (λ (n t)
-                       (define index (ast-child 'index n))
-                       (define tuple-length (ast-child 'tuplelength n))
-                       (define inner-types (map (λ (x) (fresh-type-variable))
-                                                (make-list tuple-length tuple-length)))
-                       (define pt (product-type inner-types))
-                       (hash 'tuple pt))]]
-          [LiteralInt [int (λ (n t) (hash))]]
-          [VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
-          [SetBangRet [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
-          [Addition [int (λ (n t) (hash 'es t))]])
+              [Definition [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
+              [LetStar [(fresh-type-variable)
+                        (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
+                                       'sideEs (λ (cn) (fresh-type-variable))
+                                       'Expression t))]]
+              [Tuple [(product-type #f)
+                      (λ (n t)
+                        (define cs (ast-children (ast-child 'expressions n)))
+                        (define ts (map (λ (x) (fresh-type-variable)) cs))
+                        (define pt (product-type ts))
+                        (xd-printf "about to unify in tuple type-info rule\n")
+                        (unify! pt t)
+                        (xd-printf "post unify in tuple type-info rule\n")
+                        (for/hash ([c cs]
+                                   [t ts])
+                          (values c t)))]]
+              [TupleRef [(fresh-type-variable)
+                         (λ (n t)
+                           (define index (ast-child 'index n))
+                           (define tuple-length (ast-child 'tuplelength n))
+                           (define inner-types (map (λ (x) (fresh-type-variable))
+                                                    (make-list tuple-length tuple-length)))
+                           (define pt (product-type inner-types))
+                           (hash 'tuple pt))]]
+              [LiteralInt [int (λ (n t) (hash))]]
+              [VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
+              [SetBangRet [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
+              [Addition [int (λ (n t) (hash 'es t))]])
 
 (add-property arith render-node-info
-          [LetStar
-           (λ (n)
-             `(let* (,@(map (λ (d)
-                              `[,(string->symbol (ast-child 'name d))
-                                ,(att-value 'xsmith_render-node
-                                            (ast-child 'Expression d))])
-                            (ast-children (ast-child 'definitions n))))
-                ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                       (ast-children (ast-child 'sideEs n)))
-                ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
-          [Tuple (λ (n) `(tuple ,@(map (λ (n) (att-value 'xsmith_render-node n))
-                                       (ast-children (ast-child 'expressions n)))))]
-          [TupleRef (λ (n) `(tuple-ref ,(att-value 'xsmith_render-node
-                                                   (ast-child 'tuple n))
-                                       ,(ast-child 'index n)))]
-          [LiteralInt (λ (n) (ast-child 'v n))]
-          [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
-          [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
-                                           ,(att-value 'xsmith_render-node
-                                                       (ast-child 'Expression n)))
-                                     ,(string->symbol (ast-child 'name n))))]
-          [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                                      (ast-children (ast-child 'es n)))))])
+              [LetStar
+               (λ (n)
+                 `(let* (,@(map (λ (d)
+                                  `[,(string->symbol (ast-child 'name d))
+                                    ,(att-value 'xsmith_render-node
+                                                (ast-child 'Expression d))])
+                                (ast-children (ast-child 'definitions n))))
+                    ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                           (ast-children (ast-child 'sideEs n)))
+                    ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
+              [Tuple (λ (n) `(tuple ,@(map (λ (n) (att-value 'xsmith_render-node n))
+                                           (ast-children (ast-child 'expressions n)))))]
+              [TupleRef (λ (n) `(tuple-ref ,(att-value 'xsmith_render-node
+                                                       (ast-child 'tuple n))
+                                           ,(ast-child 'index n)))]
+              [LiteralInt (λ (n) (ast-child 'v n))]
+              [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
+              [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
+                                               ,(att-value 'xsmith_render-node
+                                                           (ast-child 'Expression n)))
+                                         ,(string->symbol (ast-child 'name n))))]
+              [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                                          (ast-children (ast-child 'es n)))))])
 
 
 (define-xsmith-interface-functions

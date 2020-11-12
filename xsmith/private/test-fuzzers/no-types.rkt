@@ -60,24 +60,24 @@
 
 
 (add-property arith render-node-info
-          [LetStar
-           (λ (n)
-             `(let* (,@(map (λ (d)
-                              `[,(string->symbol (ast-child 'name d))
-                                ,($xsmith_render-node
-                                  (ast-child 'Expression d))])
-                            (ast-children (ast-child 'definitions n))))
-                ,@(map (λ (c) ($xsmith_render-node c))
-                       (ast-children (ast-child 'sideEs n)))
-                ,($xsmith_render-node (ast-child 'Expression n))))]
-          [LiteralInt (λ (n) (ast-child 'v n))]
-          [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
-          [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
-                                           ,($xsmith_render-node
-                                             (ast-child 'Expression n)))
-                                     ,(string->symbol (ast-child 'name n))))]
-          [Addition (λ (n) `(+ ,@(map (λ (c) ($xsmith_render-node c))
-                                      (ast-children (ast-child 'es n)))))])
+              [LetStar
+               (λ (n)
+                 `(let* (,@(map (λ (d)
+                                  `[,(string->symbol (ast-child 'name d))
+                                    ,($xsmith_render-node
+                                      (ast-child 'Expression d))])
+                                (ast-children (ast-child 'definitions n))))
+                    ,@(map (λ (c) ($xsmith_render-node c))
+                           (ast-children (ast-child 'sideEs n)))
+                    ,($xsmith_render-node (ast-child 'Expression n))))]
+              [LiteralInt (λ (n) (ast-child 'v n))]
+              [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
+              [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
+                                               ,($xsmith_render-node
+                                                 (ast-child 'Expression n)))
+                                         ,(string->symbol (ast-child 'name n))))]
+              [Addition (λ (n) `(+ ,@(map (λ (c) ($xsmith_render-node c))
+                                          (ast-children (ast-child 'es n)))))])
 
 (define extra-print-1-param (make-parameter #f))
 (define extra-print-2-param (make-parameter #f))

@@ -52,9 +52,9 @@
                       Expression)
           #:prop strict-child-order? #t]
  #;[VariableReference Expression (name)
-                    #:prop reference-info (read)]
+                      #:prop reference-info (read)]
  #;[SetBangRet Expression (name Expression)
-             #:prop reference-info (write)]
+               #:prop reference-info (write)]
  [LiteralInt Expression ([v = (random 100)])]
  [LiteralFloat Expression ([v = (* (random) (random 100))])]
  [LiteralString Expression ([v = (random-ref '("foo" "bar" "baz"))])]
@@ -78,61 +78,61 @@
 (define bool (base-type 'bool))
 
 (add-property arith type-info
-          [Definition [(fresh-type-variable)
-                       (λ (n t) (hash 'Expression t))]]
-          [LetStar [(fresh-type-variable)
-                    (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
-                                   'sideEs (λ (cn) (fresh-type-variable))
-                                   'Expression t))]]
-          [LiteralInt [int (λ (n t) (hash))]]
-          [LiteralFloat [float (λ (n t) (hash))]]
-          [LiteralBool [bool (λ (n t) (hash))]]
-          [LiteralString [string (λ (n t) (hash))]]
-          #;[VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
-          #;[SetBangRet [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
-          [Addition [number (λ (n t) (hash 'es (λ (c) t)))]]
-          [And [bool (λ (n t) (hash 'es (λ (c) t)))]]
-          [StringAppend [string (λ (n t) (hash 'es (λ (c) t)))]]
-          [If [(fresh-type-variable) (λ (n t)
-                                       (hash 'test bool
-                                             'then t
-                                             'else t))]]
-          [StringLength [int (λ (n t) (hash 'Expression string))]]
-          )
+              [Definition [(fresh-type-variable)
+                           (λ (n t) (hash 'Expression t))]]
+              [LetStar [(fresh-type-variable)
+                        (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
+                                       'sideEs (λ (cn) (fresh-type-variable))
+                                       'Expression t))]]
+              [LiteralInt [int (λ (n t) (hash))]]
+              [LiteralFloat [float (λ (n t) (hash))]]
+              [LiteralBool [bool (λ (n t) (hash))]]
+              [LiteralString [string (λ (n t) (hash))]]
+              #;[VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
+              #;[SetBangRet [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
+              [Addition [number (λ (n t) (hash 'es (λ (c) t)))]]
+              [And [bool (λ (n t) (hash 'es (λ (c) t)))]]
+              [StringAppend [string (λ (n t) (hash 'es (λ (c) t)))]]
+              [If [(fresh-type-variable) (λ (n t)
+                                           (hash 'test bool
+                                                 'then t
+                                                 'else t))]]
+              [StringLength [int (λ (n t) (hash 'Expression string))]]
+              )
 
 (add-property arith render-node-info
-          [LetStar
-           (λ (n)
-             `(let* (,@(map (λ (d)
-                              `[,(string->symbol (ast-child 'name d))
-                                ,(att-value 'xsmith_render-node
-                                            (ast-child 'Expression d))])
-                            (ast-children (ast-child 'definitions n))))
-                ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                       (ast-children (ast-child 'sideEs n)))
-                ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
-          [LiteralInt (λ (n) (ast-child 'v n))]
-          [LiteralFloat (λ (n) (ast-child 'v n))]
-          [LiteralBool (λ (n) (ast-child 'v n))]
-          [LiteralString (λ (n) (ast-child 'v n))]
-          #;[VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
-          #;[SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
-                                           ,(att-value 'xsmith_render-node
-                                                       (ast-child 'Expression n)))
-                                     ,(string->symbol (ast-child 'name n))))]
-          [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                                      (ast-children (ast-child 'es n)))))]
-          [And (λ (n) `(and ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                                   (ast-children (ast-child 'es n)))))]
-          [StringAppend (λ (n) `(string-append
-                                 ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                                        (ast-children (ast-child 'es n)))))]
-          [StringLength (λ (n) `(string-length ,(att-value 'xsmith_render-node
-                                                           (ast-child 'Expression n))))]
-          [If (λ (n) `(if ,(att-value 'xsmith_render-node (ast-child 'test n))
-                          ,(att-value 'xsmith_render-node (ast-child 'then n))
-                          ,(att-value 'xsmith_render-node (ast-child 'else n))))]
-          )
+              [LetStar
+               (λ (n)
+                 `(let* (,@(map (λ (d)
+                                  `[,(string->symbol (ast-child 'name d))
+                                    ,(att-value 'xsmith_render-node
+                                                (ast-child 'Expression d))])
+                                (ast-children (ast-child 'definitions n))))
+                    ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                           (ast-children (ast-child 'sideEs n)))
+                    ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
+              [LiteralInt (λ (n) (ast-child 'v n))]
+              [LiteralFloat (λ (n) (ast-child 'v n))]
+              [LiteralBool (λ (n) (ast-child 'v n))]
+              [LiteralString (λ (n) (ast-child 'v n))]
+              #;[VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
+              #;[SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
+                                                 ,(att-value 'xsmith_render-node
+                                                             (ast-child 'Expression n)))
+                                           ,(string->symbol (ast-child 'name n))))]
+              [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                                          (ast-children (ast-child 'es n)))))]
+              [And (λ (n) `(and ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                                       (ast-children (ast-child 'es n)))))]
+              [StringAppend (λ (n) `(string-append
+                                     ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                                            (ast-children (ast-child 'es n)))))]
+              [StringLength (λ (n) `(string-length ,(att-value 'xsmith_render-node
+                                                               (ast-child 'Expression n))))]
+              [If (λ (n) `(if ,(att-value 'xsmith_render-node (ast-child 'test n))
+                              ,(att-value 'xsmith_render-node (ast-child 'then n))
+                              ,(att-value 'xsmith_render-node (ast-child 'else n))))]
+              )
 
 
 (define-xsmith-interface-functions

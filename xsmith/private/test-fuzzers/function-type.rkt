@@ -73,74 +73,74 @@
 (define int (base-type 'int number))
 (define float (base-type 'float number))
 (add-property arith type-info
-          [Definition [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
-          [LetStar [(fresh-type-variable)
-                    (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
-                                   'sideEs (λ (cn) (fresh-type-variable))
-                                   'Expression t))]]
-          [Lambda [(function-type (fresh-type-variable) (fresh-type-variable))
-                   (λ (n t)
-                     (define arg-type (fresh-type-variable))
-                     (define return-type (fresh-type-variable))
-                     (unify! (function-type arg-type return-type)
-                             t)
-                     (hash 'FormalParam arg-type 'body return-type))]]
-          [Application [(fresh-type-variable)
-                        (λ (n t)
-                          (define arg-type (fresh-type-variable))
-                          (hash 'procedure (function-type arg-type t)
-                                'argument arg-type))]]
-          [FormalParam [(fresh-type-variable) (hash)]]
-          [LiteralInt [int (λ (n t) (hash))]]
-          [LiteralFloat [float (λ (n t) (hash))]]
-          [VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
-          [SetBangRet [number (λ (n t) (hash 'Expression t))]]
-          [Addition [number (λ (n t) (hash 'es t))]])
+              [Definition [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
+              [LetStar [(fresh-type-variable)
+                        (λ (n t) (hash 'definitions (λ (cn) (fresh-type-variable))
+                                       'sideEs (λ (cn) (fresh-type-variable))
+                                       'Expression t))]]
+              [Lambda [(function-type (fresh-type-variable) (fresh-type-variable))
+                       (λ (n t)
+                         (define arg-type (fresh-type-variable))
+                         (define return-type (fresh-type-variable))
+                         (unify! (function-type arg-type return-type)
+                                 t)
+                         (hash 'FormalParam arg-type 'body return-type))]]
+              [Application [(fresh-type-variable)
+                            (λ (n t)
+                              (define arg-type (fresh-type-variable))
+                              (hash 'procedure (function-type arg-type t)
+                                    'argument arg-type))]]
+              [FormalParam [(fresh-type-variable) (hash)]]
+              [LiteralInt [int (λ (n t) (hash))]]
+              [LiteralFloat [float (λ (n t) (hash))]]
+              [VariableReference [(fresh-type-variable) (λ (n t) (hash))]]
+              [SetBangRet [number (λ (n t) (hash 'Expression t))]]
+              [Addition [number (λ (n t) (hash 'es t))]])
 
 (add-property arith render-node-info
-          [LetStar
-           (λ (n)
-             `(let* (,@(map (λ (d)
-                              `[,(string->symbol (ast-child 'name d))
-                                ,(att-value 'xsmith_render-node
-                                  (ast-child 'Expression d))])
-                            (ast-children (ast-child 'definitions n))))
-                ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                       (ast-children (ast-child 'sideEs n)))
-                ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
-          [Lambda (λ (n) `(lambda (,(string->symbol
-                                     (ast-child 'name (ast-child 'FormalParam n))))
-                            ,(att-value 'xsmith_render-node (ast-child 'body n))))]
-          [Application (λ (n) `(,(att-value 'xsmith_render-node (ast-child 'procedure n))
-                                ,(att-value 'xsmith_render-node (ast-child 'argument n))))]
-          [LiteralInt (λ (n) (ast-child 'v n))]
-          [LiteralFloat (λ (n) (ast-child 'v n))]
-          [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
-          [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
-                                           ,(att-value 'xsmith_render-node
-                                             (ast-child 'Expression n)))
-                                     ,(string->symbol (ast-child 'name n))))]
-          [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
-                                      (ast-children (ast-child 'es n)))))])
+              [LetStar
+               (λ (n)
+                 `(let* (,@(map (λ (d)
+                                  `[,(string->symbol (ast-child 'name d))
+                                    ,(att-value 'xsmith_render-node
+                                                (ast-child 'Expression d))])
+                                (ast-children (ast-child 'definitions n))))
+                    ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                           (ast-children (ast-child 'sideEs n)))
+                    ,(att-value 'xsmith_render-node (ast-child 'Expression n))))]
+              [Lambda (λ (n) `(lambda (,(string->symbol
+                                         (ast-child 'name (ast-child 'FormalParam n))))
+                                ,(att-value 'xsmith_render-node (ast-child 'body n))))]
+              [Application (λ (n) `(,(att-value 'xsmith_render-node (ast-child 'procedure n))
+                                    ,(att-value 'xsmith_render-node (ast-child 'argument n))))]
+              [LiteralInt (λ (n) (ast-child 'v n))]
+              [LiteralFloat (λ (n) (ast-child 'v n))]
+              [VariableReference (λ (n) (string->symbol (ast-child 'name n)))]
+              [SetBangRet (λ (n) `(begin (set! ,(string->symbol (ast-child 'name n))
+                                               ,(att-value 'xsmith_render-node
+                                                           (ast-child 'Expression n)))
+                                         ,(string->symbol (ast-child 'name n))))]
+              [Addition (λ (n) `(+ ,@(map (λ (c) (att-value 'xsmith_render-node c))
+                                          (ast-children (ast-child 'es n)))))])
 
 (add-property arith fresh
-          [Lambda (let* ([type (att-value 'xsmith_type current-hole)]
-                         [atype (fresh-type-variable)]
-                         [rtype (fresh-type-variable)]
-                         [ftype (function-type atype rtype)]
-                         [unification-dumb-return-value (unify! ftype type)]
-                         ;; this exploration should be unnecessary
-                         ;[_ (force-type-exploration-for-node! current-hole)]
-                         [FormalParam (make-fresh-node 'FormalParam
-                                                       (hash 'type atype))])
-                    (hash
-                     'type type
-                     'FormalParam FormalParam))]
-          [Definition (hash 'name (if (equal? (top-ancestor-node current-hole)
-                                              (parent-node current-hole))
-                                      (fresh-var-name "global-")
-                                      (fresh-var-name "local-"))
-                            'type int)])
+              [Lambda (let* ([type (att-value 'xsmith_type current-hole)]
+                             [atype (fresh-type-variable)]
+                             [rtype (fresh-type-variable)]
+                             [ftype (function-type atype rtype)]
+                             [unification-dumb-return-value (unify! ftype type)]
+                             ;; this exploration should be unnecessary
+                             ;[_ (force-type-exploration-for-node! current-hole)]
+                             [FormalParam (make-fresh-node 'FormalParam
+                                                           (hash 'type atype))])
+                        (hash
+                         'type type
+                         'FormalParam FormalParam))]
+              [Definition (hash 'name (if (equal? (top-ancestor-node current-hole)
+                                                  (parent-node current-hole))
+                                          (fresh-var-name "global-")
+                                          (fresh-var-name "local-"))
+                                'type int)])
 
 
 (define-xsmith-interface-functions
