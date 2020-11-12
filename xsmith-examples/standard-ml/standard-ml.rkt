@@ -376,7 +376,9 @@ TODO - running / compiling SML
 (ag/one-arg Char.isAlpha #:type bool-type #:ctype (Ectype byte-char-type))
 (ag/one-arg Char.isAlphaNum #:type bool-type #:ctype (Ectype byte-char-type))
 (ag/one-arg Char.isAscii #:type bool-type #:ctype (Ectype byte-char-type))
-(ag/one-arg Char.isCntrl #:type bool-type #:ctype (Ectype byte-char-type))
+;; Some implementations treat all characters above 127 as control characters
+;; and return true for Char.isCntrl, while others return false...
+;(ag/one-arg Char.isCntrl #:type bool-type #:ctype (Ectype byte-char-type))
 (ag/one-arg Char.isDigit #:type bool-type #:ctype (Ectype byte-char-type))
 (ag/one-arg Char.isGraph #:type bool-type #:ctype (Ectype byte-char-type))
 (ag/one-arg Char.isHexDigit #:type bool-type #:ctype (Ectype byte-char-type))
