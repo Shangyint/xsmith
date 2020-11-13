@@ -319,6 +319,7 @@
    #'(ag [name Expression ([Expression])
                #:prop depth-increase 0
                #:prop wont-over-deepen #t
+               #:prop choice-weight 1
                #:prop type-info
                [(produces (fresh-type-variable))
                 (λ (n t)
