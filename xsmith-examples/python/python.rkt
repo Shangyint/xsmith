@@ -595,115 +595,75 @@
 ;;;; Zero-Cost Converters
 ;;;;
 
-(define (make-immutable-iterable inner-type)
+(define (fresh-immutable-iterable inner-type)
   (immutable (iterable-type inner-type)))
-(define (make-mutable-iterable inner-type)
+(define (fresh-mutable-iterable inner-type)
   (mutable (iterable-type inner-type)))
-(define (make-immutable-sequence inner-type)
+(define (fresh-immutable-sequence inner-type)
   (immutable (sequence-type inner-type)))
-(define (make-mutable-sequence inner-type)
+(define (fresh-mutable-sequence inner-type)
   (mutable (sequence-type inner-type)))
-(define (make-mutable-array inner-type)
+(define (fresh-mutable-array inner-type)
   (mutable (array-type inner-type)))
 
-;;;;;;;;
-;; Iterator consumers
-
+;; ___->Iterator
+(ag/zero-cost-converter
+ ConvertToIterator
+ #:consumes (λ (inner)
+              (fresh-type-variable
+               (immutable (fresh-type-variable (iterable-type inner)
+                                               (sequence-type inner)))
+               (mutable (fresh-type-variable (iterable-type inner)
+                                             (sequence-type inner)
+                                             (array-type inner)))))
+ #:produces fresh-iterator
+ #:renderer render-child-in-iter)
+;; ___->ImmutableSequence (Tuple)
+(ag/zero-cost-converter
+ ConvertToImmutableSequence
+ #:consumes (λ (inner)
+              (fresh-type-variable
+               (immutable (fresh-type-variable (iterator-type inner)
+                                               (iterable-type inner)))
+               (mutable (fresh-type-variable (iterable-type inner)
+                                             (sequence-type inner)
+                                             (array-type inner)))))
+ #:produces fresh-immutable-sequence
+ #:renderer render-child-in-tuple)
+;; ___->MutableArray (List)
+(ag/zero-cost-converter
+ ConvertToMutableArray
+ #:consumes (λ (inner)
+              (fresh-type-variable
+               (immutable (fresh-type-variable (iterator-type inner)
+                                               (iterable-type inner)
+                                               (sequence-type inner)))
+               (mutable (fresh-type-variable (iterable-type inner)))))
+ #:produces fresh-mutable-array
+ #:renderer render-child-in-list)
 ;; Iterator==Iterable
 (ag/zero-cost-converter
  IteratorIsAnIterable
  #:consumes fresh-iterator
  #:produces fresh-iterable
  #:renderer render-expression-child)
-;; Iterator->ImmutableSequence
-(ag/zero-cost-converter
- IteratorToImmutableSequence
- #:consumes fresh-iterator
- #:produces make-immutable-sequence
- #:renderer render-child-in-tuple)
-;; Iterator->MutableArray
-(ag/zero-cost-converter
- IteratorToMutableArray
- #:consumes fresh-iterator
- #:produces make-mutable-array
- #:renderer render-child-in-list)
-
-;;;;;;;;
-;; Iterable consumers
-
-;; Iterable->Iterator
-(ag/zero-cost-converter
- IterableToIterator
- #:consumes fresh-iterable
- #:produces fresh-iterator
- #:renderer render-child-in-iter)
-;; Iterable->ImmutableSequence
-(ag/zero-cost-converter
- IterableToImmutableSequence
- #:consumes fresh-iterable
- #:produces make-immutable-sequence
- #:renderer render-child-in-tuple)
-;; Iterable->MutableArray
-(ag/zero-cost-converter
- IterableToMutableArray
- #:consumes fresh-iterable
- #:produces make-mutable-array
- #:renderer render-child-in-list)
-
-;;;;;;;;
-;; Sequence consumers
-
-;; Sequence->Iterator
-(ag/zero-cost-converter
- SequenceToIterator
- #:consumes fresh-sequence
- #:produces fresh-iterator
- #:renderer render-child-in-iter)
 ;; ImmutableSequence==ImmutableIterable
 (ag/zero-cost-converter
  ImmutableSequenceIsAnImmutableIterable
- #:consumes make-immutable-sequence
- #:produces make-immutable-iterable
+ #:consumes fresh-immutable-sequence
+ #:produces fresh-immutable-iterable
  #:renderer render-expression-child)
-;; ImmutableSequence->MutableArray
-(ag/zero-cost-converter
- ImmutableSequenceToMutableArray
- #:consumes make-immutable-sequence
- #:produces make-mutable-array
- #:renderer render-child-in-list)
 ;; MutableSequence==MutableIterable
 (ag/zero-cost-converter
  MutableSequenceIsAMutableIterable
- #:consumes make-mutable-sequence
- #:produces make-mutable-iterable
+ #:consumes fresh-mutable-sequence
+ #:produces fresh-mutable-iterable
  #:renderer render-expression-child)
-;; MutableSequence->ImmutableSequence
-(ag/zero-cost-converter
- MutableSequenceToImmutableSequence
- #:consumes make-mutable-sequence
- #:produces make-immutable-sequence
- #:renderer render-child-in-tuple)
-
-;;;;;;;;
-;; Array consumers
-
-;; MutableArray->Iterator
-(ag/zero-cost-converter
- MutableArrayToIterator
- #:consumes make-mutable-array
- #:produces fresh-iterator
- #:renderer render-child-in-iter)
-;; MutableArray->ImmutableSequence
-(ag/zero-cost-converter
- MutableArrayToImmutableSequence
- #:consumes make-mutable-array
- #:produces make-immutable-sequence
- #:renderer render-child-in-tuple)
 ;; MutableArray==MutableSequence
 (ag/zero-cost-converter
  MutableArrayIsAMutableSequence
- #:consumes make-mutable-array
- #:produces make-mutable-sequence
+ #:consumes fresh-mutable-array
+ #:produces fresh-mutable-sequence
  #:renderer render-expression-child)
 
 ;; Numbers.  The canned-components numbers aren't quite right if we allow complex numbers.
