@@ -662,8 +662,8 @@
 
 ;;;; built-in functions from https://docs.python.org/3/library/functions.html
 (ag/one-arg abs)
-(ag/one-arg all #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
-(ag/one-arg any #:type bool-type #:ctype (Ectype (fresh-iterable (fresh-type-variable))))
+(ag/one-arg all #:type bool-type #:ctype (Ectype (fresh-iterable-or-sequence-or-array (fresh-type-variable))))
+(ag/one-arg any #:type bool-type #:ctype (Ectype (fresh-iterable-or-sequence-or-array (fresh-type-variable))))
 (ag/one-arg ascii #:type string-type #:ctype (Ectype (fresh-type-variable)))
 (ag/one-arg bin #:type string-type #:ctype (Ectype int-type))
 (ag/one-arg bool #:type bool-type #:ctype (Ectype (fresh-type-variable)))
@@ -715,8 +715,6 @@
 (ag/two-arg divmod #:NE-name NE_divmod
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
-;; TODO - enumerate returns an 'enumerate object', which is not reversible but is fairly similar to a list.
-;;        Also, their should be a constraint that the returned tuples' second elements are of the same type as the elements of the passed-in iterable.
 (ag/one-arg enumerate
             #:type (fresh-iterator (product-type (list int-type (fresh-type-variable))))
             #:ctype (λ (n t)
@@ -737,7 +735,7 @@
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
                             'r arg-array)))
-;; The float function can actually take a string or an int, but the string has to be a number string...
+;; NOTE: The float function can actually take a string or an int, but the string has to be a number string...
 (ag/one-arg float #:type number-type #:ctype (Ectype int-type))
 ;; TODO - format() -- this will probably be fine if limited to default (empty) format spec and given a value in a limited set of types.  Arbitrary types will raise problems of eg. how function X is printed.
 ;; TODO - frozenset()
@@ -750,7 +748,7 @@
 ;; TODO - hash()
 ;; TODO - help()  ;; XXX - don't know if we should implement this, since it's meant for interactive use.
 (ag/one-arg hex #:type string-type #:ctype (Ectype int-type))
-;; TODO - id is commented out because its return value is both implementation- and run-dependent.
+;; NOTE - id is commented out because its return value is both implementation- and run-dependent.
 ;; (ag/one-arg id #:type int-type #:ctype (Ectype (fresh-type-variable)))
 ;; TODO - __import__()
 ;; TODO - input()  ;; XXX - don't know if we should implement this, since it waits for external input.
@@ -832,7 +830,7 @@
               #:racr-name RangeThree
               #:type (fresh-iterator int-type)
               #:ctype (E3ctype int-type int-type int-type))
-;; TODO - repr()
+(ag/one-arg repr #:type string-type #:ctype (Ectype (fresh-type-variable)))
 (ag/one-arg reversed
             #:type (fresh-iterator (fresh-type-variable))
             #:ctype (λ (n t)
@@ -857,8 +855,13 @@
                       (define arg-iterable (fresh-iterable return-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - staticmethod()
-;; TODO - str()
-;; TODO - sum()
+(ag/one-arg str #:type string-type #:ctype (Ectype (fresh-type-variable)))
+;; NOTE - sum() can also take an optional 'start' index argument, but it is left
+;;        out here to avoid index-out-of-bounds issues.
+(ag/one-arg sum
+            #:type (fresh-type-variable)
+            #:ctype (λ (n t)
+                      (hash 'Expression (fresh-iterable-or-sequence-or-array t))))
 ;; TODO - super()
 ;; NOTE - tuple() is handled in the zero-cost converters.
 ;; TODO - type()
