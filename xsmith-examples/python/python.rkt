@@ -53,14 +53,14 @@
 ;; sequences as arguments is an implementation detail and cannot be dictated by
 ;; the type system. Therefore, we must handle them separately and explicitly
 ;; allow either in those cases where it is permissible.
-(define (fresh-iterable-or-sequence inner)
+(define (fresh-iterable-or-sequence-or-array inner)
   (fresh-type-variable
    (immutable (fresh-type-variable (iterable-type inner)
                                    (sequence-type inner)))
    (mutable (fresh-type-variable (iterable-type inner)
                                  (sequence-type inner)
                                  (array-type inner)))))
-(define (fresh-iterator-or-iterable-or-sequence inner)
+(define (fresh-iterator-or-iterable-or-sequence-or-array inner)
   (fresh-type-variable
    (immutable (fresh-type-variable (iterator-type inner)
                                    (iterable-type inner)
@@ -80,6 +80,16 @@
    (immutable (sequence-type inner))
    (mutable (fresh-type-variable (sequence-type inner)
                                  (array-type inner)))))
+(define (fresh-immutable-iterable inner-type)
+  (immutable (iterable-type inner-type)))
+(define (fresh-mutable-iterable inner-type)
+  (mutable (iterable-type inner-type)))
+(define (fresh-immutable-sequence inner-type)
+  (immutable (sequence-type inner-type)))
+(define (fresh-mutable-sequence inner-type)
+  (mutable (sequence-type inner-type)))
+(define (fresh-mutable-array inner-type)
+  (mutable (array-type inner-type)))
 ;;
 ;; NOTE: These are just some notes about the strange lazy iterable-esque data
 ;;       types in Python. Most of this is written in a pseudo-Haskell notation.
@@ -239,7 +249,7 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
 (add-property
  python-comp render-node-info
@@ -257,7 +267,7 @@
  python-comp
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
 (add-property
  python-comp render-node-info
@@ -274,7 +284,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
@@ -307,28 +317,6 @@
                         (map (λ (cn) ($xsmith_render-node cn))
                              (ast-children (ast-child 'statements body))))))))
      line))])
-
-(define-syntax-parser ag/zero-cost-converter
-  [(_ name:id
-      ;; `consumes` and `produces` are functions that take an inner type as
-      ;; argument and create a new wrapper type.
-      (~seq #:consumes consumes:expr)
-      (~seq #:produces produces:expr)
-      ;; `renderer` is a function that takes a node as argument and renders it.
-      (~seq #:renderer render-func:expr))
-   #'(ag [name Expression ([Expression])
-               #:prop depth-increase 0
-               #:prop wont-over-deepen #t
-               #:prop choice-weight 1
-               #:prop type-info
-               [(produces (fresh-type-variable))
-                (λ (n t)
-                  (define inner-type (fresh-type-variable))
-                  (define produced-type (produces inner-type))
-                  (unify! t produced-type)
-                  (define consumed-type (consumes inner-type))
-                  (hash 'Expression consumed-type))]
-               #:prop render-node-info render-func])])
 
 (define no-child-types (λ (n t) (hash)))
 (define render-expression-child
@@ -465,27 +453,33 @@
 ;;;; Zero-Cost Converters
 ;;;;
 
-(define (fresh-immutable-iterable inner-type)
-  (immutable (iterable-type inner-type)))
-(define (fresh-mutable-iterable inner-type)
-  (mutable (iterable-type inner-type)))
-(define (fresh-immutable-sequence inner-type)
-  (immutable (sequence-type inner-type)))
-(define (fresh-mutable-sequence inner-type)
-  (mutable (sequence-type inner-type)))
-(define (fresh-mutable-array inner-type)
-  (mutable (array-type inner-type)))
+;; A syntax parser to make creating zero-cost converters easier.
+(define-syntax-parser ag/zero-cost-converter
+  [(_ name:id
+      ;; `consumes` and `produces` are functions that take an inner type as
+      ;; argument and create a new wrapper type.
+      (~seq #:consumes consumes:expr)
+      (~seq #:produces produces:expr)
+      ;; `renderer` is a function that takes a node as argument and renders it.
+      (~seq #:renderer render-func:expr))
+   #'(ag [name Expression ([Expression])
+               #:prop depth-increase 0
+               #:prop wont-over-deepen #t
+               #:prop choice-weight 1
+               #:prop type-info
+               [(produces (fresh-type-variable))
+                (λ (n t)
+                  (define inner-type (fresh-type-variable))
+                  (define produced-type (produces inner-type))
+                  (unify! t produced-type)
+                  (define consumed-type (consumes inner-type))
+                  (hash 'Expression consumed-type))]
+               #:prop render-node-info render-func])])
 
 ;; ___->Iterator
 (ag/zero-cost-converter
  ConvertToIterator
- #:consumes (λ (inner)
-              (fresh-type-variable
-               (immutable (fresh-type-variable (iterable-type inner)
-                                               (sequence-type inner)))
-               (mutable (fresh-type-variable (iterable-type inner)
-                                             (sequence-type inner)
-                                             (array-type inner)))))
+ #:consumes fresh-iterable-or-sequence-or-array
  #:produces fresh-iterator
  #:renderer render-child-in-iter)
 ;; ___->ImmutableSequence (Tuple)
@@ -729,7 +723,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
-                      (define arg-iterable (fresh-iterable-or-sequence arg-elem))
+                      (define arg-iterable (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
@@ -739,7 +733,7 @@
                       (define arg-elem (fresh-type-variable))
                       (define return-iterator (fresh-iterator arg-elem))
                       (unify! t return-iterator)
-                      (define arg-array (fresh-iterable-or-sequence arg-elem))
+                      (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               bool-type)
                             'r arg-array)))
@@ -778,7 +772,7 @@
                       (define return-iterator (fresh-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-iterable-or-sequence arg-elem))
+                      (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
@@ -790,9 +784,9 @@
                         (define return-iterator (fresh-iterator return-elem))
                         (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
-                        (define arg1-array (fresh-iterable-or-sequence arg1-elem))
+                        (define arg1-array (fresh-iterable-or-sequence-or-array arg1-elem))
                         (define arg2-elem (fresh-type-variable))
-                        (define arg2-array (fresh-iterable-or-sequence arg2-elem))
+                        (define arg2-array (fresh-iterable-or-sequence-or-array arg2-elem))
                         (hash 'l (function-type (product-type (list arg1-elem arg2-elem))
                                                 return-elem)
                               'm arg1-array
@@ -846,7 +840,7 @@
                       (define return-iterator (fresh-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-iterable-or-sequence arg-elem))
+                      (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
                                               return-elem)
                             'r arg-array)))
