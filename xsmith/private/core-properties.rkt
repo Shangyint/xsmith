@@ -709,6 +709,21 @@ Helper function for _xsmith_scope-graph-child-scope-dict.
     ;; there is no node yet...
     (binding lift-name #f type 'definition)))
 
+(define (make/_xsmith_scope-graph-scope-child-dict-info binding-structure-symbol)
+  (λ (n)
+    (define children (filter (λ (cn) (and (ast-node? cn)
+                                          (not (ast-bud-node? cn))))
+                             (ast-children/flat n)))
+    (define children-bindings
+      (map (λ (c) (att-value 'xsmith_definition-binding c))
+           children))
+    (define cb-pairs (map cons children children-bindings))
+    (define parent-scope
+      (att-value '_xsmith_scope-graph-scope n))
+    (make-child-scope-dict cb-pairs
+                           parent-scope
+                           binding-structure-symbol)))
+
 #|
 The introduces-scope property generates RACR attributes for resolving bindings via scope graphs.
 The scope-graph-descendant-bindings attribute returns a list of all bindings on descendant nodes that are not under a different scope.  In other words, you call it on a node that introduces a scope and it returns all bindings within that scope.  It does not return bindings in child scopes.
@@ -876,22 +891,9 @@ It just reads the values of several other properties and produces the results fo
                 ([node nodes])
         (define binding-structure-for-node (dict-ref binding-structure-hash node))
         (if (dict-ref has-potential-binder-child-hash node)
-            (dict-set
-             rule-info
-             node
-             #`(λ (n)
-                 (define children (filter (λ (cn) (and (ast-node? cn)
-                                                       (not (ast-bud-node? cn))))
-                                          (ast-children/flat n)))
-                 (define children-bindings
-                   (map (λ (c) (att-value 'xsmith_definition-binding c))
-                        children))
-                 (define cb-pairs (map cons children children-bindings))
-                 (define parent-scope
-                   (att-value '_xsmith_scope-graph-scope n))
-                 (make-child-scope-dict cb-pairs
-                                        parent-scope
-                                        #,binding-structure-for-node)))
+            (dict-set rule-info node
+                      #`(make/_xsmith_scope-graph-scope-child-dict-info
+                         #,binding-structure-for-node))
             rule-info)))
     (define _xsmith_scope-graph-scope-info
       (hash #f
