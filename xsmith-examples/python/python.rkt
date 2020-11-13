@@ -1253,7 +1253,13 @@ def dict_safe_reference_by_index(dict, index, fallback):
 def dict_safe_assignment_by_index(dict, index, newvalue):
   if not (len(dict) == 0):
     dict[list(dict.keys())[index % len(dict.keys())]] = newvalue
-def to_string(x) -> str:
+def is_iterator(x):
+    return hasattr(x, '__next__')
+def is_iterable(x):
+    return hasattr(x, '__iter__')
+def is_sequence(x):
+    return hasattr(x, '__getitem__') and hasattr(x, '__len__')
+def to_string(x):
     if any(map(lambda t: isinstance(x, t), (bool, int, float, complex, str, bytes, bytearray, memoryview))):
         # Primitive types with known-good `__repr__` implementations.
         return repr(x)
@@ -1264,9 +1270,15 @@ def to_string(x) -> str:
     elif isinstance(x, dict):
         return '{' + ', '.join(': '.join(map(to_string, pair)) for pair in x.items()) + '}'
     elif callable(x):
-        func_name = getattr(x, '__name__', \"#<FUNCTION>\")
+        func_name = getattr(x, '__name__', '#NO_NAME#')
         parameters = tuple(sorted(signature(x).parameters.keys()))
-        return func_name + repr(parameters)
+        return '#<FUNCTION: ' + func_name + repr(parameters) + '>'
+    elif is_iterator(x):
+        return '#<ITERATOR: ' + getattr(type(x), '__name__', '#ITERATOR') + '>'
+    elif is_iterable(x):
+        return '#<ITERABLE: ' + getattr(type(x), '__name__', '#ITERABLE') + '>'
+    elif is_sequence(x):
+        return '#<SEQUENCE: ' + getattr(type(x), '__name__', '#SEQUENCE') + '>'
     else:
         return repr(x)
 
