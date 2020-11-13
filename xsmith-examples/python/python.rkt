@@ -768,9 +768,8 @@
             #:ctype (Ectype (fresh-sequence (fresh-type-variable))))
 ;; NOTE - list() is handled in the zero-cost converters.
 ;; TODO - locals()
-;; NOTE - map() is actually variadic, but xsmith doesn't really support variadic types.
-;; I could define multiple instances, though.
-;; TODO - the map interface does not implement the len interface.  So I guess I need to make it a different type.  But out of expedience for now I'm just commenting it out.  Also filter.
+;; NOTE - map() is actually variadic, but xsmith doesn't really support variadic
+;;        types. We define a few instances, though.
 (ag/two-arg map
             #:racr-name MapTwo
             #:type (fresh-iterator (fresh-type-variable))
@@ -840,12 +839,17 @@
               #:type (fresh-iterator int-type)
               #:ctype (E3ctype int-type int-type int-type))
 ;; TODO - repr()
-;; TODO - a reversed object is not reversible!  What kind of nonsense is that?!
-;;        I'm not going to muck up my fuzzer's type system even more right now
-;;        for the sake of fuzzing this single wacko python type.
-;;        So let's just turn off `reversed` for the time being.
-;;        Also the return of `map` is not reversible.  What a load of hogwash.
-;(ag/one-arg reversed #:type (immutable (iterable-type (fresh-type-variable))))
+(ag/one-arg reversed
+            #:type (fresh-iterator (fresh-type-variable))
+            #:ctype (λ (n t)
+                      (define return-elem (fresh-type-variable))
+                      (define return-iterator (fresh-iterator return-elem))
+                      (unify! t return-iterator)
+                      (define arg-elem (fresh-type-variable))
+                      (define arg-array (fresh-iterable-or-sequence arg-elem))
+                      (hash 'l (function-type (product-type (list arg-elem))
+                                              return-elem)
+                            'r arg-array)))
 (ag/one-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
 ;; TODO - setattr()
@@ -862,10 +866,52 @@
 ;; TODO - str()
 ;; TODO - sum()
 ;; TODO - super()
-;; TODO - tuple()
+;; NOTE - tuple() is handled in the zero-cost converters.
 ;; TODO - type()
 ;; TODO - vars()
-;; TODO - zip()
+;; NOTE - zip() also takes zero arguments, but we skip that here for interest.
+(ag/one-arg zip
+            #:racr-name ZipOne
+            #:type (fresh-iterator (product-type (list (fresh-type-variable))))
+            #:ctype (λ (n t)
+                      (define return-elem (fresh-type-variable))
+                      (define return-array (fresh-mutable-array (product-type (list return-elem))))
+                      (unify! t return-array)
+                      (define arg-iterable (fresh-iterable return-elem))
+                      (hash 'Expression arg-iterable)))
+(ag/two-arg zip
+            #:racr-name ZipTwo
+            #:type (fresh-iterator (product-type (list (fresh-type-variable)
+                                                       (fresh-type-variable))))
+            #:ctype (λ (n t)
+                      (define return-elem1 (fresh-type-variable))
+                      (define return-elem2 (fresh-type-variable))
+                      (define return-array (fresh-mutable-array (product-type (list return-elem1
+                                                                                    return-elem2))))
+                      (unify! t return-array)
+                      (define arg-iterable1 (fresh-iterable return-elem1))
+                      (define arg-iterable2 (fresh-iterable return-elem2))
+                      (hash 'l arg-iterable1
+                            'r arg-iterable2)))
+(ag/three-arg zip
+              #:racr-name ZipThree
+              #:type (fresh-iterator (product-type (list (fresh-type-variable)
+                                                         (fresh-type-variable)
+                                                         (fresh-type-variable))))
+              #:ctype (λ (n t)
+                        (define return-elem1 (fresh-type-variable))
+                        (define return-elem2 (fresh-type-variable))
+                        (define return-elem3 (fresh-type-variable))
+                        (define return-array (fresh-mutable-array (product-type (list return-elem1
+                                                                                      return-elem2
+                                                                                      return-elem3))))
+                        (unify! t return-array)
+                        (define arg-iterable1 (fresh-iterable return-elem1))
+                        (define arg-iterable2 (fresh-iterable return-elem2))
+                        (define arg-iterable3 (fresh-iterable return-elem3))
+                        (hash 'l arg-iterable1
+                              'm arg-iterable2
+                              'r arg-iterable3)))
 
 ;;;;;;
 ;; NOTE: methods on instances of `str`, documented at: https://docs.python.org/3/library/stdtypes.html#string-methods
