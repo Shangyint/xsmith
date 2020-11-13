@@ -249,7 +249,7 @@
  python-comp
  ;; Sure, Python calls them lists, but my type system calls them arrays.
  #:name ArrayComprehension
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (mutable (array-type elem-type))))
 (add-property
  python-comp render-node-info
@@ -267,7 +267,7 @@
  python-comp
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
 (add-property
  python-comp render-node-info
@@ -284,7 +284,7 @@
 (add-loop-over-container
  python-comp
  #:name LoopOverArray
- #:collection-type-constructor (λ (elem-type) (fresh-iterable-or-sequence-or-array elem-type))
+ #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence-or-array elem-type))
  #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
