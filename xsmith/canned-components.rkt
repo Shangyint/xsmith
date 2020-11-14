@@ -440,7 +440,7 @@
                    (add-property
                     component
                     type-info
-                    [StringLiteral [string-type (no-child-types)]]
+                    [StringLiteral [string-type no-child-types]]
                     [StringAppend [string-type (λ (n t) (hash 'l string-type 'r string-type))]]
                     [StringLength [index-and-length-type
                                    (λ (n t) (hash 'Expression string-type))]]))
