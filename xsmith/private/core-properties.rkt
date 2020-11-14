@@ -2355,17 +2355,9 @@ TODO - add proper documentation.
            [(edit-proc ...)
             (values
              k
-             #'(λ (n)
-                 (define procs (list edit-proc ...))
-                 (define result-pre-wrap
-                   (for/or ([p procs])
-                     (p n)))
-                 (and result-pre-wrap
-                      ;; We return the node that was edited so that we can
-                      ;; automatically re-type it in the elaboration loop.
-                      (λ () (result-pre-wrap) n))))]))
+             #'(_xsmith_edit-single-info/wrapper (list edit-proc ...)))]))
        #f
-       #'(λ (n) #f)))
+       #'always-false-attribute))
     (define _xsmith_edit-walk-info
       (hash #f #'(λ (n) (or (att-value '_xsmith_edit-single n)
                             (for/or ([c (ast-children/flat n)])
@@ -2373,6 +2365,15 @@ TODO - add proper documentation.
                                    (not (ast-bud-node? c))
                                    (att-value '_xsmith_edit-walk c)))))))
     (list _xsmith_edit-single-info _xsmith_edit-walk-info)))
+(define (_xsmith_edit-single-info/wrapper edit-procs)
+  (λ (n)
+    (define result-pre-wrap
+      (for/or ([p edit-procs])
+        (p n)))
+    (and result-pre-wrap
+         ;; We return the node that was edited so that we can
+         ;; automatically re-type it in the elaboration loop.
+         (λ () (result-pre-wrap) n))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
