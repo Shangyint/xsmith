@@ -88,8 +88,11 @@
   racket/match
   ))
 
-(require (rename-in racket/dict [dict-ref r:dict-ref]))
-(define-syntax (dict-ref stx)
+(require
+ racket/dict
+ ;(rename-in racket/dict [dict-ref r:dict-ref])
+ )
+#;(define-syntax (dict-ref stx)
   (syntax-parse stx
     [(_ d k (~optional fb))
      #`(let ([d* d]
