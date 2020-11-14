@@ -67,6 +67,9 @@
   (λ (n t) (hash 'Expression t)))
 
 
+;; TODO - if I could make Ectype somehow cache the resulting function I could
+;; probably somewhat reduce code size (good for runtime) as well as memory
+;; usage during compilation.
 (define-syntax-parser Ectype
   [(_ etype:expr)
    #'(λ (n t) (hash 'Expression etype))])
