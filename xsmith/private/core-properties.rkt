@@ -968,6 +968,14 @@ It just reads the values of several other properties and produces the results fo
                                                    'def-or-param))])))
     (list _xsmith_binder-type-field xsmith_definition-binding-info)))
 
+(define (make/_xsmith_resolve-reference field)
+  (λ (n)
+    (when (not field) (error '_xsmith_resolve-reference
+                             "not a reference node: ~a"
+                             (node-type n)))
+    (att-value '_xsmith_resolve-reference-name
+               n (ast-child field n))))
+
 (define-property reference-info
   #:reads (grammar)
   #:appends
@@ -1008,13 +1016,8 @@ It just reads the values of several other properties and produces the results fo
     (define _xsmith_resolve-reference
       (for/hash ([node nodes])
         (values node
-                #`(λ (n)
-                    (define field #,(dict-ref _xsmith_is-reference-info node))
-                    (when (not field) (error '_xsmith_resolve-reference
-                                             "not a reference node: ~a"
-                                             (node-type n)))
-                    (att-value '_xsmith_resolve-reference-name
-                               n (ast-child field n))))))
+                #`(make/_xsmith_resolve-reference
+                   #,(dict-ref _xsmith_is-reference-info node)))))
     (list _xsmith_is-read-reference-choice?-info
           _xsmith_is-read-reference-node?-info
           _xsmith_is-reference-node?-info
