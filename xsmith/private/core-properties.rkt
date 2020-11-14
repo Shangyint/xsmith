@@ -855,8 +855,8 @@ It just reads the values of several other properties and produces the results fo
       (for/hash ([node nodes])
         (values node
                 (syntax-parse (dict-ref lift-predicate-info node #'#t)
-                  [#t #'(λ (n type) #t)]
-                  [#f #'(λ (n type) #f)]
+                  [#t #'always-true-attribute]
+                  [#f #'always-false-attribute]
                   [predicate #'predicate]))))
 
     (define _xsmith_lift-destinations-info
@@ -1088,12 +1088,9 @@ It just reads the values of several other properties and produces the results fo
        (list-ref choices-ordered choice-n)])))
 
 (define-property reference-choice-info
-  #:reads (grammar)
   #:appends (attribute _xsmith_reference-choice)
   #:transformer
-  (λ (this-prop-info grammar-info)
-    (define nodes (dict-keys grammar-info))
-
+  (λ (this-prop-info)
     (define _xsmith_reference-choice-info
       (if (dict-has-key? this-prop-info #f)
           this-prop-info
