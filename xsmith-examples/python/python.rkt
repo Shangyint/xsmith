@@ -1215,8 +1215,8 @@
 ;; TODO - format()  ;; XXX - changed in 3.7
 ;; TODO - format_map()
 ;; TODO - index()  ;; XXX - like str.find, but raises ValueError when substring not found
-(ag/str-method/zero-arg isalnum)
-(ag/str-method/zero-arg isalpha)
+(ag/str-method/zero-arg isalnum #:type bool-type)
+(ag/str-method/zero-arg isalpha #:type bool-type)
 ;; TODO - isascii()  ;; XXX - new in 3.7
 (ag/str-method/zero-arg isdecimal #:type bool-type)
 (ag/str-method/zero-arg isdigit #:type bool-type)
