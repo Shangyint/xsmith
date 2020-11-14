@@ -1788,70 +1788,11 @@ The second arm is a function that takes the type that the node has been assigned
       (for/hash ([n (dict-keys node-child-dict-funcs)])
         (values
          n
-         #`(λ (node)
-             (define my-type (att-value 'xsmith_type node))
-             (define my-type->child-type-dict
-               #,(dict-ref node-child-dict-funcs n))
-             (when (not (procedure? my-type->child-type-dict))
-               (error 'type-info "bad value for right side of type-info for node type ~v, expected procedure (-> node type type-hash), got ~v"
-                      (ast-node-type node)
-                      my-type->child-type-dict))
-             (define child-types
-               (with-handlers
-                 ([exn:fail?
-                   (λ (e)
-                     (xd-printf "Exception raised during evaluation of child type")
-                     (xd-printf " dictionary for node with serial number ~v of AST"
-                                (ast-child 'xsmithserialnumber node))
-                     (xd-printf " type ~a\n\n"
-                                (ast-node-type node))
-                     (raise e))])
-                 (my-type->child-type-dict node my-type)))
-             (when (not (dict? child-types))
-               (error
-                'type-info
-                "Bad type rule for node type: ~v, instead of dict?, got: ~v"
-                (ast-node-type node) child-types))
-             (define reference-unify-target
-               #,(dict-ref node-reference-unify-target n))
-             (define read-or-write
-               #,(dict-ref node-r/w-type n))
-             (when (and reference-unify-target (not (eq? #t reference-unify-target)))
-               ;; This is the case that we can't handle in
-               ;; xsmith_type-info-func to avoid a cycle.
-               (let* ([var-name (ast-child #,(dict-ref node-reference-field n)
-                                           node)]
-                      [binding-t
-                       (binding-type
-                        (att-value '_xsmith_resolve-reference-name node var-name))]
-                      [target-t
-                       (get-value-from-parent-dict
-                        child-types reference-unify-target
-                        (λ () (error 'type-info
-                                     "No type given for field ~a"
-                                     reference-unify-target)))])
-                 (with-handlers
-                   ([(λ(e)#t)
-                     (λ (e)
-                       (xd-printf "Error while unifying type for reference.\n")
-                       (xd-printf "Variable name: ~a\n" var-name)
-                       (xd-printf "Type recorded in definition: ~v\n" binding-t)
-                       (xd-printf "Type required for reference-unify target: ~v\n"
-                                  target-t)
-                       (raise e))])
-                   ;; I should probably disallow the #:unifies argument
-                   ;; for read references. I'm not entirely sure what
-                   ;; the relationship to the target should be in that
-                   ;; case, so I'll be conservative and say it has to
-                   ;; symmetrically unify.
-                   ;;
-                   ;; But if it's a write, then it means that the target
-                   ;; is the RHS of the write, and it can be any subtype
-                   ;; of the variable referenced.
-                   (if (eq? 'read read-or-write)
-                       (unify! binding-t target-t)
-                       (subtype-unify! target-t binding-t)))))
-             child-types))))
+         #`(make/_xsmith_children-type-dict-info
+            #,(dict-ref node-child-dict-funcs n)
+            #,(dict-ref node-reference-unify-target n)
+            #,(dict-ref node-r/w-type n)
+            #,(dict-ref node-reference-field n)))))
     (define _xsmith_type-constraint-from-parent-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1972,6 +1913,69 @@ The second arm is a function that takes the type that the node has been assigned
      xsmith_get-reference-for-child!-info
      _xsmith_function-application-info
      )))
+
+(define (make/_xsmith_children-type-dict-info
+         my-type->child-type-dict
+         reference-unify-target
+         read-or-write
+         node-reference-field)
+  (λ (node)
+    (define my-type (att-value 'xsmith_type node))
+    (when (not (procedure? my-type->child-type-dict))
+      (error 'type-info "bad value for right side of type-info for node type ~v, expected procedure (-> node type type-hash), got ~v"
+             (ast-node-type node)
+             my-type->child-type-dict))
+    (define child-types
+      (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (xd-printf "Exception raised during evaluation of child type")
+            (xd-printf " dictionary for node with serial number ~v of AST"
+                       (ast-child 'xsmithserialnumber node))
+            (xd-printf " type ~a\n\n"
+                       (ast-node-type node))
+            (raise e))])
+        (my-type->child-type-dict node my-type)))
+    (when (not (dict? child-types))
+      (error
+       'type-info
+       "Bad type rule for node type: ~v, instead of dict?, got: ~v"
+       (ast-node-type node) child-types))
+    (when (and reference-unify-target (not (eq? #t reference-unify-target)))
+      ;; This is the case that we can't handle in
+      ;; xsmith_type-info-func to avoid a cycle.
+      (let* ([var-name (ast-child node-reference-field node)]
+             [binding-t
+              (binding-type
+               (att-value '_xsmith_resolve-reference-name node var-name))]
+             [target-t
+              (get-value-from-parent-dict
+               child-types reference-unify-target
+               (λ () (error 'type-info
+                            "No type given for field ~a"
+                            reference-unify-target)))])
+        (with-handlers
+          ([(λ(e)#t)
+            (λ (e)
+              (xd-printf "Error while unifying type for reference.\n")
+              (xd-printf "Variable name: ~a\n" var-name)
+              (xd-printf "Type recorded in definition: ~v\n" binding-t)
+              (xd-printf "Type required for reference-unify target: ~v\n"
+                         target-t)
+              (raise e))])
+          ;; I should probably disallow the #:unifies argument
+          ;; for read references. I'm not entirely sure what
+          ;; the relationship to the target should be in that
+          ;; case, so I'll be conservative and say it has to
+          ;; symmetrically unify.
+          ;;
+          ;; But if it's a write, then it means that the target
+          ;; is the RHS of the write, and it can be any subtype
+          ;; of the variable referenced.
+          (if (eq? 'read read-or-write)
+              (unify! binding-t target-t)
+              (subtype-unify! target-t binding-t)))))
+    child-types))
 
 (define (can-unify-node-type-with-type?! node-in-question type-constraint
                                          #:break-when-more-settled?
