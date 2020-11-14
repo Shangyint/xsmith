@@ -31,6 +31,18 @@
 (define real-type (base-type 'real number-type #:leaf? #f))
 (define int-type (base-type 'int real-type))
 (define float-type (base-type 'float real-type))
+;; NOTE - Certain calls in Python can raise OverflowError or MemoryError when
+;;        given numbers of a certain size.
+(define ssize_t-max-size (expt 2 63))
+(define overflow-safe-ssize_t-min-value (* -1 ssize_t-max-size))  ;; Minimum allowable value that does not cause OverflowError.
+(define overflow-safe-ssize_t-max-value (sub1 ssize_t-max-size))  ;; Maximum allowable value that does not cause OverflowError.
+(define overflow-safe-ssize_t-type (base-type 'overflow-safe-ssize_t real-type))
+(define int-max-size (expt 2 31))
+(define overflow-safe-int-min-value (* -1 int-max-size))
+(define overflow-safe-int-max-value (sub1 int-max-size))
+(define overflow-safe-int-type (base-type 'overflow-safe-int real-type))
+(define string-safe-int-max-value (expt 2 16))  ;; Arbitrary max argument value for string-generating functions.
+(define string-safe-int-type (base-type 'string-safe-int real-type))
 
 (define char-type (base-type 'char))
 (define dictionary-key-type
@@ -455,8 +467,25 @@
 ;;;; Zero-Cost Converters
 ;;;;
 
-;; A syntax parser to make creating zero-cost converters easier.
-(define-syntax-parser ag/zero-cost-converter
+(define-syntax-parser ag/zero-cost-simple-converter
+  [(_ name:id
+      ;; `consumes` and `produces` are expressions that resolve to simple types.
+      (~seq #:consumes consumes:expr)
+      (~seq #:produces produces:expr)
+      ;; `renderer` is a function that takes a node as argument and renders it.
+      (~seq #:renderer render-func:expr))
+   #'(ag [name Expression ([Expression])
+               #:prop depth-increase 0
+               #:prop wont-over-deepen #t
+               #:prop choice-weight 1
+               #:prop type-info
+               [produces
+                (λ (n t)
+                  (hash 'Expression consumes))]
+               #:prop render-node-info render-func])])
+
+;; A syntax parser to make creating zero-cost container converters easier.
+(define-syntax-parser ag/zero-cost-container-converter
   [(_ name:id
       ;; `consumes` and `produces` are functions that take an inner type as
       ;; argument and create a new wrapper type.
@@ -478,14 +507,36 @@
                   (hash 'Expression consumed-type))]
                #:prop render-node-info render-func])])
 
+;;;;
+;; Numerical Converters
+
+(ag/zero-cost-simple-converter
+ IntToOverflowSafeInt
+ #:consumes int-type
+ #:produces overflow-safe-int-type
+ #:renderer (render-child-in "NE_safe_int"))
+(ag/zero-cost-simple-converter
+ IntToOverflowSafeSsizeT
+ #:consumes int-type
+ #:produces overflow-safe-ssize_t-type
+ #:renderer (render-child-in "NE_safe_ssize_t"))
+(ag/zero-cost-simple-converter
+ IntToStringSafeInt
+ #:consumes int-type
+ #:produces string-safe-int-type
+ #:renderer (render-child-in "NE_safe_string_int"))
+
+;;;;
+;; Iterator/Iterable/Sequence/Array Converters
+
 ;; ___->Iterator
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  ConvertToIterator
  #:consumes fresh-iterable-or-sequence-or-array
  #:produces fresh-iterator
  #:renderer render-child-in-iter)
 ;; ___->ImmutableSequence (Tuple)
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  ConvertToImmutableSequence
  #:consumes (λ (inner)
               (fresh-type-variable
@@ -497,7 +548,7 @@
  #:produces fresh-immutable-sequence
  #:renderer render-child-in-tuple)
 ;; ___->MutableArray (List)
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  ConvertToMutableArray
  #:consumes (λ (inner)
               (fresh-type-variable
@@ -508,25 +559,25 @@
  #:produces fresh-mutable-array
  #:renderer render-child-in-list)
 ;; Iterator==Iterable
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  IteratorIsAnIterable
  #:consumes fresh-iterator
  #:produces fresh-iterable
  #:renderer render-expression-child)
 ;; ImmutableSequence==ImmutableIterable
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  ImmutableSequenceIsAnImmutableIterable
  #:consumes fresh-immutable-sequence
  #:produces fresh-immutable-iterable
  #:renderer render-expression-child)
 ;; MutableSequence==MutableIterable
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  MutableSequenceIsAMutableIterable
  #:consumes fresh-mutable-sequence
  #:produces fresh-mutable-iterable
  #:renderer render-expression-child)
 ;; MutableArray==MutableSequence
-(ag/zero-cost-converter
+(ag/zero-cost-container-converter
  MutableArrayIsAMutableSequence
  #:consumes fresh-mutable-array
  #:produces fresh-mutable-sequence
@@ -1040,8 +1091,8 @@
 ;; NOTE - capitalize - changed in 3.8
 (ag/str-method/zero-arg capitalize)
 (ag/str-method/zero-arg casefold)
-(ag/str-method/one-arg center #:ctype (SM1ctype int-type))
-(ag/str-method/two-arg center #:ctype (SM2ctype int-type char-type))
+(ag/str-method/one-arg center #:ctype (SM1ctype string-safe-int-type))
+(ag/str-method/two-arg center #:ctype (SM2ctype string-safe-int-type char-type))
 (ag/str-method/one-arg count #:type int-type)
 (ag/str-method/two-arg count #:type int-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg count #:type int-type #:ctype (SM3ctype string-type int-type int-type))
@@ -1157,7 +1208,7 @@
 (ag/str-method/two-arg endswith #:type bool-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg endswith #:type bool-type #:ctype (SM3ctype string-type int-type int-type))
 (ag/str-method/zero-arg expandtabs)
-(ag/str-method/one-arg expandtabs #:ctype (SM1ctype int-type))
+(ag/str-method/one-arg expandtabs #:ctype (SM1ctype overflow-safe-int-type))
 (ag/str-method/one-arg find #:type int-type)
 (ag/str-method/two-arg find #:type int-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg find #:type int-type #:ctype (SM3ctype string-type int-type int-type))
@@ -1177,8 +1228,8 @@
 (ag/str-method/zero-arg istitle #:type bool-type)
 (ag/str-method/zero-arg isupper #:type bool-type)
 (ag/str-method/one-arg join #:ctype (SM1ctype (fresh-iterable string-type)))
-(ag/str-method/one-arg ljust #:ctype (SM1ctype int-type))
-(ag/str-method/two-arg ljust #:ctype (SM2ctype int-type char-type))
+(ag/str-method/one-arg ljust #:ctype (SM1ctype string-safe-int-type))
+(ag/str-method/two-arg ljust #:ctype (SM2ctype string-safe-int-type char-type))
 (ag/str-method/zero-arg lower)
 (ag/str-method/zero-arg lstrip)
 (ag/str-method/one-arg lstrip)
@@ -1187,22 +1238,22 @@
 ;; TODO - removeprefix()  ;; XXX - new in 3.9
 ;; TODO - removesuffix()  ;; XXX - new in 3.9
 (ag/str-method/two-arg replace)
-(ag/str-method/three-arg replace #:ctype (SM3ctype string-type string-type int-type))
+(ag/str-method/three-arg replace #:ctype (SM3ctype string-type string-type overflow-safe-ssize_t-type))
 (ag/str-method/one-arg rfind #:type int-type)
 (ag/str-method/two-arg rfind #:type int-type #:ctype (SM2ctype string-type int-type))
 (ag/str-method/three-arg rfind #:type int-type #:ctype (SM3ctype string-type int-type int-type))
 ;; TODO - rindex()  ;; XXX - like str.rfind, but raises ValueError when substring not found
-(ag/str-method/one-arg rjust #:ctype (SM1ctype int-type))
-(ag/str-method/two-arg rjust #:ctype (SM2ctype int-type char-type))
+(ag/str-method/one-arg rjust #:ctype (SM1ctype string-safe-int-type))
+(ag/str-method/two-arg rjust #:ctype (SM2ctype string-safe-int-type char-type))
 (ag/str-method/one-arg rpartition #:type (product-type (list string-type string-type string-type)))
 (ag/str-method/zero-arg rsplit #:type (fresh-iterable string-type))
 (ag/str-method/one-arg rsplit #:type (fresh-iterable string-type))
-(ag/str-method/two-arg rsplit #:type (fresh-iterable string-type) #:ctype (SM2ctype string-type int-type))
+(ag/str-method/two-arg rsplit #:type (fresh-iterable string-type) #:ctype (SM2ctype string-type overflow-safe-ssize_t-type))
 (ag/str-method/zero-arg rstrip)
 (ag/str-method/one-arg rstrip)
 (ag/str-method/zero-arg split #:type (fresh-iterable string-type))
 (ag/str-method/one-arg split #:type (fresh-iterable string-type))
-(ag/str-method/two-arg split #:type (fresh-iterable string-type) #:ctype (SM2ctype string-type int-type))
+(ag/str-method/two-arg split #:type (fresh-iterable string-type) #:ctype (SM2ctype string-type overflow-safe-ssize_t-type))
 (ag/str-method/zero-arg splitlines #:type (fresh-iterable string-type))
 (ag/str-method/one-arg splitlines #:type (fresh-iterable string-type) #:ctype (SM1ctype bool-type))
 (ag/str-method/one-arg startswith #:type bool-type)
@@ -1214,10 +1265,11 @@
 (ag/str-method/zero-arg title)
 ;; TODO - translate()
 (ag/str-method/zero-arg upper)
-(ag/str-method/one-arg zfill #:ctype (SM1ctype int-type))
+(ag/str-method/one-arg zfill #:ctype (SM1ctype string-safe-int-type))
 
 (define header-definitions-block
-  "
+  (string-append
+   "
 from inspect import signature
 
 FAKEBLOCK = True
@@ -1242,6 +1294,18 @@ def NE_divmod(x, y):
     return (x, y)
   else:
     return divmod(x, y)
+def NE_safe_int(x):
+    if x < 0:
+        " (format "return -(x % ~a)" overflow-safe-int-min-value) "
+    else:
+        " (format "return x % ~a" overflow-safe-int-max-value) "
+def NE_safe_ssize_t(x):
+    if x < 0:
+        " (format "return -(x % ~a)" overflow-safe-ssize_t-min-value) "
+    else:
+        " (format "return x % ~a" overflow-safe-ssize_t-max-value) "
+def NE_safe_string_int(x):
+     " (format "return x % ~a" string-safe-int-max-value) "
 def list_safe_reference(array, index, fallback):
   if not (len(array) == 0):
     return array[index % len(array)]
@@ -1287,7 +1351,7 @@ def to_string(x):
     else:
         return repr(x)
 
-")
+"))
 
 ;;;; Render nodes from add-basic-statements/expressions
 (add-property
