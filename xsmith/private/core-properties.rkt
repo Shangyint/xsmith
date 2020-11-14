@@ -1749,7 +1749,16 @@ The second arm is a function that takes the type that the node has been assigned
                       (ast-node-type node)
                       my-type->child-type-dict))
              (define child-types
-               (my-type->child-type-dict node my-type))
+               (with-handlers
+                 ([exn:fail?
+                   (λ (e)
+                     (xd-printf "Exception raised during evaluation of child type")
+                     (xd-printf " dictionary for node with serial number ~v of AST"
+                                (ast-child 'xsmithserialnumber node))
+                     (xd-printf " type ~a\n\n"
+                                (ast-node-type node))
+                     (raise e))])
+                 (my-type->child-type-dict node my-type)))
              (when (not (dict? child-types))
                (error
                 'type-info
