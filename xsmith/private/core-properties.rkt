@@ -185,29 +185,31 @@
   #:transformer (syntax-parser [#t #'(λ () this)]
                                [#f #'(λ () #f)]))
 
+(define (depth-increase-wrapper inc)
+  (λ (n)
+    (define increment
+      (cond [(number? inc) inc]
+            [(procedure? inc) (inc n)]
+            [else
+             (error 'depth-increase
+                    "bad value for depth-increase: ~v"
+                    inc)]))
+    (define parent-depth
+      (cond [(and (ast-has-child? 'xsmithliftdepth n)
+                  (number? (ast-child 'xsmithliftdepth n)))
+             (ast-child 'xsmithliftdepth n)]
+            [(ast-has-parent? n)
+             (att-value 'xsmith_ast-depth (parent-node n))]
+            [else 0]))
+    (+ increment parent-depth)))
 (define-non-inheriting-rule-property
   depth-increase
   attribute
   #:rule-name xsmith_ast-depth
-  #:default (λ (n) 1)
+  #:default 1
   #:transformer (syntax-parser
                   [inc:expr
-                   #'(λ (n)
-                       (define increment
-                         (cond [(number? inc) inc]
-                               [(procedure? inc) (inc n)]
-                               [else
-                                (error 'depth-increase
-                                       "bad value for depth-increase: ~v"
-                                       inc)]))
-                       (define parent-depth
-                         (cond [(and (ast-has-child? 'xsmithliftdepth n)
-                                     (number? (ast-child 'xsmithliftdepth n)))
-                                (ast-child 'xsmithliftdepth n)]
-                               [(ast-has-parent? n)
-                                (att-value 'xsmith_ast-depth (parent-node n))]
-                               [else 0]))
-                       (+ increment parent-depth))]))
+                   #'(depth-increase-wrapper inc)]))
 
 (define-property feature
   #:allow-duplicates? #t
