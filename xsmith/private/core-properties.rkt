@@ -279,48 +279,67 @@
         (define gnfss (dict-ref field-info-hash node))
         (values
          node
-         #`(λ (n)
-             ;; Compute the node name so we get hole names.
-             (define node-name (ast-node-type n))
-             (define (rec cn)
-               (if (and (ast-node? cn)
-                        (ast-bud-node? cn))
-                   '_RACR-BUD-NODE_
-                   (att-value '_xsmith_to-s-expression cn)))
-             `(,node-name
-               ,@(match (current-s-exp-show-base-fields)
-                   [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
-                         (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
-                         (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
-                         (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
-                         )]
-                   ['xsmithserialnumber `((xsmithserialnumber
-                                           ,(ast-child 'xsmithserialnumber n)))]
-                   ;; We could put the other fields here, but I don't care to right now.
-                   [else '()])
-               #,@(for/list ([gnfs gnfss])
-                    (match gnfs
-                      [(grammar-node-field-struct field-name #f #f _)
-                       ;; No type, no kleene star.
-                       #`,(list '#,field-name (ast-child '#,field-name n))]
-                      [(grammar-node-field-struct field-name #f #t _)
-                       ;; No type, yes kleene star.
-                       #`,(list '#,field-name
-                                (ast-children (ast-child '#,field-name n)))]
-                      [(grammar-node-field-struct field-name
-                                                  ast-node-type
-                                                  #f _)
-                       ;; AST type, no kleene star
-                       #`,(list '#,field-name
-                                (rec (ast-child '#,field-name n)))]
-                      [(grammar-node-field-struct field-name
-                                                  ast-node-type
-                                                  #t _)
-                       ;; AST type, yes kleene star
-                       #`,(list '#,field-name
-                                (map rec
-                                     (ast-children (ast-child '#,field-name n))))])))))))
+         #`(make/to-s-exp-function
+            (list
+             #,@(for/list ([gnfs gnfss])
+                  (match gnfs
+                    [(grammar-node-field-struct field-name #f #f _)
+                     ;; No type, no kleene star.
+                     #`(list '#,field-name #f #f)]
+                    [(grammar-node-field-struct field-name #f #t _)
+                     ;; No type, yes kleene star.
+                     #`(list '#,field-name #f #t)]
+                    [(grammar-node-field-struct field-name
+                                                ast-node-type
+                                                #f _)
+                     ;; AST type, no kleene star
+                     #`(list '#,field-name #t #f)]
+                    [(grammar-node-field-struct field-name
+                                                ast-node-type
+                                                #t _)
+                     ;; AST type, yes kleene star
+                     #`(list '#,field-name #t #t)])))))))
     (list _xsmith_to-s-expression-info)))
+
+(define (make/to-s-exp-function field-specs)
+  ;; each field spec is a list '(field-name typed? kleene-star?)
+  (λ (n)
+    ;; Compute the node name so we get hole names.
+    (define node-name (ast-node-type n))
+    (define (rec cn)
+      (if (and (ast-node? cn)
+               (ast-bud-node? cn))
+          '_RACR-BUD-NODE_
+          (att-value '_xsmith_to-s-expression cn)))
+    `(,node-name
+      ,@(match (current-s-exp-show-base-fields)
+          [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
+                (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
+                (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
+                )]
+          ['xsmithserialnumber `((xsmithserialnumber
+                                  ,(ast-child 'xsmithserialnumber n)))]
+          ;; We could put the other fields here, but I don't care to right now.
+          [else '()])
+      ,@(map (λ (spec)
+               (match spec
+                 [(list field-name #f #f)
+                  ;; No type, no kleene star.
+                  (list field-name (ast-child field-name n))]
+                 [(list field-name #f #t)
+                  ;; No type, yes kleene star.
+                  (list field-name (ast-children (ast-child field-name n)))]
+                 [(list field-name #t #f)
+                  ;; AST type, no kleene star
+                  (list field-name (rec (ast-child field-name n)))]
+                 [(list field-name #t #t)
+                  ;; AST type, yes kleene star
+                  (list field-name
+                        (map rec
+                             (ast-children (ast-child field-name n))))]))
+             field-specs))))
+
 
 #|
 The fresh property will take an expression (to be the body of a method
