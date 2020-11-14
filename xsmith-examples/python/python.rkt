@@ -739,7 +739,7 @@
 (ag/one-arg bytes
             #:racr-name BytesOne
             #:type byte-string-type
-            #:ctype (Ectype (fresh-type-variable int-type )))
+            #:ctype (Ectype (fresh-type-variable string-safe-int-type)))
 (ag/one-arg callable #:type bool-type #:ctype (Ectype (fresh-type-variable)))
 (ag/one-arg chr #:NE-name NE_chr #:type char-type #:ctype (Ectype int-type))
 ;; TODO - classmethod()  ;; XXX - this is to be used as a decorator prior to a class's method declaration.
