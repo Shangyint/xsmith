@@ -1570,9 +1570,7 @@ def to_string(x):
  [IfElseStatement
   (λ (n)
     (h-append
-     (h-append (text "if") space lparen ($xsmith_render-node (ast-child 'test n)) rparen
-               space
-               (text ":"))
+     (h-append (text "if") space lparen ($xsmith_render-node (ast-child 'test n)) rparen colon)
      (nest nest-step
            (h-append line
                      (v-concat
