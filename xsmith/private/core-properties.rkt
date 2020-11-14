@@ -1724,7 +1724,6 @@ The second arm is a function that takes the type that the node has been assigned
                                             [i node-reference-info-cleansed])
                                    (values n (second i))))
 
-    ;; TODO - I should clean this up by making a syntax class to parse the binder-info property and get this info more easily.
     (define binder-type-field
       (for/hash ([n nodes])
         (values n (syntax-parse (dict-ref binder-info-info n #'#f)
