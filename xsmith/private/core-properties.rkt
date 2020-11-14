@@ -108,6 +108,10 @@
                                                )))))]))
 
 
+(define always-false-attribute (λ args #f))
+(define always-true-attribute (λ args #t))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Property syntax classes
@@ -956,9 +960,9 @@ It just reads the values of several other properties and produces the results fo
         (cond [(dict-ref name+type+d/p-hash node #f)
                =>
                (λ (l) (values node #`(λ (n) '#,(second l))))]
-              [else (values node #'(λ (n) #f))])))
+              [else (values node #'always-false-attribute)])))
     (define xsmith_definition-binding-info
-      (for/fold ([rule-info (hash #f #'(λ (n) #f))])
+      (for/fold ([rule-info (hash #f #'always-false-attribute)])
                 ([node nodes])
         (syntax-parse (dict-ref name+type+d/p-hash node #f)
           [#f rule-info]
@@ -1421,6 +1425,8 @@ few of these methods.
                                                            (ancestor-nodes node)))
     (xd-printf "(Note that type variables may have already been unified)\n"))
 
+(define (xsmith_type-info-func/parent-relation-only/wrap . args)
+  (λ (n) (apply xsmith_type-info-func/parent-relation-only n args)))
 (define (xsmith_type-info-func/parent-relation-only node
                                                     reference-unify-target
                                                     reference-field
@@ -1457,6 +1463,8 @@ few of these methods.
               (unify! my-type my-type-from-parent)
               (subtype-unify! my-type my-type-from-parent))))))
 
+(define (xsmith_type-info-func/wrap . args)
+  (λ (n) (apply xsmith_type-info-func n args)))
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
@@ -1633,6 +1641,7 @@ few of these methods.
                    t-prime
                    (do-error t-prime)))]
             [else (do-error t)]))))
+
 
 #|
 The type-info property is two-armed.
@@ -1841,14 +1850,12 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node)
-                          (xsmith_type-info-func
-                           node
-                           #,(dict-ref node-reference-unify-target n)
-                           #,(dict-ref node-reference-field n)
-                           #,(dict-ref binder-type-field n)
-                           #,(dict-ref binder-name-field n)
-                           #,(dict-ref parameter?-hash n)))))))
+            (values n #`(xsmith_type-info-func/wrap
+                         #,(dict-ref node-reference-unify-target n)
+                         #,(dict-ref node-reference-field n)
+                         #,(dict-ref binder-type-field n)
+                         #,(dict-ref binder-name-field n)
+                         #,(dict-ref parameter?-hash n))))))
     (define _xsmith_re-type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1870,14 +1877,12 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node)
-                          (xsmith_type-info-func/parent-relation-only
-                           node
-                           #,(dict-ref node-reference-unify-target n)
-                           #,(dict-ref node-reference-field n)
-                           #,(dict-ref binder-type-field n)
-                           #,(dict-ref binder-name-field n)
-                           #,(dict-ref parameter?-hash n)))))))
+            (values n #`(xsmith_type-info-func/parent-relation-only/wrap
+                         #,(dict-ref node-reference-unify-target n)
+                         #,(dict-ref node-reference-field n)
+                         #,(dict-ref binder-type-field n)
+                         #,(dict-ref binder-name-field n)
+                         #,(dict-ref parameter?-hash n))))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)
@@ -1980,14 +1985,35 @@ The second arm is a function that takes the type that the node has been assigned
     (define _xsmith_strict-child-order?-info
       (hash-set
        (for/hash ([(n v) (in-dict this-prop-info)])
-         (values n (syntax-parse v [b:boolean #'(λ (n) b)])))
-       #f #'(λ (n) #f)))
+         (values n (syntax-parse v
+                     [#t #'always-true-attribute]
+                     [#f #'always-false-attribute])))
+       #f #'always-false-attribute))
     (list _xsmith_strict-child-order?-info)))
 
 (define (non-hole-node? x)
   (and (ast-node? x)
        (not (ast-bud-node? x))
        (not (att-value 'xsmith_is-hole? x))))
+
+
+(define (mk-effect-read-mutable-attribute container-key)
+  (λ (n) (effect-read-mutable-container container-key)))
+(define (mk-effect-write-mutable-attribute container-key)
+  (λ (n) (effect-write-mutable-container container-key)))
+(define (_xsmith_no-mutable-container-effect-conflict?/read key cur-hole)
+  (not
+   (findf (λ (e) (or (any-effect? e)
+                     (and (effect-write-mutable-container? e)
+                          (eq? key (effect-variable e)))))
+          (att-value '_xsmith_effects cur-hole))))
+(define (_xsmith_no-mutable-container-effect-conflict?/write key cur-hole)
+  (not
+   (findf (λ (e) (or (any-effect? e)
+                     (and (or (effect-write-mutable-container? e)
+                              (effect-read-mutable-container? e))
+                          (eq? key (effect-variable e)))))
+          (att-value '_xsmith_effects cur-hole))))
 
 (define-property mutable-container-access
   #:appends
@@ -2002,32 +2028,21 @@ The second arm is a function that takes the type that the node has been assigned
          n
          (syntax-parse (dict-ref this-prop-info n #f)
            [((~datum read) container-key:expr)
-            #'(λ (n) (effect-read-mutable-container container-key))]
+            #'(mk-effect-read-mutable-attribute container-key)]
            [((~datum write) container-key:expr)
-            #'(λ (n) (effect-write-mutable-container container-key))]
-           [#f #'(λ (n) #f)]))))
+            #'(mk-effect-write-mutable-attribute container-key)]
+           [#f #'always-false-attribute]))))
     (define _xsmith_no-mutable-container-effect-conflict?
       (for/hash ([n nodes])
         (values
          n
          (syntax-parse (dict-ref this-prop-info n #f)
            [((~datum read) container-key:expr)
-            #'(λ ()
-                (define key container-key)
-                (not
-                 (findf (λ (e) (or (any-effect? e)
-                                   (and (effect-write-mutable-container? e)
-                                        (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects (current-hole)))))]
+            #'(λ () (_xsmith_no-mutable-container-effect-conflict?/read
+                     container-key (current-hole)))]
            [((~datum write) container-key:expr)
-            #'(λ ()
-                (define key container-key)
-                (not
-                 (findf (λ (e) (or (any-effect? e)
-                                   (and (or (effect-write-mutable-container? e)
-                                            (effect-read-mutable-container? e))
-                                        (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects (current-hole)))))]
+            #'(λ () (_xsmith_no-mutable-container-effect-conflict?/write
+                     container-key (current-hole)))]
            [#f #'(λ () #t)]))))
     (list _xsmith_mutable-container-effects-info
           _xsmith_no-mutable-container-effect-conflict?)))
@@ -2035,7 +2050,6 @@ The second arm is a function that takes the type that the node has been assigned
 (define-property required-child-reference)
 (define-property io
   #:reads
-  (grammar)
   (property reference-info)
   (property required-child-reference)
   #:appends
@@ -2048,14 +2062,16 @@ The second arm is a function that takes the type that the node has been assigned
   (choice-method _xsmith_no-io-conflict?)
   (choice-method _xsmith_no-required-child-reference-conflict?)
   #:transformer
-  (λ (this-prop-info grammar-info reference-info required-child-reference-info)
-    (define nodes (dict-keys grammar-info))
-    (define io-info (for/hash ([node nodes])
+  (λ (this-prop-info reference-info required-child-reference-info)
+    (define io-nodes (remove-duplicates
+                      (append (dict-keys this-prop-info)
+                              (dict-keys reference-info))))
+    (define io-info (for/hash ([node (cons #f io-nodes)])
                       (values node
                               (syntax-parse (dict-ref this-prop-info node #'#f)
                                 [b:boolean #'b]))))
     (define _xsmith_effects/no-children-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (define-values (read-or-write varname)
           (syntax-parse (dict-ref reference-info n #'#f)
             [prop:reference-info-class #:when (attribute prop.is-read?)
@@ -2078,7 +2094,7 @@ The second arm is a function that takes the type that the node has been assigned
                              (att-value '_xsmith_mutable-container-effects n)
                              )))))))
     (define _xsmith_function-application-effects/no-children-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (define-values (read-or-write varname)
           (syntax-parse (dict-ref reference-info n #'#f)
             [prop:reference-info-class #:when (attribute prop.is-read?)
@@ -2129,11 +2145,11 @@ The second arm is a function that takes the type that the node has been assigned
                               (type-contains-function-type?
                                (binding-type binding))
                               (any-effect))
-
                          ;; If a function comes as the result of another function,
                          ;; assume it may do anything.
                          (and (att-value '_xsmith_function-application n)
                               (any-effect))))))))))
+
     (define _xsmith_function-application-effects-info
       (hash
        #f
@@ -2199,7 +2215,7 @@ The second arm is a function that takes the type that the node has been assigned
                            (cons extended-family-constraints
                                  direct-constraints)))))))
     (define _xsmith_no-io-conflict?-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (values
          n
          (syntax-parse (list (dict-ref io-info n) (dict-ref reference-info n #'#f))
@@ -2221,7 +2237,7 @@ The second arm is a function that takes the type that the node has been assigned
                                       (current-hole)))))]
            [(#f #f) #'(λ () #t)]))))
     (define _xsmith_no-required-child-reference-conflict?-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (values
          n
          (syntax-parse (dict-ref required-child-reference-info n #'#f)
