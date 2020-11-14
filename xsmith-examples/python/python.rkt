@@ -854,10 +854,17 @@
             #:type (fresh-comparable-type)
             #:ctype (λ (n t) (hash 'l (fresh-sequence t)
                                    'r t)))
-(ag/one-arg next
+;; NOTE - next() takes an iterator and returns the next element in that
+;;        iterator. However, this can frequently lead to Python raising
+;;        StopIteration exceptions when the iterator becomes exhausted. We wrap
+;;        calls to next() in an exception-avoiding function with a default value
+;;        for when the exception would have been raised.
+(ag/two-arg next
+            #:NE-name NE_next
             #:type (fresh-type-variable)
             #:ctype (λ (n t)
-                      (hash 'Expression (fresh-immutable-iterator t))))
+                      (hash 'l (fresh-immutable-iterator t)
+                            'r t)))
 ;; TODO - object()
 (ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
@@ -1300,6 +1307,11 @@ def NE_divmod(x, y):
     return (x, y)
   else:
     return divmod(x, y)
+def NE_next(iterator, default_value):
+    try:
+        return next(iterator)
+    except:
+        return default_value
 def NE_safe_int(x):
     if x < 0:
         " (format "return -(x % ~a)" overflow-safe-int-min-value) "
