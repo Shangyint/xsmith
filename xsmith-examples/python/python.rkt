@@ -80,7 +80,8 @@
    (mutable (fresh-type-variable (iterable-type inner)
                                  (sequence-type inner)
                                  (array-type inner)))))
-(define (fresh-iterator inner)
+;; NOTE - Python only provides immutable iterators.
+(define (fresh-immutable-iterator inner)
   (immutable (iterator-type inner)))
 (define (fresh-iterable inner)
   (fresh-type-variable
@@ -282,7 +283,7 @@
  ;; This produces simple generator comprehensions.
  #:name SimpleGenerator
  #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence-or-array elem-type))
- #:loop-type-constructor (λ (elem-type) (fresh-iterator elem-type)))
+ #:loop-type-constructor (λ (elem-type) (fresh-immutable-iterator elem-type)))
 (add-property
  python-comp render-node-info
  [SimpleGenerator
@@ -529,11 +530,11 @@
 ;;;;
 ;; Iterator/Iterable/Sequence/Array Converters
 
-;; ___->Iterator
+;; ___->ImmutableIterator
 (ag/zero-cost-container-converter
  ConvertToIterator
  #:consumes fresh-iterable-or-sequence-or-array
- #:produces fresh-iterator
+ #:produces fresh-immutable-iterator
  #:renderer render-child-in-iter)
 ;; ___->ImmutableSequence (Tuple)
 (ag/zero-cost-container-converter
@@ -558,11 +559,11 @@
                (mutable (fresh-type-variable (iterable-type inner)))))
  #:produces fresh-mutable-array
  #:renderer render-child-in-list)
-;; Iterator==Iterable
+;; ImmutableIterator==ImmutableIterable
 (ag/zero-cost-container-converter
  IteratorIsAnIterable
- #:consumes fresh-iterator
- #:produces fresh-iterable
+ #:consumes fresh-immutable-iterator
+ #:produces fresh-immutable-iterable
  #:renderer render-expression-child)
 ;; ImmutableSequence==ImmutableIterable
 (ag/zero-cost-container-converter
@@ -769,20 +770,20 @@
             #:type (product-type (list int-type int-type))
             #:ctype (E2ctype int-type int-type))
 (ag/one-arg enumerate
-            #:type (fresh-iterator (product-type (list int-type (fresh-type-variable))))
+            #:type (fresh-immutable-iterator (product-type (list int-type (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-iterator (fresh-iterator arg-elem))
+                      (define return-iterator (fresh-immutable-iterator arg-elem))
                       (unify! t return-iterator)
                       (define arg-iterable (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'Expression arg-iterable)))
 ;; TODO - eval()
 ;; TODO - exec()
 (ag/two-arg filter
-            #:type (fresh-iterator (fresh-type-variable))
+            #:type (fresh-immutable-iterator (fresh-type-variable))
             #:ctype (λ (n t)
                       (define arg-elem (fresh-type-variable))
-                      (define return-iterator (fresh-iterator arg-elem))
+                      (define return-iterator (fresh-immutable-iterator arg-elem))
                       (unify! t return-iterator)
                       (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
                       (hash 'l (function-type (product-type (list arg-elem))
@@ -817,10 +818,10 @@
 ;;        types. We define a few instances, though.
 (ag/two-arg map
             #:racr-name MapTwo
-            #:type (fresh-iterator (fresh-type-variable))
+            #:type (fresh-immutable-iterator (fresh-type-variable))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-iterator (fresh-iterator return-elem))
+                      (define return-iterator (fresh-immutable-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
                       (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
@@ -829,10 +830,10 @@
                             'r arg-array)))
 (ag/three-arg map
               #:racr-name MapThree
-              #:type (fresh-iterator (fresh-type-variable))
+              #:type (fresh-immutable-iterator (fresh-type-variable))
               #:ctype (λ (n t)
                         (define return-elem (fresh-type-variable))
-                        (define return-iterator (fresh-iterator return-elem))
+                        (define return-iterator (fresh-immutable-iterator return-elem))
                         (unify! t return-iterator)
                         (define arg1-elem (fresh-type-variable))
                         (define arg1-array (fresh-iterable-or-sequence-or-array arg1-elem))
@@ -856,7 +857,7 @@
 (ag/one-arg next
             #:type (fresh-type-variable)
             #:ctype (λ (n t)
-                      (hash 'Expression (fresh-iterator t))))
+                      (hash 'Expression (fresh-immutable-iterator t))))
 ;; TODO - object()
 (ag/one-arg oct #:type string-type #:ctype (Ectype int-type))
 ;; TODO - open()
@@ -885,10 +886,10 @@
               #:ctype (E3ctype int-type int-type int-type))
 (ag/one-arg repr #:type string-type #:ctype (Ectype (fresh-type-variable)))
 (ag/one-arg reversed
-            #:type (fresh-iterator (fresh-type-variable))
+            #:type (fresh-immutable-iterator (fresh-type-variable))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-iterator (fresh-iterator return-elem))
+                      (define return-iterator (fresh-immutable-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
                       (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
@@ -923,7 +924,7 @@
 ;; NOTE - zip() also takes zero arguments, but we skip that here for interest.
 (ag/one-arg zip
             #:racr-name ZipOne
-            #:type (fresh-iterator (product-type (list (fresh-type-variable))))
+            #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
                       (define return-array (fresh-mutable-array (product-type (list return-elem))))
@@ -932,7 +933,7 @@
                       (hash 'Expression arg-iterable)))
 (ag/two-arg zip
             #:racr-name ZipTwo
-            #:type (fresh-iterator (product-type (list (fresh-type-variable)
+            #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable)
                                                        (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define return-elem1 (fresh-type-variable))
@@ -946,7 +947,7 @@
                             'r arg-iterable2)))
 (ag/three-arg zip
               #:racr-name ZipThree
-              #:type (fresh-iterator (product-type (list (fresh-type-variable)
+              #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable)
                                                          (fresh-type-variable)
                                                          (fresh-type-variable))))
               #:ctype (λ (n t)
