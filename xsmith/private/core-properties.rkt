@@ -251,13 +251,13 @@
                            ;; When the choice in question is a reference and the
                            ;; parent node is a binding, let's automatically give
                            ;; minimum weight to stop reference chains quickly.
-                           [(and (send this _xsmith_is-read-reference-choice?)
+                           #;[(and (send this _xsmith_is-read-reference-choice?)
                                  (parent-node (current-hole))
                                  ;; using this attribute as a binder? predicate...
                                  (att-value '_xsmith_binder-type-field
                                             (parent-node (current-hole))))
                             1]
-                           [(procedure? node-val) (node-val)]
+                           [(procedure? node-val) (node-val (current-hole))]
                            [(number? node-val) node-val]
                            [else (error 'choice-weight "Invalid weight given: ~a. Expected number or procedure." node-val)])))))
      (hash #f #'(λ () (not (zero? (send this _xsmith_choice-weight))))))))

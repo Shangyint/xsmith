@@ -22,6 +22,8 @@
  array-type
  list-type
  dictionary-type
+
+ depth-weight
  )
 
 (require
@@ -54,6 +56,12 @@
 (define (arg-length)
   (random 6))
 (define variable-reference-weight 15)
+
+(define (depth-weight #:shallow [shallow-weight 1]
+                      #:deep [deep-weight 10])
+  (λ (n) (if (att-value 'xsmith_at-max-depth? n)
+             deep-weight
+             shallow-weight)))
 
 
 (define (random-string/ascii)
@@ -277,11 +285,10 @@
                                        #:prop type-info
                                        [(fresh-type-variable) no-child-types]
                                        #:prop choice-weight
-                                       (λ () (if (ast-subtype? (parent-node
-                                                                (current-hole))
-                                                               'Definition)
-                                                 1
-                                                 variable-reference-weight))]))
+                                       (λ (n) (if (ast-subtype? (parent-node n)
+                                                                'Definition)
+                                                  1
+                                                  variable-reference-weight))]))
                 #'())
 
          #,@(if (use? use-procedure-application)
@@ -343,7 +350,7 @@
                     component
                     [NumberLiteral Expression (v)
                                    #:prop may-be-generated #f
-                                   #:prop choice-weight 1]
+                                   #:prop choice-weight (depth-weight)]
                     [IntLiteral NumberLiteral ()
                                 #:prop fresh (hash 'v int-literal-value-e)]
                     [Plus Expression ([l : Expression] [r : Expression])]
@@ -414,7 +421,7 @@
                 #'((add-to-grammar
                     component
                     [BoolLiteral Expression ([v = (even? (random 2))])
-                                 #:prop choice-weight 1]
+                                 #:prop choice-weight (depth-weight)]
                     [Not Expression ([Expression])]
                     [And Expression ([l : Expression] [r : Expression])]
                     [Or Expression ([l : Expression] [r : Expression])])
@@ -434,7 +441,7 @@
                     [StringLiteral
                      Expression
                      ([v = string-literal-value-e])
-                     #:prop choice-weight 1]
+                     #:prop choice-weight (depth-weight)]
                     [StringAppend Expression ([l : Expression] [r : Expression])]
                     [StringLength Expression (Expression)])
                    (add-property
@@ -515,7 +522,7 @@
                      Expression
                      ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1]
+                     #:prop choice-weight (depth-weight)]
                     [ImmutableArraySafeReference
                      Expression ([array : Expression]
                                  [index : Expression]
@@ -558,11 +565,7 @@
                      Expression
                      ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight
-                     (λ () (if (att-value 'xsmith_at-max-depth?
-                                          (current-hole))
-                               10
-                               1))
+                     #:prop choice-weight (depth-weight)
                      #:prop type-info
                      [(immutable (list-type (fresh-type-variable)))
                       (λ (n t)
@@ -602,7 +605,7 @@
                      Expression
                      ([expressions : Expression * = (random array-max-length)])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1
+                     #:prop choice-weight (depth-weight)
                      #:prop type-info
                      [(mutable (fresh-array-type))
                       (λ (n t)
@@ -646,7 +649,7 @@
                      ([keys : Expression *]
                       [vals : Expression *])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1
+                     #:prop choice-weight (depth-weight)
                      #:prop fresh
                      (let ([elem-count (random array-max-length)])
                        (hash 'keys elem-count
@@ -739,7 +742,7 @@
                      Expression
                      (fieldnames [expressions : Expression *])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1
+                     #:prop choice-weight (depth-weight)
                      #:prop fresh
                      (let* ([t (begin (force-type-exploration-for-node!
                                        (current-hole))
@@ -801,7 +804,7 @@
                      Expression
                      (fieldnames [expressions : Expression *])
                      #:prop wont-over-deepen #t
-                     #:prop choice-weight 1
+                     #:prop choice-weight (depth-weight)
                      #:prop fresh
                      (let* ([t (begin (force-type-exploration-for-node!
                                        (current-hole))

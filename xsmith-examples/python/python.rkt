@@ -359,7 +359,7 @@
  python-comp
  [CharLiteral Expression ([v = (random-char)])
               #:prop type-info [char-type no-child-types]
-              #:prop choice-weight 1
+              #:prop choice-weight (depth-weight)
               #:prop render-node-info
               (λ (n) (text (python-string-format (string (ast-child 'v n)))))]
  [StringToSequence Expression (Expression)
@@ -384,7 +384,7 @@
                        #:prop render-node-info render-expression-child]
  [ByteStringLiteral Expression ([v = (random-byte-string)])
                     #:prop type-info [byte-string-type no-child-types]
-                    #:prop choice-weight 1
+                    #:prop choice-weight (depth-weight)
                     #:prop render-node-info
                     (λ (n) (text (python-byte-string-format (ast-child 'v n))))]
  [ByteStringAppend Expression ([l : Expression] [r : Expression])
@@ -409,7 +409,7 @@
 
  [TupleLiteral Expression ([values : Expression *])
                #:prop wont-over-deepen #t
-               #:prop choice-weight 1
+               #:prop choice-weight (depth-weight)
                #:prop fresh (let* ([t (att-value 'xsmith_type (current-hole))]
                                    [pt (product-type #f)]
                                    [_ (unify! t pt)]
@@ -483,7 +483,9 @@
    #'(ag [name Expression ([Expression])
                #:prop depth-increase 0
                #:prop wont-over-deepen #t
-               #:prop choice-weight 1
+               ;; Give max-depth choices more than minimum weight, but not
+               ;; much more since some can be fulfilled by literals.
+               #:prop choice-weight (depth-weight #:deep 4)
                #:prop type-info
                [produces
                 (λ (n t)
@@ -594,7 +596,7 @@
  python-comp
  [NumberLiteral Expression (v)
                 #:prop may-be-generated #f
-                #:prop choice-weight 1]
+                #:prop choice-weight (depth-weight)]
  [IntLiteral NumberLiteral ()
              #:prop fresh (hash 'v (biased-random-int))]
  [Plus Expression ([l : Expression] [r : Expression])]

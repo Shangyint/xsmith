@@ -1133,6 +1133,7 @@ This property determines the probability that different kinds of nodes will be c
 The expression provided as the choice weight will be evaluated in the context of a method call, so @racket[this] and @racket[current-hole] are available.
 
 Choice weights should be positive integer values.  The default weight is 10 unless set explicitly.
+Alternatively, you can specify a function that takes the node (IE the current hole) and returns a weight.
 
 Example:
 @racketblock[
@@ -1140,7 +1141,7 @@ Example:
  my-spec-component
  choice-weight
  (code:line "The default choice weight.")
- [#f (λ () 10)]
+ [#f (λ (n) 10)]
  (code:line "Generate more AdditionExpressions")
  [AdditionExpression 20]
  [MultiplicationExpression 15]

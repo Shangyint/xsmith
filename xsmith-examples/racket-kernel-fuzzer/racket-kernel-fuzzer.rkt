@@ -257,22 +257,22 @@
 
 (ag
  [EmptyListLiteral Expression ()
-                   #:prop choice-weight 1
+                   #:prop choice-weight (depth-weight)
                    #:prop type-info [(immutable (list-type (fresh-type-variable)))
                                      no-child-types]
                    #:prop render-node-info (λ (n) 'null)]
  [MutableStringLiteral Expression ([v = (biased-random-string)])
-                       #:prop choice-weight 1
+                       #:prop choice-weight (depth-weight)
                        #:prop type-info [mutable-string no-child-types]
                        #:prop render-node-info (λ (n)
                                                  `(string-copy ,(ast-child 'v n)))]
  [MutableBytesLiteral Expression ([v = (random-byte-string)])
-                      #:prop choice-weight 1
+                      #:prop choice-weight (depth-weight)
                       #:prop type-info [mutable-bytes no-child-types]
                       #:prop render-node-info (λ (n)
                                                 `(bytes-copy ,(ast-child 'v n)))]
  [DateLiteral Expression ([v = (random-int)])
-              #:prop choice-weight 1
+              #:prop choice-weight (depth-weight)
               #:prop type-info [date* no-child-types]
               ;; OK, so I'm just using seconds->date.  Not literally a date literal.
               #:prop render-node-info (λ (n) `(NE/seconds->date ,(ast-child 'v n)))]
@@ -284,7 +284,7 @@
 (define-syntax-parser ag/atomic-literal
   [(_ name:id type:expr fresh-expr:expr)
    #'(ag [name Expression ([v = fresh-expr])
-               #:prop choice-weight 1
+               #:prop choice-weight (depth-weight)
                #:prop type-info [type no-child-types]
                #:prop render-node-info (λ (n) `(quote ,(ast-child 'v n)))])])
 (ag/atomic-literal IntLiteral int (biased-random-int))
@@ -654,6 +654,7 @@
 
 (ag/one-arg box
             #:racr-name MutableBoxLiteral
+            ;; TODO -- add weight arg to ag macros
             #:type (mutable (box-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define inner-type (fresh-type-variable))
@@ -661,6 +662,7 @@
                       (hash 'Expression inner-type)))
 (ap wont-over-deepen [MutableBoxLiteral #t])
 (ag/one-arg box-immutable #:racr-name ImmutableBoxLiteral
+            ;; TODO -- add weight arg to ag macros
             #:type (immutable (box-type (fresh-type-variable)))
             #:ctype (λ (n t)
                       (define inner-type (fresh-type-variable))

@@ -225,7 +225,7 @@ TODO - running / compiling SML
  comp
  [BoxLiteral Expression (Expression)
              #:prop wont-over-deepen #t
-             #:prop choice-weight 1
+             #:prop choice-weight (depth-weight)
              #:prop type-info
              [(box-type (fresh-type-variable))
               (λ (n t)
@@ -272,7 +272,8 @@ TODO - running / compiling SML
       ...)
    #'(add-to-grammar comp [name Expression ([v = fresh-expr])
                                 (~? (~@ #:prop feature feature-arg))
-                                #:prop choice-weight 1
+                                #:prop choice-weight
+                                (depth-weight)
                                 #:prop type-info [type no-child-types]
                                 #:prop render-node-info render-expr])])
 (ag/atomic-literal LargeIntLiteral large-int-type (biased-random-int)
