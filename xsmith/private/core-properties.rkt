@@ -911,6 +911,29 @@ It just reads the values of several other properties and produces the results fo
      _xsmith_lift-predicate-info
      _xsmith_lift-destinations-info)))
 
+(define (make/xsmith_definition-binding-info name-field-name
+                                             type-field-name
+                                             def-or-param-symbol)
+  (λ (n)
+    (let ([name (ast-child name-field-name n)]
+          [type (ast-child type-field-name n)])
+      (if (or (and (ast-node? type) (ast-bud-node? type))
+              (and (ast-node? name) (ast-bud-node? name)))
+          #f
+          (begin
+            (with-handlers
+              ([(λ(e)#t)
+                (λ (e)
+                  (xd-printf
+                   "Error unifying recorded type of definition node\n")
+                  (xd-printf "Node type: ~v\n" (ast-node-type n))
+                  (xd-printf "Type recorded with definition: ~v\n" type)
+                  (xd-printf "Type computed for node: ~v\n\n"
+                             (att-value 'xsmith_type n))
+                  (raise e))])
+              (unify! type (att-value 'xsmith_type n)))
+            (binding name n type def-or-param-symbol))))))
+
 (define-property binder-info
   #:reads (grammar)
   #:appends
@@ -940,25 +963,9 @@ It just reads the values of several other properties and produces the results fo
           [(name-field-name type-field-name def-or-param)
            (dict-set
             rule-info node
-            #'(λ (n)
-                (let ([name (ast-child 'name-field-name n)]
-                      [type (ast-child 'type-field-name n)])
-                  (if (or (and (ast-node? type) (ast-bud-node? type))
-                          (and (ast-node? name) (ast-bud-node? name)))
-                      #f
-                      (begin
-                        (with-handlers
-                          ([(λ(e)#t)
-                            (λ (e)
-                              (xd-printf
-                               "Error unifying recorded type of definition node\n")
-                              (xd-printf "Node type: ~v\n" (ast-node-type n))
-                              (xd-printf "Type recorded with definition: ~v\n" type)
-                              (xd-printf "Type computed for node: ~v\n\n"
-                                         (att-value 'xsmith_type n))
-                              (raise e))])
-                          (unify! type (att-value 'xsmith_type n)))
-                        (binding name n type 'def-or-param))))))])))
+            #'(make/xsmith_definition-binding-info 'name-field-name
+                                                   'type-field-name
+                                                   'def-or-param))])))
     (list _xsmith_binder-type-field xsmith_definition-binding-info)))
 
 (define-property reference-info
