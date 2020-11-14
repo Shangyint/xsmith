@@ -1396,7 +1396,7 @@ few of these methods.
                    (att-value '_xsmith_node-field-name-in-parent child)
                    default))))
 
-(define (_xsmith_type-constraint-from-parent-func node node-type-name)
+(define ((_xsmith_type-constraint-from-parent-func node-type-name) node)
   (define (parent-node-type)
     (and (ast-has-parent? node)
          (ast-node-type (parent-node node))))
@@ -1794,9 +1794,7 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node) (_xsmith_type-constraint-from-parent-func
-                                   node
-                                   (quote #,n)))))))
+            (values n #`(_xsmith_type-constraint-from-parent-func (quote #,n))))))
     (define xsmith_type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
