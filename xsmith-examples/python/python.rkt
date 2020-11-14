@@ -892,7 +892,7 @@
                       (define return-iterator (fresh-immutable-iterator return-elem))
                       (unify! t return-iterator)
                       (define arg-elem (fresh-type-variable))
-                      (define arg-array (fresh-iterable-or-sequence-or-array arg-elem))
+                      (define arg-array (fresh-sequence arg-elem))
                       (hash 'Expression arg-array)))
 (ag/one-arg round #:type int-type #:ctype (Ectype real-type))
 ;; TODO - set()
