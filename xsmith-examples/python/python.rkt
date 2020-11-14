@@ -921,26 +921,26 @@
 ;; NOTE - tuple() is handled in the zero-cost converters.
 ;; TODO - type()
 ;; TODO - vars()
-;; NOTE - zip() also takes zero arguments, but we skip that here for interest.
+;; NOTE - zip() can also take zero arguments, but we omit this for interest.
 (ag/one-arg zip
             #:racr-name ZipOne
             #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define return-elem (fresh-type-variable))
-                      (define return-array (fresh-mutable-array (product-type (list return-elem))))
-                      (unify! t return-array)
+                      (define return-iterator (fresh-immutable-iterator (product-type (list return-elem))))
+                      (unify! t return-iterator)
                       (define arg-iterable (fresh-iterable return-elem))
                       (hash 'Expression arg-iterable)))
 (ag/two-arg zip
             #:racr-name ZipTwo
             #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable)
-                                                       (fresh-type-variable))))
+                                                                 (fresh-type-variable))))
             #:ctype (λ (n t)
                       (define return-elem1 (fresh-type-variable))
                       (define return-elem2 (fresh-type-variable))
-                      (define return-array (fresh-mutable-array (product-type (list return-elem1
-                                                                                    return-elem2))))
-                      (unify! t return-array)
+                      (define return-iterator (fresh-immutable-iterator (product-type (list return-elem1
+                                                                                            return-elem2))))
+                      (unify! t return-iterator)
                       (define arg-iterable1 (fresh-iterable return-elem1))
                       (define arg-iterable2 (fresh-iterable return-elem2))
                       (hash 'l arg-iterable1
@@ -948,16 +948,16 @@
 (ag/three-arg zip
               #:racr-name ZipThree
               #:type (fresh-immutable-iterator (product-type (list (fresh-type-variable)
-                                                         (fresh-type-variable)
-                                                         (fresh-type-variable))))
+                                                                   (fresh-type-variable)
+                                                                   (fresh-type-variable))))
               #:ctype (λ (n t)
                         (define return-elem1 (fresh-type-variable))
                         (define return-elem2 (fresh-type-variable))
                         (define return-elem3 (fresh-type-variable))
-                        (define return-array (fresh-mutable-array (product-type (list return-elem1
-                                                                                      return-elem2
-                                                                                      return-elem3))))
-                        (unify! t return-array)
+                        (define return-iterator (fresh-immutable-iterator (product-type (list return-elem1
+                                                                                              return-elem2
+                                                                                              return-elem3))))
+                        (unify! t return-iterator)
                         (define arg-iterable1 (fresh-iterable return-elem1))
                         (define arg-iterable2 (fresh-iterable return-elem2))
                         (define arg-iterable3 (fresh-iterable return-elem3))
