@@ -1615,6 +1615,23 @@ few of these methods.
        (rewrite-terminal 'xsmithcachedtype node type-maybe-concretized))))
   my-type)
 
+(define get-type-constraints-core
+  (λ (node att-or-choice type-constraint node-name)
+    (let ([do-error (λ (bad-type)
+                      (error 'type-info
+                             "Type constraint returned in ~a-rule for node of AST type ~a was not a type: ~a\n"
+                             att-or-choice
+                             node-name
+                             bad-type))]
+          [t type-constraint])
+      (cond [(type? t) t]
+            [(procedure? t)
+             (let ([t-prime (t node)])
+               (if (type? t-prime)
+                   t-prime
+                   (do-error t-prime)))]
+            [else (do-error t)]))))
+
 #|
 The type-info property is two-armed.
 The first arm is an expression that must return a type (which should be fresh if it is a [maybe constrained] variable) that the AST node can fulfill.
@@ -1672,37 +1689,25 @@ The second arm is a function that takes the type that the node has been assigned
                     [#f #f]))
         (if c (hash-set h n c) h)))
 
-    (define get-constraints-checked
-      ;; TODO - I need to put a default implementation that says what node it is, but ties it to `type-info` rather than a private method.
-      (for/hash ([n (dict-keys node-type-constraints)])
-        (values
-         n
-         #`(λ (node att-or-choice)
-             (let ([do-error (λ (bad-type)
-                               (error 'type-info
-                                      "Type constraint returned in ~a-rule for node of AST type ~a was not a type: ~a\n"
-                                      att-or-choice
-                                      (quote #,n)
-                                      bad-type))]
-                   [t #,(dict-ref node-type-constraints n)])
-               (cond [(type? t) t]
-                     [(procedure? t)
-                      (let ([t-prime (t node)])
-                        (if (type? t-prime)
-                            t-prime
-                            (do-error t-prime)))]
-                     [else (do-error t)]))))))
     (define _xsmith_my-type-constraint-info/attribute
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
-          (for/hash ([n (dict-keys get-constraints-checked)])
+          (for/hash ([n (dict-keys node-type-constraints)])
             (values n #`(λ (node)
-                          (#,(dict-ref get-constraints-checked n) node 'att))))))
+                          (get-type-constraints-core
+                           node
+                           'att
+                           #,(dict-ref node-type-constraints n)
+                           (quote #,n)))))))
     (define _xsmith_my-type-constraint-info/choice-method
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ () default-base-type))
-          (for/hash ([n (dict-keys get-constraints-checked)])
-            (values n #`(λ () (#,(dict-ref get-constraints-checked n) (current-hole) 'choice))))))
+          (for/hash ([n (dict-keys node-type-constraints)])
+            (values n #`(λ () (get-type-constraints-core
+                               (current-hole)
+                               'choice
+                               #,(dict-ref node-type-constraints n)
+                               (quote #,n)))))))
 
     (define node-child-dict-funcs
       (let ()
