@@ -1294,47 +1294,71 @@
 from inspect import signature
 
 FAKEBLOCK = True
+
+
 def safe_divide(a, b):
-  return a if (b == 0) else (a / b)
+    return a if (b == 0) else (a / b)
+
+
 def safe_int_divide(a, b):
-  return a if (b == 0) else (a // b)
+    return a if (b == 0) else (a // b)
+
+
 def NE_chr(x):
-  return chr(abs(x) % 0x10FFFF)
+    return chr(abs(x) % 0x10FFFF)
+
+
 def NE_max(seq, fallback):
-  if 0 == len(seq):
-    return fallback
-  else:
-    return max(seq)
+    if 0 == len(seq):
+        return fallback
+    else:
+        return max(seq)
+
+
 def NE_min(seq, fallback):
-  if 0 == len(seq):
-    return fallback
-  else:
-    return min(seq)
+    if 0 == len(seq):
+        return fallback
+    else:
+        return min(seq)
+
+
 def NE_divmod(x, y):
-  if 0 == y:
-    return (x, y)
-  else:
-    return divmod(x, y)
+    if 0 == y:
+        return (x, y)
+    else:
+        return divmod(x, y)
+
+
 def NE_next(iterator, default_value):
     try:
         return next(iterator)
     except:
         return default_value
+
+
 def NE_safe_int(x):
     if x < 0:
         " (format "return -(x % ~a)" overflow-safe-int-min-value) "
     else:
         " (format "return x % ~a" overflow-safe-int-max-value) "
+
+
 def NE_safe_ssize_t(x):
     if x < 0:
         " (format "return -(x % ~a)" overflow-safe-ssize_t-min-value) "
     else:
         " (format "return x % ~a" overflow-safe-ssize_t-max-value) "
+
+
 def NE_safe_string_int(x):
      " (format "return x % ~a" string-safe-int-max-value) "
+
+
 def bound(value, lo, hi):
     diff = hi - lo
     return (((value - lo) % diff) + lo)
+
+
 def reasonable_range(*args):
     if len(args) == 1:
         (hi, ) = args
@@ -1358,28 +1382,44 @@ def reasonable_range(*args):
         return range(r.start, r.stop, step)
     else:
         return range(pow(2, 10))
+
+
 def list_safe_reference(array, index, fallback):
-  if not (len(array) == 0):
-    return array[index % len(array)]
-  else:
-    return fallback
+    if not (len(array) == 0):
+        return array[index % len(array)]
+    else:
+        return fallback
+
+
 def list_safe_assignment(array, index, newvalue):
-  if not (len(array) == 0):
-    array[index % len(array)] = newvalue
+    if not (len(array) == 0):
+        array[index % len(array)] = newvalue
+
+
 def dict_safe_reference_by_index(dict, index, fallback):
-  if not (len(dict) == 0):
-    return dict[list(dict.keys())[index % len(dict.keys())]]
-  else:
-    return fallback
+    if not (len(dict) == 0):
+        return dict[list(dict.keys())[index % len(dict.keys())]]
+    else:
+        return fallback
+
+
 def dict_safe_assignment_by_index(dict, index, newvalue):
-  if not (len(dict) == 0):
-    dict[list(dict.keys())[index % len(dict.keys())]] = newvalue
+    if not (len(dict) == 0):
+        dict[list(dict.keys())[index % len(dict.keys())]] = newvalue
+
+
 def is_iterator(x):
     return hasattr(x, '__next__')
+
+
 def is_iterable(x):
     return hasattr(x, '__iter__')
+
+
 def is_sequence(x):
     return hasattr(x, '__getitem__') and hasattr(x, '__len__')
+
+
 def to_string(x):
     if any(map(lambda t: isinstance(x, t), (bool, int, float, complex, str, bytes, bytearray, memoryview))):
         # Primitive types with known-good `__repr__` implementations.
@@ -1401,9 +1441,7 @@ def to_string(x):
     elif is_sequence(x):
         return '#<SEQUENCE: ' + getattr(type(x), '__name__', '#SEQUENCE') + '>'
     else:
-        return repr(x)
-
-"))
+        return repr(x)"))
 
 ;;;; Render nodes from add-basic-statements/expressions
 (add-property
