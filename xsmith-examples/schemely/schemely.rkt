@@ -244,7 +244,7 @@
                              'definitions (λ (c) (fresh-type-variable))
                              'expressions (λ (c) (fresh-type-variable))))]]
  [Definition [(fresh-type-variable) (λ (n t) (hash 'Expression t))]]
- [VariableReference [(fresh-type-variable) (no-child-types)]]
+ [VariableReference [(fresh-type-variable) no-child-types]]
  ;; TODO - the type of a variable write must not be function, which is checked dynamically.  But it would be better if this were accomplished in some way that just let me write an unconstrained type variable here and filter out the possibility of set! on a function rather than having a runtime error.  Even this verbose type doesn't capture all the non-function types I can have, since there are a ton of possible list types (including nested lists).
  [SetBangRet [(fresh-type-variable number bool string
                                    (list-type (fresh-type-variable
@@ -282,15 +282,15 @@
                     (values arg arg-type))
                   'procedure
                   (function-type args-type t)))]]
- [FormalParam [(fresh-type-variable) (no-child-types)]]
+ [FormalParam [(fresh-type-variable) no-child-types]]
 
- [LiteralBool [bool (no-child-types)]]
+ [LiteralBool [bool no-child-types]]
  [Not [bool (λ (n t) (hash 'Expression bool))]]
  [And [bool (λ (n t) (hash 'l bool 'r bool))]]
  [Or [bool (λ (n t) (hash 'l bool 'r bool))]]
 
- [LiteralInt [int (no-child-types)]]
- [LiteralFloat [float (no-child-types)]]
+ [LiteralInt [int no-child-types]]
+ [LiteralFloat [float no-child-types]]
  [Plus [number numeric-bin-op-subtype]]
  [Minus [number numeric-bin-op-subtype]]
  [Times [number numeric-bin-op-subtype]]
@@ -298,11 +298,11 @@
  [LessThan [bool numeric-bin-op/no-relation-to-return]]
  [GreaterThan [bool numeric-bin-op/no-relation-to-return]]
 
- [LiteralString [string (no-child-types)]]
+ [LiteralString [string no-child-types]]
  [StringAppend [string (λ (n t) (hash 'l string 'r string))]]
  [StringLength [int (λ (n t) (hash 'Expression string))]]
 
- [LiteralEmptyList [(fresh-list-type) (no-child-types)]]
+ [LiteralEmptyList [(fresh-list-type) no-child-types]]
  [List [(fresh-list-type) (λ (n t)
                             (define lt (fresh-list-type))
                             (unify! lt t)

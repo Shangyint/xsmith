@@ -378,8 +378,8 @@ Type definitions are in cish-utils.rkt
 (add-property
  cish-grammar
  type-info
- [#f [(error 'typing-base-node) (no-child-types)]]
- ;[Node [(error 'typing-node) (no-child-types)]]
+ [#f [(error 'typing-base-node) no-child-types]]
+ ;[Node [(error 'typing-node) no-child-types]]
  [Program [(fresh-type-variable)
            (λ (n t) (hash 'main (function-type (product-type '())
                                                int)
@@ -390,7 +390,7 @@ Type definitions are in cish-utils.rkt
                                              (product-type #f)
                                              (fresh-type-variable)))))]]
 
- ;[Declaration [(error 'typing-declaration) (no-child-types)]]
+ ;[Declaration [(error 'typing-declaration) no-child-types]]
  [VariableDeclaration [(fresh-type-variable)
                        (λ (n t)
                          (let ([declaration-type-annotation (ast-child 'type n)])
@@ -416,12 +416,12 @@ Type definitions are in cish-utils.rkt
                                       [arg-type arg-types])
                              (values arg arg-type))
                            'Block (return-type (function-type-return-type f-type)))))]]
- [FormalParam [(fresh-type-variable) (no-child-types)]]
+ [FormalParam [(fresh-type-variable) no-child-types]]
 
- [Statement [(error 'typing-statement) (no-child-types)]]
- ;[Statement [(fresh-type-variable (fresh-no-return) (return-type (fresh-type-variable))) (no-child-types)]]
+ [Statement [(error 'typing-statement) no-child-types]]
+ ;[Statement [(fresh-type-variable (fresh-no-return) (return-type (fresh-type-variable))) no-child-types]]
 
- [NullStatement [(fresh-no-return) (no-child-types)]]
+ [NullStatement [(fresh-no-return) no-child-types]]
  [Block [(fresh-maybe-return)
          (λ (n t)
            (define statements (ast-children (ast-child 'statements n)))
@@ -444,7 +444,7 @@ Type definitions are in cish-utils.rkt
                    (λ (n t) (hash 'test bool
                                   'then t
                                   'else t))]]
- [ReturnStatement [(error 'typing-non-value-return-statement) (no-child-types)]]
+ [ReturnStatement [(error 'typing-non-value-return-statement) no-child-types]]
  [ValueReturnStatement [(return-type (fresh-type-variable))
                         (λ (n t)
                           (define rt (return-type (fresh-type-variable)))
@@ -465,8 +465,8 @@ Type definitions are in cish-utils.rkt
                           'init loop-var-type
                           'update loop-var-type)))]]
 
- ;[Expression [(fresh-type-variable) (no-child-types)]]
- [Expression [(error 'typing-expression) (no-child-types)]]
+ ;[Expression [(fresh-type-variable) no-child-types]]
+ [Expression [(error 'typing-expression) no-child-types]]
 
  [AssignmentExpression [(fresh-type-variable int float bool (any-nominal-record-type))
                         (λ (n t) (hash 'Expression t))]]
@@ -502,9 +502,9 @@ Type definitions are in cish-utils.rkt
 
  [IfExpression [(fresh-type-variable)
                 (λ (n t) (hash 'test bool 'then t 'else t))]]
- [LiteralInt [(fresh-type-variable int bool) (no-child-types)]]
- [LiteralFloat [float (no-child-types)]]
- [VariableReference [(fresh-type-variable) (no-child-types)]]
+ [LiteralInt [(fresh-type-variable int bool) no-child-types]]
+ [LiteralFloat [float no-child-types]]
+ [VariableReference [(fresh-type-variable) no-child-types]]
  [VolatileVariableReference [(fresh-type-variable int bool float)
                              (λ (n t) (hash 'VariableReference (volatile-type t)))]]
  [VolatileInitializer [(volatile-type (fresh-type-variable))
