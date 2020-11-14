@@ -608,11 +608,12 @@
                       (unify! t (immutable (array-type inner-type)))
                       (hash 'Expression (mutable (array-type inner-type)))))
 
+(define ag/type-predicate-ctype (Ectype (fresh-type-variable)))
 (define-syntax-parser ag/type-predicate
   [(_ name:id)
    #'(ag/one-arg name
                  #:type bool
-                 #:ctype (Ectype (fresh-type-variable)))])
+                 #:ctype ag/type-predicate-ctype)])
 (ag/type-predicate boolean?)
 (ag/type-predicate box?)
 (ag/type-predicate byte?)
