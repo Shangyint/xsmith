@@ -43,6 +43,11 @@
 (define overflow-safe-int-type (base-type 'overflow-safe-int real-type))
 (define string-safe-int-max-value (expt 2 16))  ;; Arbitrary max argument value for string-generating functions.
 (define string-safe-int-type (base-type 'string-safe-int real-type))
+;; NOTE - The range function can often interact poorly with some other functions
+;;        when its operands are very large integers. We restrict them to avoid
+;;        this unfortunate situation.
+(define reasonable-range-max-value (expt 2 24))
+(define reasonable-range-half-value (/ reasonable-range-max-value 2))
 
 (define char-type (base-type 'char))
 (define dictionary-key-type
@@ -881,14 +886,17 @@
 ;; TODO - property()
 (ag/one-arg range
             #:racr-name RangeOne
+            #:NE-name reasonable_range
             #:type (fresh-immutable-sequence int-type)
             #:ctype (Ectype int-type))
 (ag/two-arg range
             #:racr-name RangeTwo
+            #:NE-name reasonable_range
             #:type (fresh-immutable-sequence int-type)
             #:ctype (E2ctype int-type int-type))
 (ag/three-arg range
               #:racr-name RangeThree
+              #:NE-name reasonable_range
               #:type (fresh-immutable-sequence int-type)
               #:ctype (E3ctype int-type int-type int-type))
 (ag/one-arg repr #:type string-type #:ctype (Ectype (fresh-type-variable)))
@@ -1324,6 +1332,32 @@ def NE_safe_ssize_t(x):
         " (format "return x % ~a" overflow-safe-ssize_t-max-value) "
 def NE_safe_string_int(x):
      " (format "return x % ~a" string-safe-int-max-value) "
+def bound(value, lo, hi):
+    diff = hi - lo
+    return (((value - lo) % diff) + lo)
+def reasonable_range(*args):
+    if len(args) == 1:
+        (hi, ) = args
+        if hi < 0:
+            " (format "hi = -(hi % ~a)" reasonable-range-max-value) "
+        else:
+            " (format "hi %= ~a" reasonable-range-max-value) "
+        return range(hi)
+    elif len(args) == 2:
+        (lo, hi) = args
+        " (format "if (hi - lo) > ~a:" reasonable-range-max-value) "
+            midpoint = (hi + lo) // 2
+            " (format "lo_bound = midpoint - ~a" reasonable-range-half-value) "
+            " (format "hi_bound = midpoint + ~a" reasonable-range-half-value) "
+            lo = bound(lo, lo_bound, hi_bound)
+            hi = bound(hi, lo_bound, hi_bound)
+        return range(lo, hi)
+    elif len(args) == 3:
+        (lo, hi, step) = args
+        r = reasonable_range(lo, hi)
+        return range(r.start, r.stop, step)
+    else:
+        return range(pow(2, 10))
 def list_safe_reference(array, index, fallback):
   if not (len(array) == 0):
     return array[index % len(array)]
