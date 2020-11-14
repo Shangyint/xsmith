@@ -155,6 +155,8 @@
                        char-type
                        bool-type
                        ))
+(define (fresh-summable-type)
+  (fresh-type-variable int-type))
 
 (define (biased-random-int)
   ;; The random function returns word-sized integers.
@@ -856,8 +858,11 @@
 (ag/one-arg str #:type string-type #:ctype (Ectype (fresh-type-variable)))
 ;; NOTE - sum() can also take an optional 'start' index argument, but it is left
 ;;        out here to avoid index-out-of-bounds issues.
+;; NOTE - Technically, sum() is happy to take any iterable/sequence over objects
+;;        which implement __add__ for one another except for strings. However,
+;;        problems can crop up, so we restrict it to integers here.
 (ag/one-arg sum
-            #:type (fresh-type-variable)
+            #:type (fresh-summable-type)
             #:ctype (λ (n t)
                       (hash 'Expression (fresh-iterable-or-sequence-or-array t))))
 ;; TODO - super()
