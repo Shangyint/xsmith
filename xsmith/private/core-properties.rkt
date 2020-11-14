@@ -108,6 +108,10 @@
                                                )))))]))
 
 
+(define always-false-attribute (λ args #f))
+(define always-true-attribute (λ args #t))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Property syntax classes
@@ -185,29 +189,31 @@
   #:transformer (syntax-parser [#t #'(λ () this)]
                                [#f #'(λ () #f)]))
 
+(define (depth-increase-wrapper inc)
+  (λ (n)
+    (define increment
+      (cond [(number? inc) inc]
+            [(procedure? inc) (inc n)]
+            [else
+             (error 'depth-increase
+                    "bad value for depth-increase: ~v"
+                    inc)]))
+    (define parent-depth
+      (cond [(and (ast-has-child? 'xsmithliftdepth n)
+                  (number? (ast-child 'xsmithliftdepth n)))
+             (ast-child 'xsmithliftdepth n)]
+            [(ast-has-parent? n)
+             (att-value 'xsmith_ast-depth (parent-node n))]
+            [else 0]))
+    (+ increment parent-depth)))
 (define-non-inheriting-rule-property
   depth-increase
   attribute
   #:rule-name xsmith_ast-depth
-  #:default (λ (n) 1)
+  #:default 1
   #:transformer (syntax-parser
                   [inc:expr
-                   #'(λ (n)
-                       (define increment
-                         (cond [(number? inc) inc]
-                               [(procedure? inc) (inc n)]
-                               [else
-                                (error 'depth-increase
-                                       "bad value for depth-increase: ~v"
-                                       inc)]))
-                       (define parent-depth
-                         (cond [(and (ast-has-child? 'xsmithliftdepth n)
-                                     (number? (ast-child 'xsmithliftdepth n)))
-                                (ast-child 'xsmithliftdepth n)]
-                               [(ast-has-parent? n)
-                                (att-value 'xsmith_ast-depth (parent-node n))]
-                               [else 0]))
-                       (+ increment parent-depth))]))
+                   #'(depth-increase-wrapper inc)]))
 
 (define-property feature
   #:allow-duplicates? #t
@@ -273,48 +279,67 @@
         (define gnfss (dict-ref field-info-hash node))
         (values
          node
-         #`(λ (n)
-             ;; Compute the node name so we get hole names.
-             (define node-name (ast-node-type n))
-             (define (rec cn)
-               (if (and (ast-node? cn)
-                        (ast-bud-node? cn))
-                   '_RACR-BUD-NODE_
-                   (att-value '_xsmith_to-s-expression cn)))
-             `(,node-name
-               ,@(match (current-s-exp-show-base-fields)
-                   [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
-                         (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
-                         (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
-                         (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
-                         )]
-                   ['xsmithserialnumber `((xsmithserialnumber
-                                           ,(ast-child 'xsmithserialnumber n)))]
-                   ;; We could put the other fields here, but I don't care to right now.
-                   [else '()])
-               #,@(for/list ([gnfs gnfss])
-                    (match gnfs
-                      [(grammar-node-field-struct field-name #f #f _)
-                       ;; No type, no kleene star.
-                       #`,(list '#,field-name (ast-child '#,field-name n))]
-                      [(grammar-node-field-struct field-name #f #t _)
-                       ;; No type, yes kleene star.
-                       #`,(list '#,field-name
-                                (ast-children (ast-child '#,field-name n)))]
-                      [(grammar-node-field-struct field-name
-                                                  ast-node-type
-                                                  #f _)
-                       ;; AST type, no kleene star
-                       #`,(list '#,field-name
-                                (rec (ast-child '#,field-name n)))]
-                      [(grammar-node-field-struct field-name
-                                                  ast-node-type
-                                                  #t _)
-                       ;; AST type, yes kleene star
-                       #`,(list '#,field-name
-                                (map rec
-                                     (ast-children (ast-child '#,field-name n))))])))))))
+         #`(make/to-s-exp-function
+            (list
+             #,@(for/list ([gnfs gnfss])
+                  (match gnfs
+                    [(grammar-node-field-struct field-name #f #f _)
+                     ;; No type, no kleene star.
+                     #`(list '#,field-name #f #f)]
+                    [(grammar-node-field-struct field-name #f #t _)
+                     ;; No type, yes kleene star.
+                     #`(list '#,field-name #f #t)]
+                    [(grammar-node-field-struct field-name
+                                                ast-node-type
+                                                #f _)
+                     ;; AST type, no kleene star
+                     #`(list '#,field-name #t #f)]
+                    [(grammar-node-field-struct field-name
+                                                ast-node-type
+                                                #t _)
+                     ;; AST type, yes kleene star
+                     #`(list '#,field-name #t #t)])))))))
     (list _xsmith_to-s-expression-info)))
+
+(define (make/to-s-exp-function field-specs)
+  ;; each field spec is a list '(field-name typed? kleene-star?)
+  (λ (n)
+    ;; Compute the node name so we get hole names.
+    (define node-name (ast-node-type n))
+    (define (rec cn)
+      (if (and (ast-node? cn)
+               (ast-bud-node? cn))
+          '_RACR-BUD-NODE_
+          (att-value '_xsmith_to-s-expression cn)))
+    `(,node-name
+      ,@(match (current-s-exp-show-base-fields)
+          [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
+                (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
+                (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
+                )]
+          ['xsmithserialnumber `((xsmithserialnumber
+                                  ,(ast-child 'xsmithserialnumber n)))]
+          ;; We could put the other fields here, but I don't care to right now.
+          [else '()])
+      ,@(map (λ (spec)
+               (match spec
+                 [(list field-name #f #f)
+                  ;; No type, no kleene star.
+                  (list field-name (ast-child field-name n))]
+                 [(list field-name #f #t)
+                  ;; No type, yes kleene star.
+                  (list field-name (ast-children (ast-child field-name n)))]
+                 [(list field-name #t #f)
+                  ;; AST type, no kleene star
+                  (list field-name (rec (ast-child field-name n)))]
+                 [(list field-name #t #t)
+                  ;; AST type, yes kleene star
+                  (list field-name
+                        (map rec
+                             (ast-children (ast-child field-name n))))]))
+             field-specs))))
+
 
 #|
 The fresh property will take an expression (to be the body of a method
@@ -709,6 +734,21 @@ Helper function for _xsmith_scope-graph-child-scope-dict.
     ;; there is no node yet...
     (binding lift-name #f type 'definition)))
 
+(define (make/_xsmith_scope-graph-scope-child-dict-info binding-structure-symbol)
+  (λ (n)
+    (define children (filter (λ (cn) (and (ast-node? cn)
+                                          (not (ast-bud-node? cn))))
+                             (ast-children/flat n)))
+    (define children-bindings
+      (map (λ (c) (att-value 'xsmith_definition-binding c))
+           children))
+    (define cb-pairs (map cons children children-bindings))
+    (define parent-scope
+      (att-value '_xsmith_scope-graph-scope n))
+    (make-child-scope-dict cb-pairs
+                           parent-scope
+                           binding-structure-symbol)))
+
 #|
 The introduces-scope property generates RACR attributes for resolving bindings via scope graphs.
 The scope-graph-descendant-bindings attribute returns a list of all bindings on descendant nodes that are not under a different scope.  In other words, you call it on a node that introduces a scope and it returns all bindings within that scope.  It does not return bindings in child scopes.
@@ -815,8 +855,8 @@ It just reads the values of several other properties and produces the results fo
       (for/hash ([node nodes])
         (values node
                 (syntax-parse (dict-ref lift-predicate-info node #'#t)
-                  [#t #'(λ (n type) #t)]
-                  [#f #'(λ (n type) #f)]
+                  [#t #'always-true-attribute]
+                  [#f #'always-false-attribute]
                   [predicate #'predicate]))))
 
     (define _xsmith_lift-destinations-info
@@ -876,22 +916,9 @@ It just reads the values of several other properties and produces the results fo
                 ([node nodes])
         (define binding-structure-for-node (dict-ref binding-structure-hash node))
         (if (dict-ref has-potential-binder-child-hash node)
-            (dict-set
-             rule-info
-             node
-             #`(λ (n)
-                 (define children (filter (λ (cn) (and (ast-node? cn)
-                                                       (not (ast-bud-node? cn))))
-                                          (ast-children/flat n)))
-                 (define children-bindings
-                   (map (λ (c) (att-value 'xsmith_definition-binding c))
-                        children))
-                 (define cb-pairs (map cons children children-bindings))
-                 (define parent-scope
-                   (att-value '_xsmith_scope-graph-scope n))
-                 (make-child-scope-dict cb-pairs
-                                        parent-scope
-                                        #,binding-structure-for-node)))
+            (dict-set rule-info node
+                      #`(make/_xsmith_scope-graph-scope-child-dict-info
+                         #,binding-structure-for-node))
             rule-info)))
     (define _xsmith_scope-graph-scope-info
       (hash #f
@@ -908,6 +935,29 @@ It just reads the values of several other properties and produces the results fo
      _xsmith_scope-graph-scope-info
      _xsmith_lift-predicate-info
      _xsmith_lift-destinations-info)))
+
+(define (make/xsmith_definition-binding-info name-field-name
+                                             type-field-name
+                                             def-or-param-symbol)
+  (λ (n)
+    (let ([name (ast-child name-field-name n)]
+          [type (ast-child type-field-name n)])
+      (if (or (and (ast-node? type) (ast-bud-node? type))
+              (and (ast-node? name) (ast-bud-node? name)))
+          #f
+          (begin
+            (with-handlers
+              ([(λ(e)#t)
+                (λ (e)
+                  (xd-printf
+                   "Error unifying recorded type of definition node\n")
+                  (xd-printf "Node type: ~v\n" (ast-node-type n))
+                  (xd-printf "Type recorded with definition: ~v\n" type)
+                  (xd-printf "Type computed for node: ~v\n\n"
+                             (att-value 'xsmith_type n))
+                  (raise e))])
+              (unify! type (att-value 'xsmith_type n)))
+            (binding name n type def-or-param-symbol))))))
 
 (define-property binder-info
   #:reads (grammar)
@@ -929,48 +979,39 @@ It just reads the values of several other properties and produces the results fo
         (cond [(dict-ref name+type+d/p-hash node #f)
                =>
                (λ (l) (values node #`(λ (n) '#,(second l))))]
-              [else (values node #'(λ (n) #f))])))
+              [else (values node #'always-false-attribute)])))
     (define xsmith_definition-binding-info
-      (for/fold ([rule-info (hash #f #'(λ (n) #f))])
+      (for/fold ([rule-info (hash #f #'always-false-attribute)])
                 ([node nodes])
         (syntax-parse (dict-ref name+type+d/p-hash node #f)
           [#f rule-info]
           [(name-field-name type-field-name def-or-param)
            (dict-set
             rule-info node
-            #'(λ (n)
-                (let ([name (ast-child 'name-field-name n)]
-                      [type (ast-child 'type-field-name n)])
-                  (if (or (and (ast-node? type) (ast-bud-node? type))
-                          (and (ast-node? name) (ast-bud-node? name)))
-                      #f
-                      (begin
-                        (with-handlers
-                          ([(λ(e)#t)
-                            (λ (e)
-                              (xd-printf
-                               "Error unifying recorded type of definition node\n")
-                              (xd-printf "Node type: ~v\n" (ast-node-type n))
-                              (xd-printf "Type recorded with definition: ~v\n" type)
-                              (xd-printf "Type computed for node: ~v\n\n"
-                                         (att-value 'xsmith_type n))
-                              (raise e))])
-                          (unify! type (att-value 'xsmith_type n)))
-                        (binding name n type 'def-or-param))))))])))
+            #'(make/xsmith_definition-binding-info 'name-field-name
+                                                   'type-field-name
+                                                   'def-or-param))])))
     (list _xsmith_binder-type-field xsmith_definition-binding-info)))
 
+(define (make/_xsmith_resolve-reference field)
+  (λ (n)
+    (when (not field) (error '_xsmith_resolve-reference
+                             "not a reference node: ~a"
+                             (node-type n)))
+    (att-value '_xsmith_resolve-reference-name
+               n (ast-child field n))))
+
 (define-property reference-info
-  #:reads (grammar)
   #:appends
   (choice-method _xsmith_is-read-reference-choice?)
   (attribute _xsmith_is-read-reference-node?)
   (attribute _xsmith_is-reference-node?)
   (attribute _xsmith_resolve-reference)
   #:transformer
-  (λ (this-prop-info grammar-info)
-    (define nodes (dict-keys grammar-info))
+  (λ (this-prop-info)
+    (define reference-info-nodes (cons #f (dict-keys this-prop-info)))
     (define _xsmith_is-read-reference-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
                 (syntax-parse (dict-ref this-prop-info
                                         node
@@ -979,7 +1020,7 @@ It just reads the values of several other properties and produces the results fo
                                              #''prop.field-name]
                   [prop:reference-info-class #'#f]))))
     (define _xsmith_is-reference-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
                 (syntax-parse (dict-ref this-prop-info
                                         node
@@ -988,24 +1029,19 @@ It just reads the values of several other properties and produces the results fo
                                              #''prop.field-name]
                   [prop:reference-info-class #'#f]))))
     (define _xsmith_is-read-reference-choice?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ () #,(dict-ref _xsmith_is-read-reference-info node)))))
     (define _xsmith_is-read-reference-node?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ (n) #,(dict-ref _xsmith_is-read-reference-info node)))))
     (define _xsmith_is-reference-node?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ (n) #,(dict-ref _xsmith_is-reference-info node)))))
     (define _xsmith_resolve-reference
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
-                #`(λ (n)
-                    (define field #,(dict-ref _xsmith_is-reference-info node))
-                    (when (not field) (error '_xsmith_resolve-reference
-                                             "not a reference node: ~a"
-                                             (node-type n)))
-                    (att-value '_xsmith_resolve-reference-name
-                               n (ast-child field n))))))
+                #`(make/_xsmith_resolve-reference
+                   #,(dict-ref _xsmith_is-reference-info node)))))
     (list _xsmith_is-read-reference-choice?-info
           _xsmith_is-read-reference-node?-info
           _xsmith_is-reference-node?-info
@@ -1052,12 +1088,9 @@ It just reads the values of several other properties and produces the results fo
        (list-ref choices-ordered choice-n)])))
 
 (define-property reference-choice-info
-  #:reads (grammar)
   #:appends (attribute _xsmith_reference-choice)
   #:transformer
-  (λ (this-prop-info grammar-info)
-    (define nodes (dict-keys grammar-info))
-
+  (λ (this-prop-info)
     (define _xsmith_reference-choice-info
       (if (dict-has-key? this-prop-info #f)
           this-prop-info
@@ -1363,7 +1396,7 @@ few of these methods.
                    (att-value '_xsmith_node-field-name-in-parent child)
                    default))))
 
-(define (_xsmith_type-constraint-from-parent-func node node-type-name)
+(define ((_xsmith_type-constraint-from-parent-func node-type-name) node)
   (define (parent-node-type)
     (and (ast-has-parent? node)
          (ast-node-type (parent-node node))))
@@ -1407,6 +1440,8 @@ few of these methods.
                                                            (ancestor-nodes node)))
     (xd-printf "(Note that type variables may have already been unified)\n"))
 
+(define (xsmith_type-info-func/parent-relation-only/wrap . args)
+  (λ (n) (apply xsmith_type-info-func/parent-relation-only n args)))
 (define (xsmith_type-info-func/parent-relation-only node
                                                     reference-unify-target
                                                     reference-field
@@ -1443,6 +1478,8 @@ few of these methods.
               (unify! my-type my-type-from-parent)
               (subtype-unify! my-type my-type-from-parent))))))
 
+(define (xsmith_type-info-func/wrap . args)
+  (λ (n) (apply xsmith_type-info-func n args)))
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
@@ -1603,6 +1640,24 @@ few of these methods.
        (rewrite-terminal 'xsmithcachedtype node type-maybe-concretized))))
   my-type)
 
+(define get-type-constraints-core
+  (λ (node att-or-choice type-constraint node-name)
+    (let ([do-error (λ (bad-type)
+                      (error 'type-info
+                             "Type constraint returned in ~a-rule for node of AST type ~a was not a type: ~a\n"
+                             att-or-choice
+                             node-name
+                             bad-type))]
+          [t type-constraint])
+      (cond [(type? t) t]
+            [(procedure? t)
+             (let ([t-prime (t node)])
+               (if (type? t-prime)
+                   t-prime
+                   (do-error t-prime)))]
+            [else (do-error t)]))))
+
+
 #|
 The type-info property is two-armed.
 The first arm is an expression that must return a type (which should be fresh if it is a [maybe constrained] variable) that the AST node can fulfill.
@@ -1660,37 +1715,25 @@ The second arm is a function that takes the type that the node has been assigned
                     [#f #f]))
         (if c (hash-set h n c) h)))
 
-    (define get-constraints-checked
-      ;; TODO - I need to put a default implementation that says what node it is, but ties it to `type-info` rather than a private method.
-      (for/hash ([n (dict-keys node-type-constraints)])
-        (values
-         n
-         #`(λ (node att-or-choice)
-             (let ([do-error (λ (bad-type)
-                               (error 'type-info
-                                      "Type constraint returned in ~a-rule for node of AST type ~a was not a type: ~a\n"
-                                      att-or-choice
-                                      (quote #,n)
-                                      bad-type))]
-                   [t #,(dict-ref node-type-constraints n)])
-               (cond [(type? t) t]
-                     [(procedure? t)
-                      (let ([t-prime (t node)])
-                        (if (type? t-prime)
-                            t-prime
-                            (do-error t-prime)))]
-                     [else (do-error t)]))))))
     (define _xsmith_my-type-constraint-info/attribute
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
-          (for/hash ([n (dict-keys get-constraints-checked)])
+          (for/hash ([n (dict-keys node-type-constraints)])
             (values n #`(λ (node)
-                          (#,(dict-ref get-constraints-checked n) node 'att))))))
+                          (get-type-constraints-core
+                           node
+                           'att
+                           #,(dict-ref node-type-constraints n)
+                           (quote #,n)))))))
     (define _xsmith_my-type-constraint-info/choice-method
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ () default-base-type))
-          (for/hash ([n (dict-keys get-constraints-checked)])
-            (values n #`(λ () (#,(dict-ref get-constraints-checked n) (current-hole) 'choice))))))
+          (for/hash ([n (dict-keys node-type-constraints)])
+            (values n #`(λ () (get-type-constraints-core
+                               (current-hole)
+                               'choice
+                               #,(dict-ref node-type-constraints n)
+                               (quote #,n)))))))
 
     (define node-child-dict-funcs
       (let ()
@@ -1742,77 +1785,16 @@ The second arm is a function that takes the type that the node has been assigned
       (for/hash ([n (dict-keys node-child-dict-funcs)])
         (values
          n
-         #`(λ (node)
-             (define my-type (att-value 'xsmith_type node))
-             (define my-type->child-type-dict
-               #,(dict-ref node-child-dict-funcs n))
-             (when (not (procedure? my-type->child-type-dict))
-               (error 'type-info "bad value for right side of type-info for node type ~v, expected procedure (-> node type type-hash), got ~v"
-                      (ast-node-type node)
-                      my-type->child-type-dict))
-             (define child-types
-               (with-handlers
-                 ([exn:fail?
-                   (λ (e)
-                     (xd-printf "Exception raised during evaluation of child type")
-                     (xd-printf " dictionary for node with serial number ~v of AST"
-                                (ast-child 'xsmithserialnumber node))
-                     (xd-printf " type ~a\n\n"
-                                (ast-node-type node))
-                     (raise e))])
-                 (my-type->child-type-dict node my-type)))
-             (when (not (dict? child-types))
-               (error
-                'type-info
-                "Bad type rule for node type: ~v, instead of dict?, got: ~v"
-                (ast-node-type node) child-types))
-             (define reference-unify-target
-               #,(dict-ref node-reference-unify-target n))
-             (define read-or-write
-               #,(dict-ref node-r/w-type n))
-             (when (and reference-unify-target (not (eq? #t reference-unify-target)))
-               ;; This is the case that we can't handle in
-               ;; xsmith_type-info-func to avoid a cycle.
-               (let* ([var-name (ast-child #,(dict-ref node-reference-field n)
-                                           node)]
-                      [binding-t
-                       (binding-type
-                        (att-value '_xsmith_resolve-reference-name node var-name))]
-                      [target-t
-                       (get-value-from-parent-dict
-                        child-types reference-unify-target
-                        (λ () (error 'type-info
-                                     "No type given for field ~a"
-                                     reference-unify-target)))])
-                 (with-handlers
-                   ([(λ(e)#t)
-                     (λ (e)
-                       (xd-printf "Error while unifying type for reference.\n")
-                       (xd-printf "Variable name: ~a\n" var-name)
-                       (xd-printf "Type recorded in definition: ~v\n" binding-t)
-                       (xd-printf "Type required for reference-unify target: ~v\n"
-                                  target-t)
-                       (raise e))])
-                   ;; I should probably disallow the #:unifies argument
-                   ;; for read references. I'm not entirely sure what
-                   ;; the relationship to the target should be in that
-                   ;; case, so I'll be conservative and say it has to
-                   ;; symmetrically unify.
-                   ;;
-                   ;; But if it's a write, then it means that the target
-                   ;; is the RHS of the write, and it can be any subtype
-                   ;; of the variable referenced.
-                   (if (eq? 'read read-or-write)
-                       (unify! binding-t target-t)
-                       (subtype-unify! target-t binding-t)))))
-             child-types))))
+         #`(make/_xsmith_children-type-dict-info
+            #,(dict-ref node-child-dict-funcs n)
+            #,(dict-ref node-reference-unify-target n)
+            #,(dict-ref node-r/w-type n)
+            #,(dict-ref node-reference-field n)))))
     (define _xsmith_type-constraint-from-parent-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node) (_xsmith_type-constraint-from-parent-func
-                                   node
-                                   (quote #,n)))))))
+            (values n #`(_xsmith_type-constraint-from-parent-func (quote #,n))))))
     (define xsmith_type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1822,14 +1804,12 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node)
-                          (xsmith_type-info-func
-                           node
-                           #,(dict-ref node-reference-unify-target n)
-                           #,(dict-ref node-reference-field n)
-                           #,(dict-ref binder-type-field n)
-                           #,(dict-ref binder-name-field n)
-                           #,(dict-ref parameter?-hash n)))))))
+            (values n #`(xsmith_type-info-func/wrap
+                         #,(dict-ref node-reference-unify-target n)
+                         #,(dict-ref node-reference-field n)
+                         #,(dict-ref binder-type-field n)
+                         #,(dict-ref binder-name-field n)
+                         #,(dict-ref parameter?-hash n))))))
     (define _xsmith_re-type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1851,14 +1831,12 @@ The second arm is a function that takes the type that the node has been assigned
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
           (for/hash ([n nodes])
-            (values n #`(λ (node)
-                          (xsmith_type-info-func/parent-relation-only
-                           node
-                           #,(dict-ref node-reference-unify-target n)
-                           #,(dict-ref node-reference-field n)
-                           #,(dict-ref binder-type-field n)
-                           #,(dict-ref binder-name-field n)
-                           #,(dict-ref parameter?-hash n)))))))
+            (values n #`(xsmith_type-info-func/parent-relation-only/wrap
+                         #,(dict-ref node-reference-unify-target n)
+                         #,(dict-ref node-reference-field n)
+                         #,(dict-ref binder-type-field n)
+                         #,(dict-ref binder-name-field n)
+                         #,(dict-ref parameter?-hash n))))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)
@@ -1931,6 +1909,69 @@ The second arm is a function that takes the type that the node has been assigned
      _xsmith_function-application-info
      )))
 
+(define (make/_xsmith_children-type-dict-info
+         my-type->child-type-dict
+         reference-unify-target
+         read-or-write
+         node-reference-field)
+  (λ (node)
+    (define my-type (att-value 'xsmith_type node))
+    (when (not (procedure? my-type->child-type-dict))
+      (error 'type-info "bad value for right side of type-info for node type ~v, expected procedure (-> node type type-hash), got ~v"
+             (ast-node-type node)
+             my-type->child-type-dict))
+    (define child-types
+      (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (xd-printf "Exception raised during evaluation of child type")
+            (xd-printf " dictionary for node with serial number ~v of AST"
+                       (ast-child 'xsmithserialnumber node))
+            (xd-printf " type ~a\n\n"
+                       (ast-node-type node))
+            (raise e))])
+        (my-type->child-type-dict node my-type)))
+    (when (not (dict? child-types))
+      (error
+       'type-info
+       "Bad type rule for node type: ~v, instead of dict?, got: ~v"
+       (ast-node-type node) child-types))
+    (when (and reference-unify-target (not (eq? #t reference-unify-target)))
+      ;; This is the case that we can't handle in
+      ;; xsmith_type-info-func to avoid a cycle.
+      (let* ([var-name (ast-child node-reference-field node)]
+             [binding-t
+              (binding-type
+               (att-value '_xsmith_resolve-reference-name node var-name))]
+             [target-t
+              (get-value-from-parent-dict
+               child-types reference-unify-target
+               (λ () (error 'type-info
+                            "No type given for field ~a"
+                            reference-unify-target)))])
+        (with-handlers
+          ([(λ(e)#t)
+            (λ (e)
+              (xd-printf "Error while unifying type for reference.\n")
+              (xd-printf "Variable name: ~a\n" var-name)
+              (xd-printf "Type recorded in definition: ~v\n" binding-t)
+              (xd-printf "Type required for reference-unify target: ~v\n"
+                         target-t)
+              (raise e))])
+          ;; I should probably disallow the #:unifies argument
+          ;; for read references. I'm not entirely sure what
+          ;; the relationship to the target should be in that
+          ;; case, so I'll be conservative and say it has to
+          ;; symmetrically unify.
+          ;;
+          ;; But if it's a write, then it means that the target
+          ;; is the RHS of the write, and it can be any subtype
+          ;; of the variable referenced.
+          (if (eq? 'read read-or-write)
+              (unify! binding-t target-t)
+              (subtype-unify! target-t binding-t)))))
+    child-types))
+
 (define (can-unify-node-type-with-type?! node-in-question type-constraint
                                          #:break-when-more-settled?
                                          [break-when-more-settled? #t])
@@ -1961,14 +2002,35 @@ The second arm is a function that takes the type that the node has been assigned
     (define _xsmith_strict-child-order?-info
       (hash-set
        (for/hash ([(n v) (in-dict this-prop-info)])
-         (values n (syntax-parse v [b:boolean #'(λ (n) b)])))
-       #f #'(λ (n) #f)))
+         (values n (syntax-parse v
+                     [#t #'always-true-attribute]
+                     [#f #'always-false-attribute])))
+       #f #'always-false-attribute))
     (list _xsmith_strict-child-order?-info)))
 
 (define (non-hole-node? x)
   (and (ast-node? x)
        (not (ast-bud-node? x))
        (not (att-value 'xsmith_is-hole? x))))
+
+
+(define (mk-effect-read-mutable-attribute container-key)
+  (λ (n) (effect-read-mutable-container container-key)))
+(define (mk-effect-write-mutable-attribute container-key)
+  (λ (n) (effect-write-mutable-container container-key)))
+(define (_xsmith_no-mutable-container-effect-conflict?/read key cur-hole)
+  (not
+   (findf (λ (e) (or (any-effect? e)
+                     (and (effect-write-mutable-container? e)
+                          (eq? key (effect-variable e)))))
+          (att-value '_xsmith_effects cur-hole))))
+(define (_xsmith_no-mutable-container-effect-conflict?/write key cur-hole)
+  (not
+   (findf (λ (e) (or (any-effect? e)
+                     (and (or (effect-write-mutable-container? e)
+                              (effect-read-mutable-container? e))
+                          (eq? key (effect-variable e)))))
+          (att-value '_xsmith_effects cur-hole))))
 
 (define-property mutable-container-access
   #:appends
@@ -1983,32 +2045,21 @@ The second arm is a function that takes the type that the node has been assigned
          n
          (syntax-parse (dict-ref this-prop-info n #f)
            [((~datum read) container-key:expr)
-            #'(λ (n) (effect-read-mutable-container container-key))]
+            #'(mk-effect-read-mutable-attribute container-key)]
            [((~datum write) container-key:expr)
-            #'(λ (n) (effect-write-mutable-container container-key))]
-           [#f #'(λ (n) #f)]))))
+            #'(mk-effect-write-mutable-attribute container-key)]
+           [#f #'always-false-attribute]))))
     (define _xsmith_no-mutable-container-effect-conflict?
       (for/hash ([n nodes])
         (values
          n
          (syntax-parse (dict-ref this-prop-info n #f)
            [((~datum read) container-key:expr)
-            #'(λ ()
-                (define key container-key)
-                (not
-                 (findf (λ (e) (or (any-effect? e)
-                                   (and (effect-write-mutable-container? e)
-                                        (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects (current-hole)))))]
+            #'(λ () (_xsmith_no-mutable-container-effect-conflict?/read
+                     container-key (current-hole)))]
            [((~datum write) container-key:expr)
-            #'(λ ()
-                (define key container-key)
-                (not
-                 (findf (λ (e) (or (any-effect? e)
-                                   (and (or (effect-write-mutable-container? e)
-                                            (effect-read-mutable-container? e))
-                                        (eq? key (effect-variable e)))))
-                        (att-value '_xsmith_effects (current-hole)))))]
+            #'(λ () (_xsmith_no-mutable-container-effect-conflict?/write
+                     container-key (current-hole)))]
            [#f #'(λ () #t)]))))
     (list _xsmith_mutable-container-effects-info
           _xsmith_no-mutable-container-effect-conflict?)))
@@ -2016,7 +2067,6 @@ The second arm is a function that takes the type that the node has been assigned
 (define-property required-child-reference)
 (define-property io
   #:reads
-  (grammar)
   (property reference-info)
   (property required-child-reference)
   #:appends
@@ -2029,14 +2079,16 @@ The second arm is a function that takes the type that the node has been assigned
   (choice-method _xsmith_no-io-conflict?)
   (choice-method _xsmith_no-required-child-reference-conflict?)
   #:transformer
-  (λ (this-prop-info grammar-info reference-info required-child-reference-info)
-    (define nodes (dict-keys grammar-info))
-    (define io-info (for/hash ([node nodes])
+  (λ (this-prop-info reference-info required-child-reference-info)
+    (define io-nodes (remove-duplicates
+                      (append (dict-keys this-prop-info)
+                              (dict-keys reference-info))))
+    (define io-info (for/hash ([node (cons #f io-nodes)])
                       (values node
                               (syntax-parse (dict-ref this-prop-info node #'#f)
                                 [b:boolean #'b]))))
     (define _xsmith_effects/no-children-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (define-values (read-or-write varname)
           (syntax-parse (dict-ref reference-info n #'#f)
             [prop:reference-info-class #:when (attribute prop.is-read?)
@@ -2059,7 +2111,7 @@ The second arm is a function that takes the type that the node has been assigned
                              (att-value '_xsmith_mutable-container-effects n)
                              )))))))
     (define _xsmith_function-application-effects/no-children-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (define-values (read-or-write varname)
           (syntax-parse (dict-ref reference-info n #'#f)
             [prop:reference-info-class #:when (attribute prop.is-read?)
@@ -2110,11 +2162,11 @@ The second arm is a function that takes the type that the node has been assigned
                               (type-contains-function-type?
                                (binding-type binding))
                               (any-effect))
-
                          ;; If a function comes as the result of another function,
                          ;; assume it may do anything.
                          (and (att-value '_xsmith_function-application n)
                               (any-effect))))))))))
+
     (define _xsmith_function-application-effects-info
       (hash
        #f
@@ -2180,7 +2232,7 @@ The second arm is a function that takes the type that the node has been assigned
                            (cons extended-family-constraints
                                  direct-constraints)))))))
     (define _xsmith_no-io-conflict?-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (values
          n
          (syntax-parse (list (dict-ref io-info n) (dict-ref reference-info n #'#f))
@@ -2202,7 +2254,7 @@ The second arm is a function that takes the type that the node has been assigned
                                       (current-hole)))))]
            [(#f #f) #'(λ () #t)]))))
     (define _xsmith_no-required-child-reference-conflict?-info
-      (for/hash ([n nodes])
+      (for/hash ([n (cons #f io-nodes)])
         (values
          n
          (syntax-parse (dict-ref required-child-reference-info n #'#f)
@@ -2320,17 +2372,9 @@ TODO - add proper documentation.
            [(edit-proc ...)
             (values
              k
-             #'(λ (n)
-                 (define procs (list edit-proc ...))
-                 (define result-pre-wrap
-                   (for/or ([p procs])
-                     (p n)))
-                 (and result-pre-wrap
-                      ;; We return the node that was edited so that we can
-                      ;; automatically re-type it in the elaboration loop.
-                      (λ () (result-pre-wrap) n))))]))
+             #'(_xsmith_edit-single-info/wrapper (list edit-proc ...)))]))
        #f
-       #'(λ (n) #f)))
+       #'always-false-attribute))
     (define _xsmith_edit-walk-info
       (hash #f #'(λ (n) (or (att-value '_xsmith_edit-single n)
                             (for/or ([c (ast-children/flat n)])
@@ -2338,6 +2382,15 @@ TODO - add proper documentation.
                                    (not (ast-bud-node? c))
                                    (att-value '_xsmith_edit-walk c)))))))
     (list _xsmith_edit-single-info _xsmith_edit-walk-info)))
+(define (_xsmith_edit-single-info/wrapper edit-procs)
+  (λ (n)
+    (define result-pre-wrap
+      (for/or ([p edit-procs])
+        (p n)))
+    (and result-pre-wrap
+         ;; We return the node that was edited so that we can
+         ;; automatically re-type it in the elaboration loop.
+         (λ () (result-pre-wrap) n))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

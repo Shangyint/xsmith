@@ -43,7 +43,7 @@
            (~or (~optional (~seq #:type type:expr)
                            #:defaults ([type type-default-stx]))
                 (~optional (~seq #:ctype ctype:expr)
-                           #:defaults ([ctype #'(λ (n t) (hash 'Expression t))]))
+                           #:defaults ([ctype #'default-ctype/ag/one-arg]))
                 (~optional (~seq #:racr-name racr-name:id)
                            #:defaults ([racr-name (racr-ize-id #'name)]))
                 (~optional (~seq #:NE-name NE-name)
@@ -63,8 +63,13 @@
                                      (mk-render-node (λ () (if no-exception-check-expr
                                                                'NE-name
                                                                'name)))])])])
+(define default-ctype/ag/one-arg
+  (λ (n t) (hash 'Expression t)))
 
 
+;; TODO - if I could make Ectype somehow cache the resulting function I could
+;; probably somewhat reduce code size (good for runtime) as well as memory
+;; usage during compilation.
 (define-syntax-parser Ectype
   [(_ etype:expr)
    #'(λ (n t) (hash 'Expression etype))])
@@ -79,7 +84,7 @@
            (~or (~optional (~seq #:type type:expr)
                            #:defaults ([type type-default-stx]))
                 (~optional (~seq #:ctype ctype:expr)
-                           #:defaults ([ctype #'(λ (n t) (hash 'l t 'r t))]))
+                           #:defaults ([ctype #'default-ctype/ag/two-arg]))
                 (~optional (~seq #:racr-name racr-name:id)
                            #:defaults ([racr-name (racr-ize-id #'name)]))
                 (~optional (~seq #:NE-name NE-name)
@@ -95,6 +100,8 @@
                                      (mk-render-node (λ () (if no-exception-check-expr
                                                                'NE-name
                                                                'name)))])])])
+(define default-ctype/ag/two-arg
+  (λ (n t) (hash 'l t 'r t)))
 (define-syntax-parser E2ctype
   [(_ etypel:expr etyper:expr)
    #'(λ (n t) (hash 'l etypel 'r etyper))])
@@ -109,7 +116,7 @@
            (~or (~optional (~seq #:type type:expr)
                            #:defaults ([type type-default-stx]))
                 (~optional (~seq #:ctype ctype:expr)
-                           #:defaults ([ctype #'(λ (n t) (hash 'l t 'm t 'r t))]))
+                           #:defaults ([ctype #'default-ctype/ag/three-arg]))
                 (~optional (~seq #:racr-name racr-name:id)
                            #:defaults ([racr-name (racr-ize-id #'name)]))
                 (~optional (~seq #:NE-name NE-name)
@@ -126,6 +133,8 @@
                                      (mk-render-node (λ () (if no-exception-check-expr
                                                                'NE-name
                                                                'name)))])])])
+(define default-ctype/ag/three-arg
+  (λ (n t) (hash 'l t 'm t 'r t)))
 (define-syntax-parser E3ctype
   [(_ etypel:expr etypem:expr etyper:expr)
    #'(λ (n t) (hash 'l etypel 'm etypem 'r etyper))])
