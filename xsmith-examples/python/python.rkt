@@ -822,15 +822,15 @@
 ;; TODO - property()
 (ag/one-arg range
             #:racr-name RangeOne
-            #:type (fresh-iterator int-type)
+            #:type (fresh-immutable-sequence int-type)
             #:ctype (Ectype int-type))
 (ag/two-arg range
             #:racr-name RangeTwo
-            #:type (fresh-iterator int-type)
+            #:type (fresh-immutable-sequence int-type)
             #:ctype (E2ctype int-type int-type))
 (ag/three-arg range
               #:racr-name RangeThree
-              #:type (fresh-iterator int-type)
+              #:type (fresh-immutable-sequence int-type)
               #:ctype (E3ctype int-type int-type int-type))
 (ag/one-arg repr #:type string-type #:ctype (Ectype (fresh-type-variable)))
 (ag/one-arg reversed
