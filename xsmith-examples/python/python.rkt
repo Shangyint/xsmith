@@ -1137,6 +1137,11 @@
         "xmlcharrefreplace"
         "backslashreplace"
         "namereplace"))
+(define decoding-error-handling-schemes
+  (list #;"strict"
+        "ignore"
+        "replace"
+        "backslashreplace"))
 (add-to-grammar
  python-comp
  ;; NOTE - While we provide a version of `encode` that uses the default encoding, we do not use the default
@@ -1174,7 +1179,7 @@
  ;; they are the dual of the string encoding method.
  [BytesMethodDecodeOne Expression
                        ([bts : Expression]
-                        [errors = (random-ref encoding-error-handling-schemes)])
+                        [errors = (random-ref decoding-error-handling-schemes)])
                        #:prop type-info
                        [string-type
                         (λ (n t)
@@ -1190,7 +1195,7 @@
  [BytesMethodDecodeTwo Expression
                        ([bts : Expression]
                         [encoding = (random-ref encoding-codecs)]
-                        [errors = (random-ref encoding-error-handling-schemes)])
+                        [errors = (random-ref decoding-error-handling-schemes)])
                        #:prop type-info
                        [string-type
                         (λ (n t)
