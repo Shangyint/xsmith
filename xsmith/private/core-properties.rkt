@@ -1002,17 +1002,16 @@ It just reads the values of several other properties and produces the results fo
                n (ast-child field n))))
 
 (define-property reference-info
-  #:reads (grammar)
   #:appends
   (choice-method _xsmith_is-read-reference-choice?)
   (attribute _xsmith_is-read-reference-node?)
   (attribute _xsmith_is-reference-node?)
   (attribute _xsmith_resolve-reference)
   #:transformer
-  (λ (this-prop-info grammar-info)
-    (define nodes (dict-keys grammar-info))
+  (λ (this-prop-info)
+    (define reference-info-nodes (cons #f (dict-keys this-prop-info)))
     (define _xsmith_is-read-reference-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
                 (syntax-parse (dict-ref this-prop-info
                                         node
@@ -1021,7 +1020,7 @@ It just reads the values of several other properties and produces the results fo
                                              #''prop.field-name]
                   [prop:reference-info-class #'#f]))))
     (define _xsmith_is-reference-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
                 (syntax-parse (dict-ref this-prop-info
                                         node
@@ -1030,16 +1029,16 @@ It just reads the values of several other properties and produces the results fo
                                              #''prop.field-name]
                   [prop:reference-info-class #'#f]))))
     (define _xsmith_is-read-reference-choice?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ () #,(dict-ref _xsmith_is-read-reference-info node)))))
     (define _xsmith_is-read-reference-node?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ (n) #,(dict-ref _xsmith_is-read-reference-info node)))))
     (define _xsmith_is-reference-node?-info
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node #`(λ (n) #,(dict-ref _xsmith_is-reference-info node)))))
     (define _xsmith_resolve-reference
-      (for/hash ([node nodes])
+      (for/hash ([node reference-info-nodes])
         (values node
                 #`(make/_xsmith_resolve-reference
                    #,(dict-ref _xsmith_is-reference-info node)))))
