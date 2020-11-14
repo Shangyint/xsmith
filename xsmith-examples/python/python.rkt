@@ -1121,7 +1121,7 @@
         "iso2022_jp_3" "iso2022_jp_ext" "iso2022_kr"
         "latin_1"
         "iso8859_2" "iso8859_3" "iso8859_4" "iso8859_5" "iso8859_6" "iso8859_7"
-        "iso8859_8" "iso8859_9" "iso8859_10" "iso8859_11" "iso8859_12"
+        "iso8859_8" "iso8859_9" "iso8859_10" "iso8859_11"
         "iso8859_13" "iso8859_14" "iso8859_15" "iso8859_16"
         "johab"
         "koi8_r" "koi8_t" "koi8_u"
