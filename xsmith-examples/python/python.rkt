@@ -36,13 +36,13 @@
 (define ssize_t-max-size (expt 2 63))
 (define overflow-safe-ssize_t-min-value (* -1 ssize_t-max-size))  ;; Minimum allowable value that does not cause OverflowError.
 (define overflow-safe-ssize_t-max-value (sub1 ssize_t-max-size))  ;; Maximum allowable value that does not cause OverflowError.
-(define overflow-safe-ssize_t-type (base-type 'overflow-safe-ssize_t real-type))
+(define overflow-safe-ssize_t-type (base-type 'overflow-safe-ssize_t #:leaf? #t))
 (define int-max-size (expt 2 31))
 (define overflow-safe-int-min-value (* -1 int-max-size))
 (define overflow-safe-int-max-value (sub1 int-max-size))
-(define overflow-safe-int-type (base-type 'overflow-safe-int real-type))
+(define overflow-safe-int-type (base-type 'overflow-safe-int #:leaf? #t))
 (define string-safe-int-max-value (expt 2 16))  ;; Arbitrary max argument value for string-generating functions.
-(define string-safe-int-type (base-type 'string-safe-int real-type))
+(define string-safe-int-type (base-type 'string-safe-int #:leaf? #t))
 ;; NOTE - The range function can often interact poorly with some other functions
 ;;        when its operands are very large integers. We restrict them to avoid
 ;;        this unfortunate situation.
