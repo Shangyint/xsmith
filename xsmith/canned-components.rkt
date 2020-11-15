@@ -58,7 +58,7 @@
 (define variable-reference-weight 15)
 
 (define (depth-weight #:shallow [shallow-weight 1]
-                      #:deep [deep-weight 10])
+                      #:deep [deep-weight 3])
   (λ (n) (if (att-value 'xsmith_at-max-depth? n)
              deep-weight
              shallow-weight)))

@@ -483,9 +483,7 @@
    #'(ag [name Expression ([Expression])
                #:prop depth-increase 0
                #:prop wont-over-deepen #t
-               ;; Give max-depth choices more than minimum weight, but not
-               ;; much more since some can be fulfilled by literals.
-               #:prop choice-weight (depth-weight #:deep 4)
+               #:prop choice-weight (depth-weight)
                #:prop type-info
                [produces
                 (λ (n t)
