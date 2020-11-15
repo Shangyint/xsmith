@@ -760,7 +760,12 @@
             ;;        they are actually considered 'mappings' instead of
             ;;        'sequences' due to the necessity of the key type being
             ;;        immutable.
-            #:ctype (Ectype (fresh-sequence (product-type (list (dictionary-key-type) (dictionary-value-type))))))
+            #:ctype (λ (n t)
+                      (define key-type (fresh-type-variable))
+                      (define value-type (fresh-type-variable))
+                      (define return-dict (fresh-dictionary key-type value-type))
+                      (unify! t return-dict)
+                      (hash 'Expression (fresh-sequence (product-type (list key-type value-type))))))
 ;; Zero-arg dir returns a list of names bound in the current scope.
 (ag/zero-arg dir
              #:racr-name DirZero
