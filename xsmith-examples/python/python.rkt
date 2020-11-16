@@ -49,6 +49,18 @@
 (define reasonable-range-max-value (expt 2 24))
 (define reasonable-range-half-value (/ reasonable-range-max-value 2))
 
+;; TODO - This is a very primitive implementation of types.
+;;
+;; I think the type of types could be a generic that contains a tuple of
+;; attributes (fields or methods) and their associated types. This would then
+;; support functionality like:
+;;   - hasattr()
+;;   - getattr()
+;;   - setattr()
+;;   - instantiation
+;;   - methods
+(define type-type (base-type 'type #:leaf? #t))
+
 (define char-type (base-type 'char))
 (define dictionary-key-type
   (λ () (fresh-type-variable int-type bool-type string-type)))
@@ -778,7 +790,9 @@
 ;; TODO - __import__()
 ;; TODO - input()  ;; XXX - don't know if we should implement this, since it waits for external input.
 ;; TODO - int()
-;; TODO - isinstance()
+(ag/two-arg isinstance
+            #:type bool-type
+            #:ctype (E2ctype (fresh-type-variable) type-type))
 ;; TODO - issubclass()
 ;; NOTE - iter() is handled in the zero-cost converters.
 (ag/one-arg len #:type int-type
@@ -900,7 +914,10 @@
                       (hash 'Expression (fresh-iterable-or-sequence-or-array t))))
 ;; TODO - super()
 ;; NOTE - tuple() is handled in the zero-cost converters.
-;; TODO - type()
+(ag/one-arg type
+            #:shallow #t
+            #:type type-type
+            #:ctype (Ectype (fresh-type-variable)))
 ;; TODO - vars()
 ;; NOTE - zip() can also take zero arguments, but we omit this for interest.
 (ag/one-arg zip
