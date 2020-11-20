@@ -58,7 +58,10 @@
     ...)
    #'(begin
 
-       (define xsmith-info (get-info (list package-name)))
+       (define xsmith-info* (get-info (list package-name)))
+       (define (xsmith-info key)
+         (with-handlers ([exn:fail? (λ (e) #f)])
+           (xsmith-info* key)))
 
        ;;
        ;; Try to determine the short git commit hash of this version of Xsmith by
@@ -74,7 +77,7 @@
              (let [(info-rev (xsmith-info 'git-commit))]
                ;; Was the git commit hash inserted into `info.rkt` by `git archive`?
                ;; If so, the first character of `rev` will not be #\$.
-               (if (not (char=? (string-ref info-rev 0) #\$))
+               (if (and info-rev (not (char=? (string-ref info-rev 0) #\$)))
                    info-rev
                    #f))
              #f))
@@ -159,22 +162,25 @@
        ;; Define the version strings
        ;;
        (~?
-        (define just-git-hash-name xsmith-git-commit-string))
+        (define just-git-hash-name
+          (string->immutable-string xsmith-git-commit-string)))
        (~?
         (define no-name-version-string-name
-          (if xsmith-info
-              (format "~a (~a)"
-                      (xsmith-info 'version)
-                      xsmith-git-commit-string)
-              "unable to determine program version")))
+          (string->immutable-string
+           (if xsmith-info
+               (format "~a (~a)"
+                       (xsmith-info 'version)
+                       xsmith-git-commit-string)
+               "unable to determine program version"))))
        (~?
         (define named-version-string-name
-          (if xsmith-info
-              (format "~a ~a (~a)"
-                      (xsmith-info 'name)
-                      (xsmith-info 'version)
-                      xsmith-git-commit-string)
-              "unable to determine program version")))
+          (string->immutable-string
+           (if xsmith-info
+               (format "~a ~a (~a)"
+                       (xsmith-info 'name)
+                       (xsmith-info 'version)
+                       xsmith-git-commit-string)
+               "unable to determine program version"))))
 
        )])
 
