@@ -35,15 +35,14 @@
  xsmith-examples-version-string/no-name
  )
 
-(require xsmith/version-string-with-git-hash)
-
+(require version-string-with-git-hash)
 
 
 
 (define-version-strings-with-git-hash
-  xsmith-examples-version-string
-  xsmith-examples-version-string/no-name
-  "xsmith")
+  "xsmith-examples"
+  #:with-package-name xsmith-examples-version-string
+  #:no-package-name xsmith-examples-version-string/no-name)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; End of file.

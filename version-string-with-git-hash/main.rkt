@@ -48,9 +48,14 @@
 
 
 (define-syntax-parser define-version-strings-with-git-hash
-  [(_ named-version-string-name:id
-      no-name-version-string-name:id
-      package-name:string)
+  [(_
+    package-name:string
+    (~or
+     (~optional (~seq #:just-git-hash just-git-hash-name:id))
+     (~optional (~seq #:with-package-name named-version-string-name:id))
+     (~optional (~seq #:no-package-name no-name-version-string-name:id))
+     )
+    ...)
    #'(begin
 
        (define xsmith-info (get-info (list package-name)))
@@ -151,23 +156,37 @@
              "unknown"))
 
        ;;
-       ;; The descriptive version string for Xsmith.
+       ;; Define the version strings
        ;;
-       (define no-name-version-string-name
-         (if xsmith-info
-             (format "~a (~a)"
-                     (xsmith-info 'version)
-                     xsmith-git-commit-string)
-             "unable to determine program version"))
-       (define named-version-string-name
-         (if xsmith-info
-             (format "~a ~a (~a)"
-                     (xsmith-info 'name)
-                     (xsmith-info 'version)
-                     xsmith-git-commit-string)
-             "unable to determine program version"))
+       (~?
+        (define just-git-hash-name xsmith-git-commit-string))
+       (~?
+        (define no-name-version-string-name
+          (if xsmith-info
+              (format "~a (~a)"
+                      (xsmith-info 'version)
+                      xsmith-git-commit-string)
+              "unable to determine program version")))
+       (~?
+        (define named-version-string-name
+          (if xsmith-info
+              (format "~a ~a (~a)"
+                      (xsmith-info 'name)
+                      (xsmith-info 'version)
+                      xsmith-git-commit-string)
+              "unable to determine program version")))
 
        )])
+
+(module+ main
+  (define-version-strings-with-git-hash "version-string-with-git-hash"
+    #:with-package-name wpn
+    #:no-package-name npn
+    #:just-git-hash jgh)
+  (displayln wpn)
+  (displayln npn)
+  (displayln jgh)
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

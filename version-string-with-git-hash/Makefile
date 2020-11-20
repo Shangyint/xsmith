@@ -30,9 +30,7 @@
 ###############################################################################
 
 raco-pkg-install:
-	$(MAKE) -C version-string-with-git-hash
-	$(MAKE) -C xsmith
-	$(MAKE) -C xsmith-examples
+	raco pkg install --auto
 
 ###############################################################################
 

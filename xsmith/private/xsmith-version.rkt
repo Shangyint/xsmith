@@ -35,15 +35,15 @@
  xsmith-version-string/no-name
  )
 
-(require "../version-string-with-git-hash.rkt")
+(require version-string-with-git-hash)
 
 
 
 
 (define-version-strings-with-git-hash
-  xsmith-version-string
-  xsmith-version-string/no-name
-  "xsmith")
+  "xsmith"
+  #:with-package-name xsmith-version-string
+  #:no-package-name xsmith-version-string/no-name)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; End of file.

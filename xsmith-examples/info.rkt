@@ -48,6 +48,7 @@
   '(("scribblings/xsmith-examples.scrbl")))
 (define deps
   '("base"
+    "version-string-with-git-hash"
     "rackunit-lib"
     "at-exp-lib"
     "pprint"
