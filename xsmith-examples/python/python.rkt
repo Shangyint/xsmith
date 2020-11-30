@@ -1123,6 +1123,10 @@
         "utf_32" "utf_32_be" "utf_32_le"
         "utf_16" "utf_16_be" "utf_16_le"
         "utf_7" "utf_8" "utf_8_sig"))
+;; We define a smaller set of codecs for default use, and use the large set only when it is enabled via a
+;; command-line feature switch.
+(define simple-encoding-codecs
+  (list "ascii" "utf_16" "utf_8"))
 ;; NOTE - These error handling mechanisms are enumerated under: https://docs.python.org/3/library/codecs.html#codecs.register_error
 ;;        Aside from 'strict' (which is accordingly commented out), they should prevent runtime errors.
 ;; TODO - Wrapping this in a custom function in the header could accommodate implementing 'strict' and
@@ -1161,7 +1165,9 @@
                                  rparen))]
  [StrMethodEncodeTwo Expression
                      ([str : Expression]
-                      [encoding = (random-ref encoding-codecs)]
+                      [encoding = (random-ref (if (xsmith-feature-enabled? 'advanced-encoding)
+                                                  encoding-codecs
+                                                  simple-encoding-codecs))]
                       [errors = (random-ref encoding-error-handling-schemes)])
                      #:prop type-info
                      [byte-string-type
@@ -1173,8 +1179,8 @@
                                                "encode"
                                                (h-append squote (text (ast-child 'encoding n)) squote)
                                                (h-append squote (text (ast-child 'errors n)) squote)))]
- ;; We also provide the byte string decoding method implementations here since
- ;; they are the dual of the string encoding method.
+ ;; We also provide the byte string decoding methods implementations here since
+ ;; they are the dual of the string encoding methods.
  [BytesMethodDecodeOne Expression
                        ([bts : Expression]
                         [errors = (random-ref decoding-error-handling-schemes)])
@@ -1192,7 +1198,9 @@
                                    rparen))]
  [BytesMethodDecodeTwo Expression
                        ([bts : Expression]
-                        [encoding = (random-ref encoding-codecs)]
+                        [encoding = (random-ref (if (xsmith-feature-enabled? 'advanced-encoding)
+                                                    encoding-codecs
+                                                    simple-encoding-codecs))]
                         [errors = (random-ref decoding-error-handling-schemes)])
                        #:prop type-info
                        [string-type
@@ -1751,6 +1759,7 @@ def to_string(x):
   #:program-node ProgramWithBlock
   #:format-render python-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "# ~a" l)) lines)
-                                         "\n")))
+                                         "\n"))
+  #:features ([advanced-encoding #f]))
 
 (module+ main (python3-command-line))
