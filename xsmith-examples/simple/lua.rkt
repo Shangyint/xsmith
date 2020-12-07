@@ -12,6 +12,7 @@
  racket/match
  racket/format
  "../private/xsmith-examples-version.rkt"
+ "../private/util.rkt"
  )
 
 (define-basic-spec-component lua-comp)
@@ -47,18 +48,21 @@
                                  (map (λ (x) (random-byte))
                                       (make-list (random-byte-list-length) #f)))))
 
+;; TODO - find the right numbers for these.
+(define float-int-min (expt -2 30))
+(define float-int-max (expt 2 30))
+
+(define (random-int-in-bounds)
+  (let ([x (random-int)])
+    (if (< x 0)
+        (modulo x float-int-min)
+        (modulo x float-int-max))))
 (define (biased-random-int)
-  ;; The random function returns word-sized integers.
-  ;; I want more variety, like bigints.
-  ;; Lua, however, only has IEEE double floats.
-  (match (random 6)
-    [0 (random-int)]
-    [1 (+ (* (random-int) (random-int)) (random-int))]
-    [2 (+ (* (random-int) (random-int) (random-int)) (random-int))]
-    [3 (+ (* (random-int) (random-int) (random-int) (random-int)) (random-int))]
-    [4 (random 255)]
-    [5 (random 10)]
-    ))
+  (random-expr
+   (random-int-in-bounds)
+   (random 255)
+   (random-expr 0 -1 1 float-int-min float-int-max)
+   ))
 
 
 (add-property
@@ -105,22 +109,70 @@
                                            #:pad-string "0"
                                            b)))))))
 
-(define header-definitions-block
+(define header-definitions-block-1
+  (format
+   "
+our_int_min = ~a
+our_int_max = ~a
+"
+   float-int-min
+   float-int-max
+   ))
+(define header-definitions-block-2
+  ;; TODO - the modulo definition maybe needs to change based on lua version.  Is there a way to do conditional evaluation based on which lua implementation I'm in?
+  ;; This modulo definition is from the Lua reference manual:
+  ;; http://www.lua.org/manual/5.2/manual.html#3.4.1
   "
---modulo = function(a, b) return a - math.floor(a/b)*b end
-modulo = function(a, b) return a % b end
--- modulo doesn't work reliably on large numbers.
--- TODO - figure out where the boundary is.
-array_modulo_max = math.floor(2 ^ 30)
-array_modulo = function(a, b)
-  if a > array_modulo_max or a < (- array_modulo_max) then
-    return modulo(array_modulo_max, b)
+
+safe_add = function(a, b)
+  local result = a + b
+  if (result > our_int_max) or (result < our_int_min) then
+    return a
   else
-    return modulo(a, b)
+    return result
   end
 end
+safe_subtract = function(a, b)
+  local result = a - b
+  if (result > our_int_max) or (result < our_int_min) then
+    return a
+  else
+    return result
+  end
+end
+safe_multiply = function(a, b)
+  local result = a * b
+  if (result > our_int_max) or (result < our_int_min) then
+    return a
+  else
+    return result
+  end
+end
+safe_divide = function(a, b)
+  if b == 0 then
+    return a
+  else
+    local result = a / b
+    if (result > our_int_max) or (result < our_int_min) then
+      return a
+    else
+      return result
+    end
+  end
+end
+safe_modulo = function(a, b)
+  if b == 0 then
+    return 0
+  else
+    return a % b
+  end
+end
+--modulo = function(a, b) return a - math.floor(a/b)*b end
 
-safe_divide = function(a, b) return (b == 0) and a or (a / b) end
+array_modulo = function(a, b)
+  return math.abs(safe_modulo(a,b))
+end
+
 function mutable_array_safe_reference(array, index, fallback)
   if (#array == 0) then
     return fallback
@@ -155,7 +207,7 @@ function form(x)
   elseif \"table\" == t then
     local acc = \"{\"
     for index, value in pairs(x) do
-      acc = acc .. \"[\" .. form(index) .. \"]\" .. form(value) .. \", \"
+      acc = acc .. \"[\" .. form(index) .. \"] = \" .. form(value) .. \", \"
     end
     acc = acc .. \"}\"
     return acc
@@ -176,10 +228,10 @@ expression_statement_dummy_var = 0;
   (λ (n)
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
-     ;; TODO - this definition maybe needs to change based on lua version.  Is there a way to do conditional evaluation based on which lua implementation I'm in?
-     ;; This modulo definition is from the Lua reference manual:
-     ;; http://www.lua.org/manual/5.2/manual.html#3.4.1
-     (text header-definitions-block)
+     (text (string-append
+            header-definitions-block-1
+            header-definitions-block-2
+            ))
      (vb-concat
       (list*
        (text "")
