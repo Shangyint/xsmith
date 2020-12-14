@@ -75,6 +75,13 @@
   (λ (n) (h-append lparen ($xsmith_render-node (ast-child 'l n))
                    space op-rendered space
                    ($xsmith_render-node (ast-child 'r n)) rparen)))
+(define (binary-func-renderer op-rendered)
+  (λ (n) (h-append
+          lparen
+          op-rendered lparen ($xsmith_render-node (ast-child 'l n))
+          comma space
+          ($xsmith_render-node (ast-child 'r n)) rparen
+          rparen)))
 (add-property
  lua-comp
  render-hole-info
@@ -348,17 +355,13 @@ expression_statement_dummy_var = 0;
  [Or (binary-op-renderer (text "or"))]
 
  [IntLiteral (λ (n) (text (format "~a" (ast-child 'v n))))]
- [Plus (binary-op-renderer (text "+"))]
- [Minus (binary-op-renderer (text "-"))]
- [Times (binary-op-renderer (text "*"))]
+ [Plus (binary-func-renderer (text "safe_add"))]
+ [Minus (binary-func-renderer (text "safe_subtract"))]
+ [Times (binary-func-renderer (text "safe_multiply"))]
  [LessThan (binary-op-renderer (text "<"))]
  [GreaterThan (binary-op-renderer (text ">"))]
 
- [SafeDivide (λ (n) (h-append (text "safe_divide") lparen
-                              ($xsmith_render-node (ast-child 'l n))
-                              (text ",") space
-                              ($xsmith_render-node (ast-child 'r n))
-                              rparen))]
+ [SafeDivide (binary-func-renderer (text "safe_divide"))]
 
  [StringLiteral (λ (n) (text (lua-string-format (ast-child 'v n))))]
  [StringAppend (binary-op-renderer (text ".."))]
