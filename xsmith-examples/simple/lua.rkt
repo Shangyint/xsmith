@@ -49,7 +49,7 @@
                                       (make-list (random-byte-list-length) #f)))))
 
 ;; TODO - find the right numbers for these.
-(define float-int-min (expt -2 30))
+(define float-int-min (- (expt 2 30)))
 (define float-int-max (expt 2 30))
 
 (define (random-int-in-bounds)
