@@ -62,6 +62,7 @@
                      ))
 
 (define compile-omit-paths '("future"))
+(define test-omit-paths '("future"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
