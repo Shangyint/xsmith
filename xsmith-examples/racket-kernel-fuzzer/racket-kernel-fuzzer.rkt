@@ -121,6 +121,7 @@
 (define exact-bool (base-type 'exact-bool bool))
 
 
+
 (define-basic-spec-component racket-comp)
 
 (add-basic-expressions racket-comp
@@ -707,6 +708,66 @@
             #:ctype (E2ctype int int))
 
 
+;;;;; Paths
+;; TODO - path related functions may accept path objects, strings or bytestrings that can be converted to paths, 'up or 'same symbols corresponding to ".." and "." paths on unix, or path components, which are paths with only one part.  Paths may be unix paths or windows paths.
+;; You can tell if a path is for unix or windows with `path-convention-type`.
+;; To build windows and unix paths explicitly, use bytes->path or string->some-system-path, both take 'windows or 'unix as the second argument.  Then combine paths with `build-path/convention-type`.  Converting from bytes/strings will need some safe wrapper to avoid exceptions from invalid paths.
+;; I need a safe string/byte -> path function and safe relative-absolute converters.
+;; TODO - should I allow path-strings?  Just paths is perhaps an easier place to start.
+;; paths can be for windows or unix, and can be absolute or relative.
+;; I'll do relative/absolute as base type subtypes, and OS type as a wrapper.
+(define path (base-type 'path #:leaf? #f))
+(define windows-path (base-type 'windows-path path))
+(define unix-path (base-type 'unix-path path))
+(define (fresh-path)
+  (fresh-subtype-of path))
+;; path-symbol is for APIs that accept 'up or 'same symbols.
+(define path-symbol (base-type 'path-symbol))
+(ag/atomic-literal PathSymbol path-symbol (random-expr 'up 'same))
+
+;; build-path also allows 'up and 'same
+;; build-path does the convention of the machine it's run on.  Maybe I'll ignore it for now?
+(ag/variadic build-path/windows 1
+             #:type windows-path
+             #:ctype (λ (n t) (hash 'minargs (windows-path path)
+                                    'moreargs (fresh-type-variable
+                                               path-symbol
+                                               windows-path))))
+(ag/variadic build-path/unix 1
+             #:type unix-path
+             #:ctype (λ (n t) (hash 'minargs (unix-path path)
+                                    'moreargs (fresh-type-variable
+                                               path-symbol
+                                               unix-path))))
+(ag/one-arg bytes->path/windows #:type windows-path #:ctype (Ectype bytes))
+(ag/one-arg bytes->path/unix #:type unix-path #:ctype (Ectype bytes))
+(ag/one-arg string->path/windows #:type windows-path #:ctype (Ectype string))
+(ag/one-arg string->path/unix #:type unix-path #:ctype (Ectype string))
+(ag/one-arg cleanse-path #:type (fresh-path))
+(ag/one-arg simplify-path/no-fs #:type (fresh-path))
+(ag/one-arg relative-path? #:type bool #:ctype (Ectype (fresh-path)))
+(ag/one-arg absolute-path? #:type bool #:ctype (Ectype (fresh-path)))
+(ag/one-arg complete-path? #:type bool #:ctype (Ectype (fresh-path)))
+(ag/one-arg explode-path
+            #:type (immutable (list-type (fresh-path)))
+            #:ctype (λ (n t)
+                      (define inner (fresh-type-variable))
+                      (unify! t (immutable (list-type inner)))
+                      (hash 'Expression inner)))
+(ag/type-predicate path-for-some-system?)
+(ag/one-arg path->bytes #:type bytes #:ctype (Ectype (fresh-path)))
+(ag/one-arg path->directory-path #:type (fresh-path))
+(ag/one-arg path-convention-type #:type symbol #:ctype (Ectype (fresh-path)))
+;; TODO - actually this is variadic and requires 1 arg.
+(ag/two-arg path<? #:type bool #:ctype (E2ctype (fresh-path) (fresh-path)))
+(ag/one-arg path->complete-path/single #:type (fresh-path))
+(ag/two-arg path->complete-path/double #:type (fresh-path))
+;; TODO - split-path -- it returns 3 values, it's fairly complicated.
+;; TODO - bytes->path-element, string->path-element -- these require that the path only be a single element.  Somewhat more difficult.
+;; TODO path-element->bytes
+;; TODO path-element->string
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Rendering for basic expressions (IE add-basic-expression)
 ;;;;; Mostly this is from the simple/racket fuzzer.
@@ -727,6 +788,7 @@
      racket/match
      racket/format
      racket/string
+     racket/path
      )
     (define-values (NE/)
       (λ (arg1 . args)
@@ -825,6 +887,62 @@
           (void)
           (vector-set! vec (modulo index (vector-length vec)) val)))
 
+    (define (string-path-prep s)
+      (define (string-filter-nulls s)
+        (string-replace s "\0" ""))
+      (define (string->non-empty s)
+        (if (equal? s "")
+            "a"
+            s))
+      (string->non-empty (string-filter-nulls s)))
+    (define (bytes-path-prep s)
+      (define (bytes-filter-nulls bs)
+        (list->bytes (filter (λ (b) (eq? b 0)) (bytes->list bs))))
+      (define (bytes->non-empty s)
+        (if (equal? s #"")
+            #"a"
+            s))
+      (bytes->non-empty (bytes-filter-nulls s)))
+
+    (define (string->path/windows s)
+      (string->some-system-path (string-path-prep s) 'windows))
+    (define (string->path/unix s)
+      (string->some-system-path (string-path-prep s) 'unix))
+
+    (define (path-relativize p [backup #f])
+      (if (or (symbol? p)
+              (relative-path? p))
+          p
+          (let ([ps (explode-path p)]
+                [convention (path-convention-type p)])
+            (if (null? (cdr ps))
+                (or backup
+                    (if (eq? convention 'unix)
+                        (build-path/convention-type 'unix "a-relative-path")
+                        (build-path/convention-type 'windows "a-relative-path")))
+                (cdr ps)))))
+
+    (define (bytes->path/windows s)
+      (bytes->path (bytes-path-prep s) 'windows))
+    (define (bytes->path/unix s)
+      (bytes->path (bytes-path-prep s) 'unix))
+
+    (define (build-path/windows one . others)
+      (apply build-path/convention-type 'windows one (map path-relativize others)))
+    (define (build-path/unix one . others)
+      (apply build-path/convention-type 'unix one (map path-relativize others)))
+    (define (simplify-path/no-fs p)
+      (simplify-path p #f))
+
+    (define (path->complete-path/single p)
+      (define convention (path-convention-type p))
+      (define base (if (eq? convention 'unix)
+                       (bytes->path #"/" 'unix)
+                       (bytes->path #"C:\\" 'windows)))
+      (path->complete-path p base))
+    (define (path->complete-path/double p base)
+      (path->complete-path p (path->complete-path/single base)))
+
     (define (format-round x)
       (if (or (equal? x +inf.0)
               (equal? x -inf.0)
@@ -911,6 +1029,7 @@
              (? bytes?)
              (? symbol?)
              (? keyword?)
+             (? path?)
              #t #f
              (? char?)
              ;; Dates are structs, but they can only contain atomic data.
