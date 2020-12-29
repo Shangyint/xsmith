@@ -184,6 +184,47 @@ TODO - running / compiling SML
 ;; TODO - here is an actual intro to standard ML, though it says that it's out of date, and is copyright 1998: https://www.cs.cmu.edu/~rwh/introsml/contents.htm
 ;; TODO - bring in a bunch of stuff from “basis” library: https://www.cs.princeton.edu/~appel/smlnj/basis/string.html
 
+(add-loop-over-container
+ comp
+ #:name IntegerForLoop
+ #:loop-type-constructor (λ (elem-type) void-type)
+ #:body-type-constructor (λ (loop-type elem-type) void-type)
+ #:loop-variable-type-constructor (λ (elem-type) small-int-type)
+ #:collection-type-constructor (λ (elem-type) small-int-type)
+ )
+(add-property
+ comp
+ render-node-info
+ [IntegerForLoop
+  ;; For this IntegerForLoop, we will have the loop index in a box, loop using
+  ;; the box, and have an integer definition within the loop body based on that box.
+  (λ (n)
+    (let ([box-var (text (fresh-var-name "loopbox"))])
+      (v-append
+       (h-append (text "let ")
+                 box-var
+                 (text " = ref ")
+                 (render-child 'collection n)
+                 )
+       (nest nest-step
+             (v-append
+              (text "in")
+              (h-append
+               (text "while !")
+               box-var
+               (nest nest-step
+                     (v-append
+                      (text " > 0 do")
+                      (nest nest-step
+                            (v-append
+                             (h-append (text "let ") (render-child 'elemname n)
+                                       (text " = !") box-var (text " in ("))
+                             (h-append box-var (text " := !") box-var (text " - 1;"))
+                             (render-child 'body n)))
+                      (text ") end"))))))
+       (h-append (text "end")))))])
+
+
 ;; No exceptions.
 (define NE? #t)
 
@@ -965,6 +1006,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
                               equals
                               space
                               (render-child 'Expression n)))]
+ [DefinitionNoRhs (λ (n) (text (ast-child 'name n)))]
 
 
  [VariableReference (λ (n) (text (format "~a" (ast-child 'name n))))]
