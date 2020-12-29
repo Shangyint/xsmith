@@ -897,7 +897,7 @@
       (string->non-empty (string-filter-nulls s)))
     (define (bytes-path-prep s)
       (define (bytes-filter-nulls bs)
-        (list->bytes (filter (λ (b) (eq? b 0)) (bytes->list bs))))
+        (list->bytes (filter (λ (b) (not (eq? b 0))) (bytes->list bs))))
       (define (bytes->non-empty s)
         (if (equal? s #"")
             #"a"
