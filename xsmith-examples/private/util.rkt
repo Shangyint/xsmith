@@ -33,6 +33,8 @@
 
 
 
+;; These `ag` macros are a shorthand I started using when making the Racket kernel fuzzer as an add-to-grammar wrapper for quickly defining lots of builtin functions.
+;; TODO - the ag macros should allow arbitraray #:prop arguments.
 (define-syntax-parser define-ag/one-arg
   [(_ ag-name:id component-name:id racr-ize-id:expr
       no-exception-check-expr:expr

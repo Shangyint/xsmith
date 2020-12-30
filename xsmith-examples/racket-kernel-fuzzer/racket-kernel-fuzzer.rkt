@@ -739,8 +739,8 @@
                                     'moreargs (fresh-type-variable
                                                path-symbol
                                                unix-path))))
-(ag/one-arg bytes->path/windows #:type windows-path #:ctype (Ectype bytes))
-(ag/one-arg bytes->path/unix #:type unix-path #:ctype (Ectype bytes))
+(ag/one-arg bytes->path/windows #:type windows-path #:ctype (Ectype bytes) #:shallow #t)
+(ag/one-arg bytes->path/unix #:type unix-path #:ctype (Ectype bytes) #:shallow #t)
 (ag/one-arg string->path/windows #:type windows-path #:ctype (Ectype string))
 (ag/one-arg string->path/unix #:type unix-path #:ctype (Ectype string))
 (ag/one-arg cleanse-path #:type (fresh-path))
