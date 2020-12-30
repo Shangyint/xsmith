@@ -637,7 +637,9 @@
 (ag/type-predicate pair?)
 (ag/type-predicate parameter?)
 (ag/type-predicate parameterization?)
-(ag/type-predicate path?)
+;; the path? predicate depends on the current system type, path-for-some-system? is system independent.
+;(ag/type-predicate path?)
+(ag/type-predicate path-for-some-system?)
 (ag/type-predicate pregexp?)
 (ag/type-predicate procedure?)
 (ag/type-predicate rational?)
@@ -755,7 +757,6 @@
                       (define inner (fresh-type-variable))
                       (unify! t (immutable (list-type inner)))
                       (hash 'Expression inner)))
-(ag/type-predicate path-for-some-system?)
 (ag/one-arg path->bytes #:type bytes #:ctype (Ectype (fresh-path)))
 (ag/one-arg path->directory-path #:type (fresh-path))
 (ag/one-arg path-convention-type #:type symbol #:ctype (Ectype (fresh-path)))
@@ -1025,7 +1026,7 @@
         [(? number?) (format "#{complex ~a ~a}"
                              (format-round (real-part val))
                              (format-round (imag-part val)))]
-        [(? path?)
+        [(? path-for-some-system?)
          (define pc (path-convention-type val))
          (format "#<~a-path ~v>" pc (path->bytes val))]
         [(or (? void?)
