@@ -716,11 +716,12 @@
 ;; TODO - should I allow path-strings?  Just paths is perhaps an easier place to start.
 ;; paths can be for windows or unix, and can be absolute or relative.
 ;; I'll do relative/absolute as base type subtypes, and OS type as a wrapper.
+;; TODO - maybe I should not bother with subtyping of paths, since I basically always need to strictly separate windows and unix paths.
 (define path (base-type 'path #:leaf? #f))
 (define windows-path (base-type 'windows-path path))
 (define unix-path (base-type 'unix-path path))
 (define (fresh-path)
-  (fresh-subtype-of path))
+  (fresh-type-variable windows-path unix-path))
 ;; path-symbol is for APIs that accept 'up or 'same symbols.
 (define path-symbol (base-type 'path-symbol))
 (ag/atomic-literal PathSymbol path-symbol (random-expr 'up 'same))
