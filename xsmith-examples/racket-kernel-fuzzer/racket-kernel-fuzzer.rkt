@@ -1024,12 +1024,14 @@
         [(? number?) (format "#{complex ~a ~a}"
                              (format-round (real-part val))
                              (format-round (imag-part val)))]
+        [(? path?)
+         (define pc (path-convention-type val))
+         (format "#<~a-path ~v>" pc (path->bytes val))]
         [(or (? void?)
              (? string?)
              (? bytes?)
              (? symbol?)
              (? keyword?)
-             (? path?)
              #t #f
              (? char?)
              ;; Dates are structs, but they can only contain atomic data.
