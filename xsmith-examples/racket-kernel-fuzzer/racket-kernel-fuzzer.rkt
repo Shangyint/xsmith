@@ -729,13 +729,13 @@
 ;; build-path does the convention of the machine it's run on.  Maybe I'll ignore it for now?
 (ag/variadic build-path/windows 1
              #:type windows-path
-             #:ctype (λ (n t) (hash 'minargs (windows-path path)
+             #:ctype (λ (n t) (hash 'minargs windows-path
                                     'moreargs (fresh-type-variable
                                                path-symbol
                                                windows-path))))
 (ag/variadic build-path/unix 1
              #:type unix-path
-             #:ctype (λ (n t) (hash 'minargs (unix-path path)
+             #:ctype (λ (n t) (hash 'minargs unix-path
                                     'moreargs (fresh-type-variable
                                                path-symbol
                                                unix-path))))
