@@ -761,7 +761,8 @@
 (ag/one-arg path->directory-path #:type (fresh-path))
 (ag/one-arg path-convention-type #:type symbol #:ctype (Ectype (fresh-path)))
 ;; TODO - actually this is variadic and requires 1 arg.
-(ag/two-arg path<? #:type bool #:ctype (E2ctype (fresh-path) (fresh-path)))
+;; path<? only allows `path?`, which means a path for the current system.  Most path functions actually take a `path-for-some-system?` instead.
+;(ag/two-arg path<? #:type bool #:ctype (E2ctype (fresh-path) (fresh-path)))
 (ag/one-arg path->complete-path/single #:type (fresh-path))
 (ag/two-arg path->complete-path/double #:type (fresh-path))
 ;; TODO - split-path -- it returns 3 values, it's fairly complicated.
