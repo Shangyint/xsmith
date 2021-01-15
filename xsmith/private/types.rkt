@@ -1821,6 +1821,22 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (check-true (can-unify? an-or1->int int->int))
   (check-true (can-unify? an-or2->int int->int))
   (check-true (can-unify? an-or3->int int->int))
+
+
+  (let ()
+    ;; test multiple instances of the same type variable
+    (define v1 (fresh-type-variable))
+    (define f1 (function-type v1 v1))
+    (check-true (can-unify? f1 (function-type integer integer)))
+    (check-true (can-unify? (function-type integer integer) f1))
+    (check-true (can-subtype-unify? f1 (function-type integer integer)))
+    (check-true (can-subtype-unify? (function-type integer integer) f1))
+    (check-false (can-unify? f1 (function-type string integer)))
+    (check-false (can-unify? (function-type string integer) f1))
+    (check-false (can-subtype-unify? f1 (function-type string integer)))
+    (check-false (can-subtype-unify? (function-type string integer) f1))
+    )
+
   )
 
 ;; TODO - It might make sense for Xsmith to track construction of
