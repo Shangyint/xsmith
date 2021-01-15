@@ -2348,13 +2348,13 @@ TODO - when generating a record ref, I'll need to compare something like (record
     (define-syntax (subtype-check stx)
       (syntax-parse stx
         [(_ t/f sub super)
-         #'(let ([bool t/f]
+         #`(let ([bool t/f]
                  [b sub]
                  [p super])
-             (check-equal? t/f (can-subtype-unify? b p))
+             #,(syntax/loc stx (check-equal? (can-subtype-unify? b p) bool))
              (if bool
-                 (check-not-exn (λ () (subtype-unify! b p)))
-                 (check-exn exn? (λ () (subtype-unify! b p)))))]))
+                 #,(syntax/loc stx (check-not-exn (λ () (subtype-unify! b p))))
+                 #,(syntax/loc stx (check-exn exn? (λ () (subtype-unify! b p))))))]))
 
     (subtype-check #t (g dog dog dog) (g dog dog dog))
     (subtype-check #t (g dog labradoodle animal) (g dog dog dog))
