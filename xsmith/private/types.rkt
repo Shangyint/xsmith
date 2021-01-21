@@ -29,14 +29,6 @@
 ;; POSSIBILITY OF SUCH DAMAGE.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#|
-WIP checklist:
-* I need to put anything important from `unify!` and `can-unify?` and put them into their subtype counterparts.  Then I need to make the normal unify version just do two reversed subtype versions.
-* I changed the base-type struct, I need to ripple that change through everywhere that uses it.
-* I changed the type variable struct, anything that matches it needs to change
-* I changed the product type struct, I need to propagate changes
-* I need to review code comments and make sure they still make sense.
-|#
 
 (require racket/contract)
 (provide
