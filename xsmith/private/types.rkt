@@ -1484,7 +1484,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
      (list basic-result vd)]
     ;; parameter type
     [(list (parameter-type sym-l) (parameter-type sym-r))
-     (eq? sym-l sym-r)]
+     (list (eq? sym-l sym-r) vd)]
     ;; base-type
     [(list (base-type lname lsuper _) (base-type rname rsuper _))
      (list (->bool (memq super (base-type->parent-chain sub))) vd)]
