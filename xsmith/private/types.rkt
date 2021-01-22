@@ -1514,7 +1514,8 @@ TODO - when generating a record ref, I'll need to compare something like (record
          [(list) (list #f (hasheq))]
          [(list one) (list (inner-can-unify? one rtype) vd)]))
      (match rtype
-       [(base-type name superbase _)
+       [(or (? base-type?)
+            (? base-type-range?))
         (define basic-result
           (for/or ([possibility t])
             (match possibility
