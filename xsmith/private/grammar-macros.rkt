@@ -748,6 +748,9 @@
                       (string-join choices-or-reasons
                                    "\n")
                       "\n\n"
+                      "At node with serial number: "
+                      (number->string (ast-child 'xsmithserialnumber n))
+                      "\n"
                       "Hole tree ancestor node types:\n"
                       (string-join (map symbol->string
                                         (map ast-node-type
