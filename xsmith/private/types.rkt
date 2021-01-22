@@ -2353,7 +2353,12 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (define ct (concretize-type t))
   ;; A parametric type needs to have the same parameter type in both the
   ;; input and output sides of a function.
-  TODO-implement
+
+  (TODO-implement)
+  (TODO "Get a list of function types within t")
+  (TODO "Search each function type for types that can be unified in both the return and arg side")
+  (TODO "Make a choice from those candidates, and within the function type that contains those, make a substitution")
+  (TODO "Maybe loop up to N substitutions?  The whole process probably needs to be re-done because if I choose eg. a large container type as the thing to substitute it will erase smaller types.")
   )
 
 (module+ test
