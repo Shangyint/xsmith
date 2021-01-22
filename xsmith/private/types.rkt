@@ -108,6 +108,9 @@
  contains-type-variables?
 
  type-contains-function-type?
+
+ replace-parametric-types-with-variables
+ make-parametric-type-based-on
  )
 
 (module+ for-private
@@ -639,6 +642,10 @@ TODO - when generating a record ref, I'll need to compare something like (record
              (list-ref (generic-type-type-arguments x) accessor-index))
            ...))]))
 
+(struct parameter-type (symbol))
+(define (make-fresh-parameter-type)
+  (parameter-type (gensym 'param)))
+
 ;; TODO - maybe I should have a base struct with no fields called type, then allow the user to define their own new types with custom rules for subtyping (at least to specify which fields are covariant, contravariant, or invariant) and for where to recur during unification.
 (define (type? x)
   (or
@@ -652,6 +659,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
    (nominal-record-definition-type? x)
    (structural-record-type? x)
    (generic-type? x)
+   (parameter-type? x)
    ))
 
 
@@ -2284,6 +2292,104 @@ TODO - when generating a record ref, I'll need to compare something like (record
      (if potential?
          #t
          (error 'type-contains-function-type? "given non-settled type: ~v" t))]))
+
+
+(define (replace-parametric-types-with-variables pt)
+  (define param-hash (make-hasheq))
+  (define (fail)
+    (error 'replace-parametric-types-with-variables
+            "Should be given only settled types.  Got ~v."
+            pt))
+  (define (rec t)
+    (match t
+      [(c-type-variable (list one-type) _ _)
+       (rec one-type)]
+      [(c-type-variable _ _ _) (fail)]
+      [(function-type arg ret) (function-type (rec arg) (rec ret))]
+      [(product-type #f _ _) (fail)]
+      [(product-type (list inners ...) _ _) (product-type (map rec inners))]
+      [(c-nominal-record-type name super known-fields lb ub)
+       ;; We can't put parameter types in product types, I don't think.
+       t]
+      [(nominal-record-definition-type inner) t]
+      [(c-structural-record-type finalized? known-fields lb ub)
+       ;; TODO - for now I'll assume structural records don't have parameter types in them.
+       t]
+      [(generic-type name ctor inners variances)
+       (generic-type name ctor (map rec inners) variances)]
+      [(parameter-type sym)
+       (if (hash-has-key? param-hash sym)
+           (hash-ref param-hash sym)
+           (let ([ftv (fresh-type-variable)])
+             (hash-set! param-hash sym ftv)
+             ftv))]
+      [(base-type _ _ _) t]
+      [(base-type-range _ _) t]))
+  (rec pt))
+
+(define (make-parametric-type-based-on t)
+  ;; Here we make a type that maybe has parameter types in it that
+  ;; could unify with type t.
+  ;; To make this simple, we are going to concretize the type first.
+  (define ct (concretize-type t))
+  ;; A parametric type needs to have the same parameter type in both the
+  ;; input and output sides of a function.
+  TODO-implement
+  )
+
+(module+ test
+  (require
+   quickcheck
+   rackunit/quickcheck
+   (prefix-in r: racket/base)
+   )
+  (let ()
+    (define t1
+      (replace-parametric-types-with-variables
+       (function-type (parameter-type 'a) (parameter-type 'a))))
+    (check-true (can-unify? t1 (function-type dog dog)))
+    (check-false (can-unify? t1 (function-type dog bird)))
+
+    ;; Quickcheck test for round-trip unification of
+    ;; type -> parameterized type -> type with variables
+    ;; conversion.
+    (define-generic-type my-list-type ([type covariant]))
+    (define function-type-generator
+      (make-generator
+       (λ (size random-generator)
+         ;; TODO - I don't remember the real random seed max...
+         (define random-max-int (expt 2 29))
+         ;; TODO - this throws away the quickcheck random-generator, but I don't
+         ;; think it really matters much.
+         (define seed (r:random random-max-int))
+         ;; TODO - it would be good to use the size argument
+         (with-new-random-source #:seed seed
+           (parameterize ([current-xsmith-type-constructor-thunks
+                           (list
+                            (λ() dog)
+                            (λ() bird)
+                            (λ() (my-list-type (fresh-type-variable)))
+                            (λ() (function-type (fresh-type-variable)
+                                                (fresh-type-variable)))
+                            (λ() (function-type (mk-product-type #f)
+                                                (fresh-type-variable)))
+                            (λ() (mk-product-type #f))
+                            (λ() (fresh-structural-record-type))
+                            )])
+             (concretize-type (function-type (fresh-type-variable)
+                                             (fresh-type-variable))))))))
+
+    (define replace-parametric-types-with-variables/round-trip-property
+      (property ([ftype function-type-generator])
+                (let ([parameterized (replace-parametric-types-with-variables
+                                      (make-parametric-type-based-on
+                                       ftype))])
+                  (and (can-unify? ftype parameterized)
+                       (void?
+                        (with-handlers ([(λ (e) #t) (λ (e) e)])
+                          (unify! ftype parameterized)))))))
+    (check-property replace-parametric-types-with-variables/round-trip-property)
+    ))
 
 
 ;; This is a copy/pasted version of list-subtract from the `set` generic implementation.  The generic uses `equal?`-based testing, but I'm only using it on things where I want `eq?`-based testing.

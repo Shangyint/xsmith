@@ -347,6 +347,21 @@ TODO - running / compiling SML
                                             (att-value 'xsmith_render-node c))
                                           (text ", ")))
                        (text ")")))]
+ [PolymorphicFunction
+  Expression ([f : Expression] [parametrictype])
+  #:prop render-node-info (λ (n) (render-child 'f n))
+  #:prop type-info
+  [(function-type (fresh-type-variable) (fresh-type-variable))
+   (λ (n t)
+     (define pt (ast-child 'parametrictype n))
+     (if pt
+         (begin
+           (unify! (replace-parametric-types-with-variables pt) t)
+           (hash 'f pt))
+         (let ([new-pt (make-parametric-type-based-on t)])
+           (enqueue-inter-choice-transform
+            (λ () (rewrite-terminal 'parametrictype n new-pt)))
+           (hash 'f new-pt))))]]
  )
 
 
