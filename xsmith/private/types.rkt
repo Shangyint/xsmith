@@ -111,6 +111,7 @@
 
  replace-parametric-types-with-variables
  make-parametric-type-based-on
+ parameter-type?
  )
 
 (module+ for-private
@@ -665,6 +666,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
 
 (define (type->skeleton-with-vars t)
   (match t
+    [(? parameter-type) t]
     [(generic-type name constructor inners variances)
      (apply constructor (map (λ(x) (fresh-type-variable))
                              inners))]
@@ -2452,6 +2454,9 @@ TODO - when generating a record ref, I'll need to compare something like (record
     (if (random-bool)
         (make-parametric-type-based-on t)
         t))
+
+  (when result
+    (eprintf "\n\n\n\nSuccessfully made polymoprhic function: ~v\n\n\n\n\n\n" result))
 
   (if result
       (make-more-parametric-with-probability result)
