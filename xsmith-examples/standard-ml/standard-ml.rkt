@@ -351,7 +351,11 @@ TODO - running / compiling SML
   Expression ([f : Expression] [parametrictype])
   #:prop render-node-info (λ (n) (h-append (text "(* It's Polymorphin time! *)")
                                            (render-child 'f n)))
-  #:prop choice-weight 1000
+  #:prop wont-over-deepen #t
+  #:prop choice-weight (λ (n)
+                         (if (ast-subtype? (parent-node n) 'PolymorphicFunction)
+                             0
+                             1000))
   #:prop type-info
   [(function-type (fresh-type-variable) (fresh-type-variable))
    (λ (n t)
