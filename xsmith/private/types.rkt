@@ -2283,6 +2283,11 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(function-type arg ret) #t]
     [(product-type inners lb ub)
      (if potential?
+         ;; TODO - I noticed this while working on something else, but I think
+         ;;        this is wrong.  The test for the if should be
+         ;;        (and potential (not inners)), so it doesn't return #t
+         ;;        for concrete product types that don't have anything inside.
+         ;;        But I want to actually fix this separately.
          #t
          (when (not inners)
            (error 'type-contains-function-type? "given non-settled type: ~v" t)))
