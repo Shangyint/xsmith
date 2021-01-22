@@ -988,6 +988,11 @@ TODO - when generating a record ref, I'll need to compare something like (record
                  type-arguments2
                  variances1)]
 
+      ;; parameter type
+      [(list (parameter-type sym-l) (parameter-type sym-r))
+       (when (not (eq? sym-l sym-r))
+         (errsu "Unification of different parameter types failed: ~v and ~v"
+                sub super))]
       ;; base type
       [(list (or (? base-type?) (? base-type-range?))
              (or (? base-type?) (? base-type-range?)))
@@ -1477,6 +1482,9 @@ TODO - when generating a record ref, I'll need to compare something like (record
                 ['covariant (rec* l r)]
                 ['contravariant (rec* r l)]))))
      (list basic-result vd)]
+    ;; parameter type
+    [(list (parameter-type sym-l) (parameter-type sym-r))
+     (eq? sym-l sym-r)]
     ;; base-type
     [(list (base-type lname lsuper _) (base-type rname rsuper _))
      (list (->bool (memq super (base-type->parent-chain sub))) vd)]
@@ -1521,6 +1529,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
         (struct-rec nominal-record-definition-type?)]
        [(? structural-record-type?)
         (struct-rec structural-record-type?)]
+       [(? parameter-type?) (list #t vd)]
        [(generic-type name constructor type-arguments variances)
         (define inner-matched
           (filter (λ (x) (match x
@@ -1750,6 +1759,9 @@ TODO - when generating a record ref, I'll need to compare something like (record
                       [inner-r type-arguments2])
               (rec* inner-l inner-r))))
      (list basic-result vd)]
+    ;; parameter-type
+    [(list (parameter-type sym-l) (parameter-type sym-r))
+     (list (eq? sym-l sym-r) vd)]
     ;; base-type
     [(list (base-type _ _ _) (base-type _ _ _))
      (list (eq? l r) vd)]
@@ -1822,6 +1834,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
       [(base-type-range low high)
        ;; TODO - this should be a random choice.  But I also need to deal with the #f low case and enumerate all possibilities.  For now I just want to get the code working again.
        high]
+      [(parameter-type _) t]
       [(product-type inner lb ub)
        (define inner-types inner)
        (if inner-types
@@ -1990,6 +2003,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(c-type-variable _ _ _) #f]
     [(base-type _ _ _) #t]
     [(base-type-range l r) (equal? l r)]
+    [(parameter-type _) #t]
     [(function-type a r)
      (and (rec a) (rec r))]
     [(c-nominal-record-type name super fields lb ub)
@@ -2096,6 +2110,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
     ;; No more variables
     [(list (c-type-variable _ _ _) _) (error 'at-least-as-settled "internal error, shouldn't reach this point with a type variable, got l: ~v, r: ~v\n" v constraint-type)]
     [(list _ (c-type-variable _ _ _)) (error 'at-least-as-settled "internal error, shouldn't reach this point with a type variable, got l: ~v, r: ~v\n" v constraint-type)]
+    [(list (parameter-type _) _) #t]
     [(list (base-type _ _ _) _) #t]
     [(list (base-type-range min max) _)
      (or (not (can-unify? v constraint-type))
@@ -2178,6 +2193,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (match t
     [(base-type _ _ _) #f]
     [(base-type-range _ _) #f]
+    [(parameter-type _) #f]
     [(function-type arg ret) (or (rec arg) (rec ret))]
     [(product-type inners lb ub)
      (match inners
@@ -2216,6 +2232,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
          (match t
            [(base-type _ _ _) (work vars todos dones)]
            [(base-type-range _ _) (work vars todos dones)]
+           [(parameter-type _) (work vars todos dones)]
            [(function-type arg ret)
             (work vars (list* arg ret todos) dones)]
            [(product-type inners lb ub)
@@ -2261,6 +2278,8 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (match t
     [(base-type _ _ _) #f]
     [(base-type-range _ _) #f]
+    ;; Though parameter-types should only be found inside function types...
+    [(parameter-type _) #f]
     [(function-type arg ret) #t]
     [(product-type inners lb ub)
      (if potential?
