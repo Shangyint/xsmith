@@ -2318,38 +2318,95 @@ TODO - when generating a record ref, I'll need to compare something like (record
          (error 'type-contains-function-type? "given non-settled type: ~v" t))]))
 
 
-(define (replace-parametric-types-with-variables pt)
-  (define param-hash (make-hasheq))
-  (define (fail)
-    (error 'replace-parametric-types-with-variables
-            "Should be given only settled types.  Got ~v."
-            pt))
+(define (structurally-recur-on-type/where-polymorphism-valid
+         t transformer
+         ;; if collect? is true, make a list of the result
+         ;; of the transformer on the type and its children
+         ;; instead of reconstructing the type.
+         #:collect? [collect? #f])
   (define (rec t)
+    (structurally-recur-on-type/where-polymorphism-valid t transformer
+                                                         #:collect? collect?))
+  ;; Do preorder traversal.
+  (define t* (transformer t))
+  (match (if collect? t t*)
+    [(function-type arg ret)
+     (if collect?
+         (list t* (rec arg) (rec ret))
+         (function-type (rec arg) (rec ret)))]
+    [(product-type (list inners ...) lb ub)
+     (if collect?
+         (cons t* (map rec inners))
+         (mk-product-type (map rec inners)))]
+    [(generic-type name constructor inners variances)
+     (if collect?
+         (cons t* (map rec inners))
+         (generic-type name constructor (map rec inners) variances))]
+    [(c-type-variable (list single-it) _ _)
+     (rec single-it)]
+    ;; All other types are either atomic or are unsupported for
+    ;; doing polymoprhic function replacement.
+    [(or
+      (? base-type?)
+      (? base-type-range?)
+      (? parameter-type?)
+      (? nominal-record-type?)
+      (? nominal-record-definition-type?)
+      (? structural-record-type?)
+      (? core-type-variable?))
+     t*]))
+
+
+;; TODO - I should make a more generic type tree walking function.
+;; It could have an optional predicate for whether to recur, what
+;; function to apply to child nodes, an option to reconstruct the same
+;; type with the transformed children or collect the child results
+;; (and results on the node itself) in some other way, a function to
+;; apply to the type when not recurring into it, a way to potentially
+;; short-circuit evaluation based on an intermediate result... It
+;; could potentially replace several functions in this file with more
+;; declarative specifications of how to do the traversal. But it has to
+;; support a robust set of specifications to be able to subsume so many
+;; other ad-hoc tree walking functions.
+
+
+(define (type->function-type-list-for-polymorphism t)
+  (define (transformer t)
+    (if (function-type? t)
+        t
+        '()))
+  (flatten
+   (list
+    (structurally-recur-on-type/where-polymorphism-valid
+     t transformer #:collect? #t))))
+
+(define (type-swap-for-polymorphism t old-t new-t)
+  (define (transformer t)
+    (if (can-unify? t old-t)
+        new-t
+        t))
+  (structurally-recur-on-type/where-polymorphism-valid t transformer))
+
+(define (replace-parametric-types-with-variables t)
+  (define param-hash (make-hasheq))
+  (define (transformer t)
     (match t
-      [(c-type-variable (list one-type) _ _)
-       (rec one-type)]
-      [(c-type-variable _ _ _) (fail)]
-      [(function-type arg ret) (function-type (rec arg) (rec ret))]
-      [(product-type #f _ _) (fail)]
-      [(product-type (list inners ...) _ _) (mk-product-type (map rec inners))]
-      [(c-nominal-record-type name super known-fields lb ub)
-       ;; We can't put parameter types in product types, I don't think.
-       t]
-      [(nominal-record-definition-type inner) t]
-      [(c-structural-record-type finalized? known-fields lb ub)
-       ;; TODO - for now I'll assume structural records don't have parameter types in them.
-       t]
-      [(generic-type name ctor inners variances)
-       (generic-type name ctor (map rec inners) variances)]
       [(parameter-type sym)
        (if (hash-has-key? param-hash sym)
            (hash-ref param-hash sym)
            (let ([ftv (fresh-type-variable)])
              (hash-set! param-hash sym ftv)
              ftv))]
-      [(base-type _ _ _) t]
-      [(base-type-range _ _) t]))
-  (rec pt))
+      [else t]))
+  (structurally-recur-on-type/where-polymorphism-valid t transformer))
+
+(define (type->type-list-for-polymorphism t)
+  ;; return a flattened list of all types in the tree t,
+  ;; except not recurring into those where polymoprhic replacements
+  ;; are invalid.
+  (flatten
+   (list
+    (structurally-recur-on-type/where-polymorphism-valid t (λ(x)x) #:collect? #t))))
 
 (define (make-parametric-type-based-on t)
   ;; Here we make a type that maybe has parameter types in it that
@@ -2359,12 +2416,45 @@ TODO - when generating a record ref, I'll need to compare something like (record
   ;; A parametric type needs to have the same parameter type in both the
   ;; input and output sides of a function.
 
-  (TODO-implement)
-  (TODO "Get a list of function types within t")
-  (TODO "Search each function type for types that can be unified in both the return and arg side")
-  (TODO "Make a choice from those candidates, and within the function type that contains those, make a substitution")
-  (TODO "Maybe loop up to N substitutions?  The whole process probably needs to be re-done because if I choose eg. a large container type as the thing to substitute it will erase smaller types.")
-  )
+  (define function-types (type->function-type-list-for-polymorphism ct))
+
+  (define (function-type->replacement-candidate ft)
+    (define arg-types (type->type-list-for-polymorphism
+                       (function-type-arg-type ft)))
+    (define ret-types (type->type-list-for-polymorphism
+                       (function-type-return-type ft)))
+    (define ret-types-shuffled (wrap-external-randomness
+                                (shuffle ret-types)))
+    (for/or ([ret ret-types-shuffled])
+      (for/or ([arg arg-types])
+        (and (can-unify? arg ret) ret))))
+
+  (define replacement-choice-list
+    (for/or ([ft (wrap-external-randomness
+                  (shuffle function-types))])
+      (define choice (function-type->replacement-candidate ft))
+      (and choice (list ft choice))))
+
+  (define result
+    (and replacement-choice-list
+         ;; Replace the type with a parameter just in the function type,
+         ;; then replace that function type in the overall type.
+         (type-swap-for-polymorphism
+          t
+          (car replacement-choice-list)
+          (type-swap-for-polymorphism (car replacement-choice-list)
+                                      (cadr replacement-choice-list)
+                                      (make-fresh-parameter-type)))))
+
+  (define (make-more-parametric-with-probability t)
+    ;; TODO - make the probability configurable.
+    (if (random-bool)
+        (make-parametric-type-based-on t)
+        t))
+
+  (if result
+      (make-more-parametric-with-probability result)
+      t))
 
 (module+ test
   (require
@@ -2386,13 +2476,10 @@ TODO - when generating a record ref, I'll need to compare something like (record
     (define function-type-generator
       (make-generator
        (λ (size random-generator)
-         ;; TODO - I don't remember the real random seed max...
-         (define random-max-int (expt 2 29))
          ;; TODO - this throws away the quickcheck random-generator, but I don't
          ;; think it really matters much.
-         (define seed (r:random random-max-int))
          ;; TODO - it would be good to use the size argument
-         (with-new-random-source #:seed seed
+         (with-new-random-source #:seed (random-seed-value)
            (parameterize ([current-xsmith-type-constructor-thunks
                            (list
                             (λ() dog)
@@ -2417,7 +2504,10 @@ TODO - when generating a record ref, I'll need to compare something like (record
                        (void?
                         (with-handlers ([(λ (e) #t) (λ (e) e)])
                           (unify! ftype parameterized)))))))
-    (check-property replace-parametric-types-with-variables/round-trip-property)
+    ;; TODO - I don't remember the real random seed max...
+    (define random-max-int (expt 2 29))
+    (with-new-random-source #:seed (r:random random-max-int)
+      (check-property replace-parametric-types-with-variables/round-trip-property))
     ))
 
 
