@@ -2326,7 +2326,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
       [(c-type-variable _ _ _) (fail)]
       [(function-type arg ret) (function-type (rec arg) (rec ret))]
       [(product-type #f _ _) (fail)]
-      [(product-type (list inners ...) _ _) (product-type (map rec inners))]
+      [(product-type (list inners ...) _ _) (mk-product-type (map rec inners))]
       [(c-nominal-record-type name super known-fields lb ub)
        ;; We can't put parameter types in product types, I don't think.
        t]
