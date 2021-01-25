@@ -108,6 +108,7 @@
  contains-type-variables?
 
  type-contains-function-type?
+ type-contains-parameter-type?
 
  replace-parametric-types-with-variables
  make-parametric-type-based-on
@@ -2402,6 +2403,15 @@ TODO - when generating a record ref, I'll need to compare something like (record
              ftv))]
       [else t]))
   (structurally-recur-on-type/where-polymorphism-valid t transformer))
+
+(define (type-contains-parameter-type? t)
+  (let/ec return
+    (define (super-escaping-predicate t)
+      (and (parameter-type? t) (return #t)))
+    (structurally-recur-on-type/where-polymorphism-valid
+     t super-escaping-predicate #:collect? #t)
+    ;; If we didn't use the escape continuation to return true, it's false.
+    #f))
 
 (define (type->type-list-for-polymorphism t)
   ;; return a flattened list of all types in the tree t,

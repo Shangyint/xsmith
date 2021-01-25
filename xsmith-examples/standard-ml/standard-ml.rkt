@@ -168,6 +168,7 @@ TODO - running / compiling SML
                        #:VariableReference #t
                        #:ProcedureApplicationSingle #t
                        #:LambdaSingleWithExpression #t
+                       #:VoidExpression #t
                        #:ImmutableList #t
                        #:Booleans #t
                        #:index-and-length-type small-int-type
@@ -349,7 +350,7 @@ TODO - running / compiling SML
                        (text ")")))]
  [PolymorphicFunction
   Expression ([f : Expression] [parametrictype])
-  #:prop render-node-info (λ (n) (h-append (text "(* It's Polymorphin time! *)")
+  #:prop render-node-info (λ (n) (h-append (text "(* It's Polymorphin time! *) ")
                                            (render-child 'f n)))
   #:prop wont-over-deepen #t
   #:prop choice-weight (λ (n)
@@ -1048,6 +1049,8 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
 
  [VariableReference (λ (n) (text (format "~a" (ast-child 'name n))))]
 
+ [VoidExpression (λ (n) (text "((ref 0) := 0)"))]
+
  [ProcedureApplicationSingle
   (λ (n) (h-append lparen
                    (render-child 'procedure n)
@@ -1120,7 +1123,9 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
    ))
 
 (define (sml-format-render doc)
-  (pretty-format doc 120))
+  (pretty-format doc 120)
+  ;"program here"
+  )
 
 (define-xsmith-interface-functions
   [comp]

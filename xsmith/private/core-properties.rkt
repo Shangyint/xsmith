@@ -79,7 +79,7 @@
  ;racket/dict
  racket/list
  racket/match
- memoize
+ racket/promise
  (for-syntax
   clotho/racket/base
   syntax/parse
@@ -1161,6 +1161,7 @@ It just reads the values of several other properties and produces the results fo
            _xsmith_no-mutable-container-effect-conflict?
            _xsmith_no-required-child-reference-conflict?
            _xsmith_nonzero-weight?
+           _xsmith_reference-possible?
            #,@user-filters)))
     (define (helper filter-method-stx filter-failure-set!-id)
       (syntax-parse filter-method-stx
@@ -1198,10 +1199,13 @@ few of these methods.
 |#
 
 (define ref-choices-filtered-hash (make-weak-hasheq))
+(define ref-choice-hash (make-weak-hasheq))
 
 (define (xsmith_get-reference!-func self)
-  (get-reference-core (send self _xsmith_reference-options!)
-                      (send self _xsmith_current-hole)))
+  (hash-ref! ref-choice-hash self
+             (λ ()
+               (get-reference-core (send self _xsmith_reference-options!)
+                                   (send self _xsmith_current-hole)))))
 (define (xsmith_get-reference-for-child!-func node type write?)
   (get-reference-core
    (xsmith_reference-options-for-child-func node type write?)
@@ -1213,7 +1217,10 @@ few of these methods.
                           #f))
   (define non-lift-options (if lift-option (cdr all-options) all-options))
   (define choice
-    (att-value '_xsmith_reference-choice node non-lift-options (->bool lift-option)))
+    (if (and (null? non-lift-options) (not lift-option))
+        #f
+        (att-value '_xsmith_reference-choice
+                    node non-lift-options (->bool lift-option))))
   (cond
     [(and (eq? 'lift choice) lift-option) (lift-option)]
     [(eq? 'lift choice) (error 'reference-choice-info
@@ -1238,18 +1245,26 @@ few of these methods.
                       (build-type-thunk))])))
 
 (define (reference-options-filter node reference-options concrete-type write-reference?)
+  ;; Filters reference options, also adds a lift option where appropriate.
   (define function? (type-contains-function-type? concrete-type))
+  (define parametric? (delay (type-contains-parameter-type? concrete-type)))
   (when (and write-reference? function?)
     ;; Assigning to functions destroys language-agnostic effect tracking.
     (error 'xsmith "Got a function type as a type to assign to.  Xsmith's effect tracking requires that assignment can never have a function type."))
 
+  (define all-effects (att-value '_xsmith_effect-constraints node))
+  (define any-effect-possible? (findf any-effect? all-effects))
   (define effects-to-avoid
     (filter (if write-reference?
-                (λ (x) (not (effect-io? x)))
+                (λ (x) (or (effect-read-variable? x)
+                           (effect-write-variable? x)))
                 effect-write-variable?)
-            (att-value '_xsmith_effect-constraints node)))
+            all-effects))
   (define effect-variable-bindings
-    (map effect-variable effects-to-avoid))
+    (filter-map (λ (x) (and (or (effect-read-variable? x)
+                                (effect-write-variable? x))
+                            (effect-variable x)))
+                effects-to-avoid))
 
   (define options/effect-filtered
     (filter
@@ -1259,17 +1274,34 @@ few of these methods.
   ;; Higher order functions could have any effect!
   (define options/higher-order-effect-filtered
     (if (and function?
-             (not (null? effects-to-avoid)))
+             (or (not (null? effects-to-avoid))
+                 any-effect-possible?))
         (filter
          ;; Filter out function parameters
          ;; IE if there are potentially conflicting effects, only choose functions
          ;; that are globally visible because we can't reason about what effects
          ;; a function passed in via function parameter might have.
-         (λ (x) (eq? (binding-def-or-param x) 'definition))
+         (λ (x) (or (eq? (binding-def-or-param x) 'definition)
+                    (force parametric?)))
          options/effect-filtered)
         options/effect-filtered))
 
-  options/higher-order-effect-filtered)
+  (define options/param-filtered
+    (if write-reference?
+        ;; Only allow definitions to be mutated, not function parameters.
+        ;; Most languages allow parameter mutation, but it complicates things.
+        ;; Maybe I should later have an option to enable this.
+        (filter (λ (x) (eq? (binding-def-or-param x) 'definition))
+                options/higher-order-effect-filtered)
+        options/higher-order-effect-filtered))
+
+  (if any-effect-possible?
+      ;; When any effect is possible, we should just not reference definitions,
+      ;; only function parameters (which are guaranteed never to be the target
+      ;; of assignment nodes).
+      ;; This means we should not lift a definition.
+      options/param-filtered
+      (reference-options-add-lift node options/param-filtered concrete-type)))
 
 (define (reference-options-add-lift node reference-options lift-type)
   ;; lift-type must be settled
@@ -1278,6 +1310,8 @@ few of these methods.
               (nominal-record-definition-type? lift-type))
           (not (null? reference-options)))
      reference-options]
+    ;; Don't lift types that contain parametric types
+    [(type-contains-parameter-type? lift-type) reference-options]
     [lift-type (cons (make-lift-reference-choice-proc
                       node
                       lift-type)
@@ -1308,9 +1342,8 @@ few of these methods.
             visibles))
   (define visibles/generic-filters
     (reference-options-filter node visibles-with-type type write-reference?))
-  (define legal+lift
-    (reference-options-add-lift node visibles/generic-filters (concretize-type type)))
-  legal+lift)
+
+  visibles/generic-filters)
 
 (define (_xsmith_reference-options!-func self
                                          hole
@@ -1382,11 +1415,9 @@ few of these methods.
 
           (define visibles/generic-filters
             (reference-options-filter hole visibles-with-type lift-type write?))
-          (define legal+lift
-            (reference-options-add-lift hole visibles/generic-filters lift-type))
 
-          (hash-set! ref-choices-filtered-hash self legal+lift)
-          legal+lift))))
+          (hash-set! ref-choices-filtered-hash self visibles/generic-filters)
+          visibles/generic-filters))))
 
 (define (get-value-from-parent-dict parent-child-dict child default)
   (dict-ref parent-child-dict
@@ -1703,6 +1734,7 @@ The second arm is a function that takes the type that the node has been assigned
   (choice-method xsmith_get-reference-for-child!)
   ;xsmith_get-reference-for-child! -- returns a reference name like xsmith_reference-options! but it must be called with a (settled) type and a boolean for whether or not the reference will be a write reference.  Can be used to build multiple references at once.
   (attribute _xsmith_function-application)
+  (choice-method _xsmith_reference-possible?)
   #:transformer
   (λ (this-prop-info grammar-info reference-info-info binder-info-info)
     (define nodes (cons #f (dict-keys grammar-info)))
@@ -1893,6 +1925,18 @@ The second arm is a function that takes the type that the node has been assigned
                         ;; return the children
                         function-children))))
 
+    (define _xsmith_reference-possible?-info
+      (for/hash ([n (cons #f (dict-keys reference-info-info))])
+        (values
+         n
+         (syntax-parse (dict-ref reference-info-info n #'#f)
+           [#f #'(λ () #t)]
+           [prop:reference-info-class
+            #:when (attribute prop.is-reference?)
+            #'(λ ()
+                (define refs (send this _xsmith_reference-options!))
+                (and refs (not (null? refs))))]))))
+
     (list
      _xsmith_my-type-constraint-info/attribute
      _xsmith_my-type-constraint-info/choice-method
@@ -1907,6 +1951,7 @@ The second arm is a function that takes the type that the node has been assigned
      xsmith_get-reference!-info
      xsmith_get-reference-for-child!-info
      _xsmith_function-application-info
+     _xsmith_reference-possible?-info
      )))
 
 (define (make/_xsmith_children-type-dict-info
@@ -2235,24 +2280,14 @@ The second arm is a function that takes the type that the node has been assigned
       (for/hash ([n (cons #f io-nodes)])
         (values
          n
-         (syntax-parse (list (dict-ref io-info n) (dict-ref reference-info n #'#f))
-           [(#t _)
+         (syntax-parse (dict-ref io-info n)
+           [#t
             #'(λ () (or (not (ast-has-parent? (current-hole)))
                         (not (memf (λ (e) (or (effect-io? e) (any-effect? e)))
                                    (att-value '_xsmith_effect-constraints-for-child
-                                              (ast-parent (current-hole))
-                                              (current-hole))))))]
-           [(#f prop:reference-info-class)
-            #:when (attribute prop.is-reference?)
-            ;; References are disallowed when there is a conflict of any-effect.
-            ;; Here we're cheating a little, because this isn't really an IO conflict.
-            ;; Maybe I should move this into a different choice method...
-            #'(λ ()
-                (not (memf any-effect?
-                           (att-value '_xsmith_effect-constraints-for-child
-                                      (ast-parent (current-hole))
-                                      (current-hole)))))]
-           [(#f #f) #'(λ () #t)]))))
+                                               (ast-parent (current-hole))
+                                               (current-hole))))))]
+           [#f #'(λ () #t)]))))
     (define _xsmith_no-required-child-reference-conflict?-info
       (for/hash ([n (cons #f io-nodes)])
         (values
