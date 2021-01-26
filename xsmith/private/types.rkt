@@ -1802,7 +1802,8 @@ TODO - when generating a record ref, I'll need to compare something like (record
 
 ;; A parameter to hold the list of constructors for base or composite types (with minimally constrained type variables inside).
 (define current-xsmith-type-constructor-thunks
-  (make-parameter (list default-base-type)))
+  ;; TODO - maybe the default should be something that raises an error?
+  (make-parameter (list (λ () default-base-type))))
 ;; TODO - this should be configurable.
 (define type-max-concretization-depth (make-parameter 5))
 (define record-type-max-fields (make-parameter 5))
