@@ -324,10 +324,12 @@ If a (transitive) upper bound is ever equal to a (transitive) lower bound, that 
     (error 'fresh-type-variable
            "partially constrained type variables can not include multiple of any composite type in the constraint list.  Given ~a\n"
            args))
+  (when (<= 2 (length (filter parameter-type? args))) (composite-error))
   (when (<= 2 (length (filter function-type? args))) (composite-error))
   (when (<= 2 (length (filter product-type? args))) (composite-error))
   ;(when (<= 2 (length (filter sum-type? args))) (composite-error))
   (when (<= 2 (length (filter nominal-record-type? args))) (composite-error))
+  (when (<= 2 (length (filter structural-record-type? args))) (composite-error))
   ;(when (<= 2 (length (filter record-type? args))) (composite-error))
   ;; TODO - I probably only want to allow one of each kind of generic type
   (define type (if (null? args)
