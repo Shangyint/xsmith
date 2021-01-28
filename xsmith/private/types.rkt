@@ -1533,7 +1533,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
         (struct-rec nominal-record-definition-type?)]
        [(? structural-record-type?)
         (struct-rec structural-record-type?)]
-       [(? parameter-type?) (list #t vd)]
+       [(? parameter-type?) (struct-rec parameter-type?)]
        [(generic-type name constructor type-arguments variances)
         (define inner-matched
           (filter (λ (x) (match x
@@ -2486,10 +2486,15 @@ TODO - when generating a record ref, I'll need to compare something like (record
     (check-true (can-unify? t1 (function-type dog dog)))
     (check-false (can-unify? t1 (function-type dog bird)))
 
+
     ;; Quickcheck test for round-trip unification of
     ;; type -> parameterized type -> type with variables
     ;; conversion.
     (define-generic-type my-list-type ([type covariant]))
+    (check-false (can-unify? (parameter-type 'a) (my-list-type (parameter-type 'a))))
+    (check-false (can-unify? (parameter-type 'a)
+                             (fresh-type-variable
+                              (my-list-type (parameter-type 'a)))))
     (define function-type-generator
       (make-generator
        (λ (size random-generator)
