@@ -2468,9 +2468,6 @@ TODO - when generating a record ref, I'll need to compare something like (record
         (make-parametric-type-based-on t)
         t))
 
-  (when result
-    (eprintf "\n\n\n\nSuccessfully made polymoprhic function: ~v\n\n\n\n\n\n" result))
-
   (if result
       (make-more-parametric-with-probability result)
       t))
