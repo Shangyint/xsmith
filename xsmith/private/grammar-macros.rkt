@@ -770,7 +770,7 @@
                     (if (choice? cr)
                         (xd-printf "Choice: ~v available\n" cr)
                         (xd-printf "~a\n" cr))))
-                (send (choose-ast filtered) _xsmith_fresh))))
+                (send (choose-ast filtered (ast-node-type n)) _xsmith_fresh))))
         (error '_xsmith_hole->replacement
                "called on non-hole node"))))
 (define _xsmith_resolve-reference-name-function

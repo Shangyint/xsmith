@@ -34,9 +34,12 @@
  ast-choice%
  choose-ast
  current-hole
+
+ print-choice-log
  )
 
 (require
+ racr
  racket/class
  racket/list
  (for-syntax
@@ -73,7 +76,7 @@ Choices for AST growth should be some sort of object.
     (super-new)
     ))
 
-(define (choose-ast ast-choice-list)
+(define (choose-ast ast-choice-list hole-symbol)
   ;; Weights are integers.
   ;; A random number should be generated between 0 and the sum of the weights.
   ;; Make a list of lists where sublists have the low-value for the bucket
@@ -88,10 +91,95 @@ Choices for AST growth should be some sort of object.
       (values (+ sum c-weight)
               (cons (list sum c) clist))))
   (define r (random total-weight))
-  (let loop ([choices choice-list])
-    (if (>= r (first (first choices)))
-        (second (first choices))
-        (loop (rest choices)))))
+  (define choice
+    (let loop ([choices choice-list])
+      (if (>= r (first (first choices)))
+          (second (first choices))
+          (loop (rest choices)))))
+  (log-choice (send choice _xsmith_node-symbol)
+              (map (λ (c) (send c _xsmith_node-symbol)) ast-choice-list)
+              hole-symbol)
+  choice)
+
+(define (make-log-dict) (hasheq))
+(define log/hole->choice->valid-freq (make-log-dict))
+(define log/hole->num-choices->freq (make-log-dict))
+(define log/hole->choice->freq (make-log-dict))
+(define log/hole->freq (make-log-dict))
+(define log/choice->freq (make-log-dict))
+
+(define (log-choice choice choices-possible hole)
+  (set! log/hole->choice->valid-freq
+        (hash-update log/hole->choice->valid-freq
+                     hole
+                     (λ (choice->valid-freq)
+                       (for/fold ([c->vf choice->valid-freq])
+                                 ([c choices-possible])
+                         (hash-update c->vf c add1 0)))
+                     (make-log-dict)))
+  (define (inc-2-level dict k1 k2)
+    (hash-update dict
+                 k1
+                 (λ (d2) (hash-update d2 k2 add1 0))
+                 (make-log-dict)))
+  (set! log/hole->num-choices->freq
+        (inc-2-level log/hole->num-choices->freq hole (length choices-possible)))
+  (set! log/hole->choice->freq
+        (inc-2-level log/hole->choice->freq hole choice))
+  (set! log/hole->freq
+        (hash-update log/hole->freq hole add1 0))
+  (set! log/choice->freq
+        (hash-update log/hole->freq choice add1 0))
+  )
+
+(define (print-choice-log)
+  (define (header label)
+    (printf "\n\n~a\n" label)
+    (printf "==================================================\n"))
+
+  (define all-keys
+    (remove-duplicates
+     (flatten
+      (append (hash-keys log/hole->choice->valid-freq)
+              (for/list ([(k v) (in-hash log/hole->choice->valid-freq)])
+                (hash-keys v))))))
+  (define key-max-len
+    (apply max (map (λ (sym) (string-length (symbol->string sym)))
+                    all-keys)))
+  (define (cpad x)
+    (define this-len (string-length (symbol->string x)))
+    (define pad-string (make-string (- key-max-len this-len) (string-ref "." 0)))
+    (string-append (symbol->string x) pad-string))
+  (define (dpad n)
+    (define ns (number->string n))
+    (define pad-string (make-string (- 3 (string-length ns)) (string-ref " " 0)))
+    (string-append pad-string ns))
+
+  (header "Given a hole, frequency a choice is (1) valid (2) chosen")
+  (for ([h (remove-duplicates (append (hash-keys log/hole->choice->valid-freq)
+                                      (hash-keys log/hole->choice->freq)))])
+    (printf "~a hole:\n" h)
+    (define c->vf (hash-ref log/hole->choice->valid-freq h (hash)))
+    (define c->f (hash-ref log/hole->choice->freq h (hash)))
+    (for ([c (hash-keys c->f)])
+      (printf "\t~a\t~a\t~a\n"
+              (cpad c) (dpad (hash-ref c->vf c 0)) (dpad (hash-ref c->f c 0)))))
+
+  (header "Frequency a given number of choices is valid for a hole")
+  (for ([h (hash-keys log/hole->num-choices->freq)])
+    (printf "~a hole:\n" h)
+    (define nc->f (hash-ref log/hole->num-choices->freq h))
+    (for ([nc (hash-keys nc->f)])
+      (printf "\t~a\t~a\n" (dpad nc) (dpad (hash-ref nc->f nc)))))
+
+  (header "Frequency of hole")
+  (for ([h (hash-keys log/hole->freq)])
+    (printf "~a hole:\t~a\n" (cpad h) (dpad (hash-ref log/hole->freq h))))
+
+  (header "Frequency of choice")
+  (for ([h (hash-keys log/choice->freq)])
+    (printf "~a choice:\t~a\n" (cpad h) (dpad (hash-ref log/choice->freq h))))
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
