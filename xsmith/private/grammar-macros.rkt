@@ -1227,15 +1227,6 @@ Perform error checking:
                   [(choice-method-name ...) (remove-duplicates
                                              (syntax->datum
                                               #'(cm-clause.prop-name ...)))]
-                  ;; When defining methods to the base choice for the grammar,
-                  ;; I need to define them as public, *except* the ones in the
-                  ;; choice base class, which I have to override.
-                  [(cdef-pub-or-override-for-base ...)
-                   (map (λ (name) (if (member (syntax->datum name)
-                                              '(_xsmith_choice-weight))
-                                      #'define/override
-                                      #'define/public))
-                        (syntax->list #'(choice-method-name ...)))]
                   [(cdef-body-for-base/default ...)
                    (map (λ (name)
                           #`(λ args (error
@@ -1408,7 +1399,7 @@ Perform error checking:
                        ;; Choice rules are methods within the choice objects.
                        (define base-node-choice
                          (class ast-choice%
-                           (cdef-pub-or-override-for-base
+                           (define/public
                             choice-method-name
                             cdef-body-for-base)
                            ...

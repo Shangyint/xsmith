@@ -66,9 +66,10 @@ Choices for AST growth should be some sort of object.
 (define ast-choice%
   (class object%
     (init-field hole)
-    ;(define/public (fresh hole-node) (error 'fresh-node "no default implementation"))
-    (define/public (_xsmith_choice-weight) (error '_xsmith_choice-weight "no default implementation"))
-    ;(define/public (features) '())
+    ;; Choice objects all will have an _xsmith_choice-weight method.
+    ;; But they will also have a bunch of other methods defined by other properties.
+    ;; So to treat them all with define/public uniformly,
+    ;; let's just not define any here on the base class.
     (super-new)
     ))
 
