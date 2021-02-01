@@ -1239,6 +1239,8 @@ Example:
  [Reference (read)]
  [Assignment (write name #:unifies Expression)])
 ]
+
+See @secref{lifting}.
 }
 
 @defform[#:kind "spec-property" #:id reference-choice-info reference-choice-info]{

@@ -216,13 +216,17 @@ However, a property can use the values of attributes and choice methods dynamica
 Remember: Attributes and choice methods are functions that can be used within specific contexts of Xsmith fuzzers.
 On ther other hand, properties are compile-time macros for generating attributes and choice methods and so are not themselves used during generation.
 
-@section{Lifting}
+@section[#:tag "lifting"]{Lifting}
 
 The term “lift” is used throughout this document and the Xsmith library.
 In the context of Xsmith, "lifting" refers to creating a binding definition after it's needed by a reference.
 In other words, when a reference node (i.e., a node which implements the @racket[reference-info] property) is created and there is not an available definition that satisfies the type system and effect system, a new definition is “lifted” to a binding form that is visible from that reference location.
 Additionally, with some probability, new definitions may be lifted even when there is a suitable definition available.
 This probability can be controlled with the @racket[reference-choice-info] property.
+
+Importantly, lifts can only be done when there is a surrounding node that can hold the lifted definition.
+Only definitions are lifted, not function parameters.
+In practice, this means that your outermost “program” node needs to have a field with @tt{Definition *}, so any number of definitions may be lifted to it.
 
 
 @section[#:tag"getting-started"]{Getting Started}
