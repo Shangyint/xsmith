@@ -46,6 +46,7 @@
  "private/xsmith-parameters.rkt"
  "private/xsmith-utils.rkt"
  "private/xsmith-version.rkt"
+ "private/type-unifying-accessors.rkt"
  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

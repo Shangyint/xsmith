@@ -1506,6 +1506,17 @@ So if you want to check if you have a particular type (and maybe deconstruct it)
 Note that if you do @racket[unify!] a type variable, that unification needs to be consistent between multiple runs of type checking (since it runs multiple times as the tree is constructed).
 In other words, if you randomly choose a type at any point, you need to store that type in a grammar attribute and consistently unify against it.
 
+When inspecting types, generally don't use functions like @racket[function-type-return-type], which only work on @racket[function-type] structs and not @racket[fresh-type-variable]s that have been unified to become function types.
+Instead, prefer functions like racket[function-type-return-type!] (note the !), which @racket[unify!] the given type to the type to be accessed, then access the inner type.
+Alternatively, use a pattern of constructing the type you want to use as a @racket[fresh-type-variable], construct the rest of the type around it, then @racket[unify!] thata outer type to the type you want to query.
+For example:
+@racketblock[
+(define return-type (fresh-type-variable))
+(unify! (function-type (fresh-type-variable return-type))
+        some-function-type-that-I-want-the-return-type-of)
+(code:comment "Now return-type has been unified with the return type of the function.")
+]
+
 
 @defproc[(type? [t any/c]) bool?]{
 Predicate for types.
@@ -1606,10 +1617,18 @@ Predicate for function types.
 @defproc[(function-type-arg-type [t function-type?]) type?]{
 Get the argument type.
 Remember that you can't deconstruct type variables that are not fully constrained!
+IE Don't actually use this, use @racket[function-type-arg-type!] instead.
+}
+@defproc[(function-type-arg-type! [t type?]) type?]{
+Like @racket[function-type-arg-type], but @racket[unify!]s the given type with a function type, and thus works on type variables.
 }
 @defproc[(function-type-return-type [t function-type?]) type?]{
 Get the return type.
 Remember that you can't deconstruct type variables that are not fully constrained!
+IE Don't actually use this, use @racket[function-type-return-type!] instead.
+}
+@defproc[(function-type-return-type! [t type?]) type?]{
+Like @racket[function-type-return-type], but @racket[unify!]s the given type with a function type, and thus works on type variables.
 }
 
 
@@ -1636,6 +1655,9 @@ Predicate for product types.
 
 @defproc[(product-type-inner-type-list [t product-type?]) any/c]{
 Returns the list of types in the product-type, or @racket[#f] for a product-type with a length that is still unspecified.
+}
+@defproc[(product-type-inner-type-list! [t type?]) any/c]{
+Like @racket[product-type-inner-type-list], but @racket[unify!]s the given type with a product type, and thus works on type variables.
 }
 
 @defform[(define-generic-type name (field-spec ...))
@@ -1743,9 +1765,15 @@ It will unify with any fully constrained @racket[nominal-record-type?].
 @defproc[(nominal-record-type-name [t nominal-record-type?]) any/c]{
 Getter for the name of a @racket[nominal-record-type?].
 }
+@defproc[(nominal-record-type-name! [t type?]) any/c]{
+Like @racket[nominal-record-type-name], but it @racket[unify!]s the type to a nominal record type, and thus can be used on type variables.
+}
 @defproc[(nominal-record-type-known-field-dict [t nominal-record-type?]) dict?]{
 Getter for the inner type dictionary.
 If you use this on a partially-specified @racket[nominal-record-type?], you will get an incomplete dictionary.
+}
+@defproc[(nominal-record-type-known-field-dict! [t type?]) dict?]{
+Like @racket[nominal-record-type-known-field-dict], but it @racket[unify!]s the type to a nominal record type, and thus can be used on type variables.
 }
 
 @defproc[(nominal-record-definition-type [t nominal-record-type?]) type?]{
@@ -1773,6 +1801,9 @@ If @racket[finalized?] is @racket[#f], the result is variable and may have field
 Get the field/type mapping held by @racket[srt].
 
 Because this may be updated by unification, and type exploration is lazy where possible, you should use @racket[force-type-exploration-for-node!] before using this on the type of any particular node.
+}
+@defproc[(structural-record-type-known-field-dict! [srt type?]) (hash/c symbol? type?)]{
+Like @racket[structural-record-type-known-field-dict], but @racket[unify!]s the given type with a structural record type, and thus works on type variables.
 }
 
 @defproc[(force-type-exploration-for-node! [n ast-node?]) void/c]{
