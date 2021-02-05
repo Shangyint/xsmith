@@ -54,6 +54,7 @@
  render-hole-info
  edit
  feature
+ get-node-symbol
 
  make-lift-reference-choice-proc
 
@@ -261,6 +262,15 @@
                            [(number? node-val) node-val]
                            [else (error 'choice-weight "Invalid weight given: ~a. Expected number or procedure." node-val)])))))
      (hash #f #'(λ () (not (zero? (send this _xsmith_choice-weight))))))))
+
+(define-property get-node-symbol
+  #:reads (grammar)
+  ;; A property to get the ast node name from a choice object.
+  #:appends (choice-method _xsmith_node-symbol)
+  #:transformer
+  (λ (this-prop-info grammar-info)
+    (list (for/hash ([n (dict-keys grammar-info)])
+            (values n #`(λ () '#,(datum->syntax #f n)))))))
 
 (define-property serialize
   #:reads (grammar)

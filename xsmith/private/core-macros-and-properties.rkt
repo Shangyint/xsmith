@@ -80,6 +80,7 @@
          type-info
          edit
          feature
+         get-node-symbol
          ;; user-added props
          prop-name ...
          )

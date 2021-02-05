@@ -40,6 +40,7 @@
  (submod "types.rkt" for-private)
  "core-macros-and-properties.rkt"
  "xsmith-utils.rkt"
+ "choice.rkt"
  (for-syntax
   racket/base
   syntax/parse
@@ -310,6 +311,7 @@
            (define verbose? verbose-default)
            (define output-file-name output-file-default)
            (define inspection-serials '())
+           (define print-choice-log? #f)
            (define options (xsmith-options-defaults))
 
            (define command-line-to-print (current-command-line-arguments))
@@ -466,6 +468,12 @@
                 (["Print debug info even when generation is successful."
                   "Defaults to false."]
                  "print-debug?")]
+               [("--print-choice-log")
+                ,(λ (flag pcl-bool)
+                   (set! print-choice-log? (string->bool pcl-bool 'print-choice-log)))
+                (["Print a log of choices made during generation."
+                  "Defaults to false."]
+                 "print-choice-log")]
                [("--seq-to-file")
                 ,(λ (flag filename) (set! seq-to-file filename))
                 (["Output the generated randomness sequence to a file at the given path."
@@ -554,6 +562,7 @@
             #:verbose verbose?
             #:output-file output-file-name
             #:inspection-serials inspection-serials
+            #:print-choice-log print-choice-log?
 
             #:command-line-to-print command-line-to-print))
 
@@ -588,6 +597,7 @@
                   #:print-debug [print-debug not-given]
                   #:verbose [verbose? not-given]
                   #:inspection-serials [inspection-serials not-given]
+                  #:print-choice-log [print-choice-log? not-given]
                   )
 
 
@@ -667,6 +677,7 @@
             #:print-debug (arg print-debug print-debug-default)
             #:verbose (arg verbose? verbose-default)
             #:inspection-serials (arg inspection-serials '())
+            #:print-choice-log (arg print-choice-log? #f)
             )
            )
 
@@ -699,6 +710,7 @@
                   #:print-debug print-debug-with-no-error?
                   #:verbose verbose?
                   #:inspection-serials inspection-serials
+                  #:print-choice-log print-choice-log?
                   )
 
 
@@ -904,6 +916,11 @@
                                                  ""
                                                  (string-split captured-output "\n")))))
                    (display "\n"))
+                 (when print-choice-log?
+                   (displayln
+                    (comment-func (string-split
+                                   (with-output-to-string print-choice-log)
+                                   "\n"))))
 
                  (display "\n"))
                ;; If the flag was set, output the random-source's byte sequence to file.
