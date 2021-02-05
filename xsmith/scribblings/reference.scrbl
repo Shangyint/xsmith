@@ -1254,9 +1254,8 @@ The property takes a function that takes three arguments:
 ]
 
 The function must return one of the options, the symbol @racket['lift] to lift a fresh definition, or @racket[#f].
-If it returns @racket[#f], then you can't have a reference there, and you have to deal with that in your fuzzer.
-Returning @racket[#f] is probably a bad idea.
-The default shouldn't ever return @racket[#f].
+If it returns @racket[#f], then you can't have a reference there, in which case you need to be sure you have other non-reference nodes available to fulfill that type.
+The default doesn't ever return @racket[#f].
 The default value biases towards choosing parameters over definitions and lexically closer bindings over far ones.
 
 You can give different values to different nodes, but a default on @racket[#f] is probably good enough?

@@ -168,6 +168,7 @@ TODO - running / compiling SML
                        #:VariableReference #t
                        #:ProcedureApplicationSingle #t
                        #:LambdaSingleWithExpression #t
+                       #:VoidExpression #t
                        #:ImmutableList #t
                        #:Booleans #t
                        #:index-and-length-type small-int-type
@@ -347,6 +348,27 @@ TODO - running / compiling SML
                                             (att-value 'xsmith_render-node c))
                                           (text ", ")))
                        (text ")")))]
+ [PolymorphicFunction
+  Expression ([f : Expression] [parametrictype])
+  #:prop render-node-info (λ (n) (h-append (text "(* It's Polymorphin time! *) ")
+                                           (render-child 'f n)))
+  #:prop wont-over-deepen #t
+  #:prop choice-weight (λ (n)
+                         (if (ast-subtype? (parent-node n) 'PolymorphicFunction)
+                             0
+                             1000))
+  #:prop type-info
+  [(function-type (fresh-type-variable) (fresh-type-variable))
+   (λ (n t)
+     (define pt (ast-child 'parametrictype n))
+     (if pt
+         (begin
+           (unify! (replace-parametric-types-with-variables pt) t)
+           (hash 'f pt))
+         (let ([new-pt (make-parametric-type-based-on t)])
+           (enqueue-inter-choice-transform
+            (λ () (rewrite-terminal 'parametrictype n new-pt)))
+           (hash 'f new-pt))))]]
  )
 
 
@@ -847,39 +869,55 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
                     (cons between
                           (list-add-between (cdr ls) between)))]))
 
-(define (type->string t*)
+(define (type->string t)
   ;; concretize and unify, just in case.
-  (define t (concretize-type t*))
-  (unify! t t*)
-  (cond
-    [(can-unify? t large-int-type) "LargeInt.int"]
-    [(can-unify? t small-int-type) "int"]
-    [(can-unify? t byte-string-type) "string"]
-    [(can-unify? t byte-char-type) "char"]
-    [(can-unify? t wide-string-type) "WideString.string"]
-    [(can-unify? t byte-char-type) "WideChar.char"]
-    [(can-unify? t bool-type) "bool"]
-    [(can-unify? t void-type) "unit"]
-    [(can-unify? t (box-type (fresh-type-variable)))
-     (define inner (fresh-type-variable))
-     (unify! (box-type inner) t)
-     (format "(~a ref)" (type->string inner))]
-    [(can-unify? t (product-type #f))
-     (define inners (product-type-inner-type-list t))
-     (if (null? inners)
-         "unit"
-         (format "(~a)" (string-join (map type->string inners) " * ")))]
-    [(can-unify? t (function-type (fresh-type-variable) (fresh-type-variable)))
-     (define ret (fresh-type-variable))
-     (define arg (fresh-type-variable))
-     (unify! t (function-type arg ret))
-     (format "(~a -> ~a)" (type->string arg) (type->string ret))]
-    [(can-unify? t (immutable (list-type (fresh-type-variable))))
-     (define inner (fresh-type-variable))
-     (unify! t (immutable (list-type inner)))
-     (format "(~a list)" (type->string inner))]
-    [else (error 'standard-ml_type->string
-                 "Type not implemented yet: ~v" t)]))
+  (define parametric-type-hash (make-hasheq))
+  ;; 26 names should be enough.
+  (define parametric-type-names
+    '(a b c d e f g h i j k l m n o p q r s t u v w x y z))
+  (define parametric-name-index 0)
+  (define (rec t*)
+    (define t (concretize-type t*))
+    (unify! t t*)
+    (cond
+      [(can-unify? t large-int-type) "LargeInt.int"]
+      [(can-unify? t small-int-type) "int"]
+      [(can-unify? t byte-string-type) "string"]
+      [(can-unify? t byte-char-type) "char"]
+      [(can-unify? t wide-string-type) "WideString.string"]
+      [(can-unify? t byte-char-type) "WideChar.char"]
+      [(can-unify? t bool-type) "bool"]
+      [(can-unify? t void-type) "unit"]
+      [(parameter-type? t)
+       (hash-ref! parametric-type-hash t
+                  (λ () (begin0
+                            (format "'~a"
+                                    (symbol->string
+                                     (list-ref parametric-type-names
+                                               parametric-name-index)))
+                          (set! parametric-name-index
+                                (add1 parametric-name-index)))))]
+      [(can-unify? t (box-type (fresh-type-variable)))
+       (define inner (fresh-type-variable))
+       (unify! (box-type inner) t)
+       (format "(~a ref)" (rec inner))]
+      [(can-unify? t (product-type #f))
+       (define inners (product-type-inner-type-list t))
+       (if (null? inners)
+           "unit"
+           (format "(~a)" (string-join (map rec inners) " * ")))]
+      [(can-unify? t (function-type (fresh-type-variable) (fresh-type-variable)))
+       (define ret (fresh-type-variable))
+       (define arg (fresh-type-variable))
+       (unify! t (function-type arg ret))
+       (format "(~a -> ~a)" (rec arg) (rec ret))]
+      [(can-unify? t (immutable (list-type (fresh-type-variable))))
+       (define inner (fresh-type-variable))
+       (unify! t (immutable (list-type inner)))
+       (format "(~a list)" (rec inner))]
+      [else (error 'standard-ml_type->string
+                   "Type not implemented yet: ~v" t)]))
+  (rec t))
 
 (add-property
  comp
@@ -1011,6 +1049,8 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
 
  [VariableReference (λ (n) (text (format "~a" (ast-child 'name n))))]
 
+ [VoidExpression (λ (n) (text "((ref 0) := 0)"))]
+
  [ProcedureApplicationSingle
   (λ (n) (h-append lparen
                    (render-child 'procedure n)
@@ -1083,7 +1123,9 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
    ))
 
 (define (sml-format-render doc)
-  (pretty-format doc 120))
+  (pretty-format doc 120)
+  ;"program here"
+  )
 
 (define-xsmith-interface-functions
   [comp]

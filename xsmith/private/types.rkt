@@ -29,14 +29,6 @@
 ;; POSSIBILITY OF SUCH DAMAGE.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#|
-WIP checklist:
-* I need to put anything important from `unify!` and `can-unify?` and put them into their subtype counterparts.  Then I need to make the normal unify version just do two reversed subtype versions.
-* I changed the base-type struct, I need to ripple that change through everywhere that uses it.
-* I changed the type variable struct, anything that matches it needs to change
-* I changed the product type struct, I need to propagate changes
-* I need to review code comments and make sure they still make sense.
-|#
 
 (require racket/contract)
 (provide
@@ -116,6 +108,11 @@ WIP checklist:
  contains-type-variables?
 
  type-contains-function-type?
+ type-contains-parameter-type?
+
+ replace-parametric-types-with-variables
+ make-parametric-type-based-on
+ parameter-type?
  )
 
 (module+ for-private
@@ -327,10 +324,12 @@ If a (transitive) upper bound is ever equal to a (transitive) lower bound, that 
     (error 'fresh-type-variable
            "partially constrained type variables can not include multiple of any composite type in the constraint list.  Given ~a\n"
            args))
+  (when (<= 2 (length (filter parameter-type? args))) (composite-error))
   (when (<= 2 (length (filter function-type? args))) (composite-error))
   (when (<= 2 (length (filter product-type? args))) (composite-error))
   ;(when (<= 2 (length (filter sum-type? args))) (composite-error))
   (when (<= 2 (length (filter nominal-record-type? args))) (composite-error))
+  (when (<= 2 (length (filter structural-record-type? args))) (composite-error))
   ;(when (<= 2 (length (filter record-type? args))) (composite-error))
   ;; TODO - I probably only want to allow one of each kind of generic type
   (define type (if (null? args)
@@ -647,6 +646,10 @@ TODO - when generating a record ref, I'll need to compare something like (record
              (list-ref (generic-type-type-arguments x) accessor-index))
            ...))]))
 
+(struct parameter-type (symbol))
+(define (make-fresh-parameter-type)
+  (parameter-type (gensym 'param)))
+
 ;; TODO - maybe I should have a base struct with no fields called type, then allow the user to define their own new types with custom rules for subtyping (at least to specify which fields are covariant, contravariant, or invariant) and for where to recur during unification.
 (define (type? x)
   (or
@@ -660,11 +663,13 @@ TODO - when generating a record ref, I'll need to compare something like (record
    (nominal-record-definition-type? x)
    (structural-record-type? x)
    (generic-type? x)
+   (parameter-type? x)
    ))
 
 
 (define (type->skeleton-with-vars t)
   (match t
+    [(? parameter-type) t]
     [(generic-type name constructor inners variances)
      (apply constructor (map (λ(x) (fresh-type-variable))
                              inners))]
@@ -988,6 +993,11 @@ TODO - when generating a record ref, I'll need to compare something like (record
                  type-arguments2
                  variances1)]
 
+      ;; parameter type
+      [(list (parameter-type sym-l) (parameter-type sym-r))
+       (when (not (eq? sym-l sym-r))
+         (errsu "Unification of different parameter types failed: ~v and ~v"
+                sub super))]
       ;; base type
       [(list (or (? base-type?) (? base-type-range?))
              (or (? base-type?) (? base-type-range?)))
@@ -1349,120 +1359,175 @@ TODO - when generating a record ref, I'll need to compare something like (record
    subtype-unify!/nominal-record-types
    ripple-subtype-unify-changes/nominal-record-type))
 
-(define (can-subtype-unify? sub* super*)
+(define (can-subtype-unify? sub super)
+  (match-define (list basic-result variable-dict)
+    (can-subtype-unify?/variable-dict sub super))
+  (and basic-result
+       (check-can-unify-variable-dict variable-dict)))
+(define (can-subtype-unify?/variable-dict sub* super*)
   (define sub (canonicalize-if-variable sub*))
   (define super (canonicalize-if-variable super*))
-  (define (rec sub super)
-    (can-subtype-unify? sub super))
+  (define vd (hasheq))
+  (define (rec* sub super)
+    (match-define (list basic-result variable-dict)
+      (can-subtype-unify?/variable-dict sub super))
+    (when basic-result
+      (set! vd (variable-dict-merge vd variable-dict)))
+    basic-result)
+  (define (rec/tail sub super)
+    (match-define (list basic-result variable-dict)
+      (can-subtype-unify?/variable-dict sub super))
+    (list basic-result
+          (if basic-result (variable-dict-merge vd variable-dict) #f)))
   (match (list sub super)
     ;; 2x type-variable
     [(list (c-type-variable inner-t-sub sub-lb sub-ub)
            (c-type-variable inner-t-sup sup-lb sup-ub))
      (match (list (flatten (list inner-t-sub))
                   (flatten (list inner-t-sup)))
-       [(list (list #f) _) #t]
-       [(list _ (list #f)) #t]
+       [(list (list #f) _) (list #t
+                                 (variable-dict-merge vd
+                                                      (hasheq sub (list super)
+                                                              super (list sub))))]
+       [(list _ (list #f)) (list #t
+                                 (variable-dict-merge vd
+                                                      (hasheq sub (list super)
+                                                              super (list sub))))]
        [(list subs sups)
-        (for*/or ([sub subs]
-                  [sup sups])
-          (match (list sub sup)
-            [(list (base-type-range #f lsup) (base-type-range _ rsup))
-             (and
-              (eq? (base-type->superest lsup)
-                   (base-type->superest rsup))
-              (or (memq rsup (base-type->parent-chain lsup))
-                  (memq lsup (base-type->parent-chain rsup))))]
-            [(list (base-type-range lsub _) (base-type-range _ rsup))
-             (rec lsub rsup)]
-            [else (rec sub sup)]))])]
+        (define basic
+          (for*/or ([sub subs]
+                    [sup sups])
+            (match (list sub sup)
+              [(list (base-type-range #f lsup) (base-type-range _ rsup))
+               (and
+                (eq? (base-type->superest lsup)
+                     (base-type->superest rsup))
+                (or (memq rsup (base-type->parent-chain lsup))
+                    (memq lsup (base-type->parent-chain rsup))))]
+              [(list (base-type-range lsub _) (base-type-range _ rsup))
+               (rec* lsub rsup)]
+              [else (rec* sub sup)])))
+        (list basic (variable-dict-merge vd
+                                         (hasheq sub (list super)
+                                                 super (list sub))))])]
     ;; left type-variable
     [(list (c-type-variable _ _ _) _)
-     (can-X-unify?/one-type-variable
-      sub super (λ (l r) (rec l r)))]
+     (match-define (list basic variable-dict)
+       (can-X-unify?/one-type-variable
+        sub super (λ (l r) (rec* l r))))
+     (list basic (variable-dict-merge vd variable-dict))]
     ;; right type-variable
     [(list _ (c-type-variable _ _ _))
-     (can-X-unify?/one-type-variable
-      super sub (λ (super sub)
-                  (rec sub super)))]
+     (match-define (list basic variable-dict)
+       (can-X-unify?/one-type-variable
+        super sub (λ (super sub)
+                    (rec* sub super))))
+     (list basic (variable-dict-merge vd variable-dict))]
     ;; function-type
     [(list (function-type arg-l ret-l)
            (function-type arg-r ret-r))
-     (and
-      ;; covariant return
-      (rec ret-l ret-r)
-      ;; contravariant arguments
-      (rec arg-r arg-l))]
+     (define basic
+       (and
+        ;; covariant return
+        (rec* ret-l ret-r)
+        ;; contravariant arguments
+        (rec* arg-r arg-l)))
+     (list basic vd)]
     ;; product-type
     [(list (product-type inner1 lowers1 uppers1)
            (product-type inner2 lowers2 uppers2))
-     (can-X-unify?/product-type sub super rec)]
+     (match-define (list basic-result variable-dict)
+       (can-X-unify?/product-type sub super rec*))
+     (list basic-result (variable-dict-merge vd variable-dict))]
     ;; nominal-record-type
     [(list (? nominal-record-type?) (? nominal-record-type?))
      ;; TODO - make this actually subtypable
-     (can-unify? sub super)]
+     (can-unify?/variable-dict sub super)]
     ;; nominal-record-definition-type
     [(list (nominal-record-definition-type inner1)
            (nominal-record-definition-type inner2))
      ;; TODO -for now this is symmetric, but later should be subtypable.
-     (rec inner1 inner2)]
+     (define basic-result
+       (rec* inner1 inner2))
+     (list basic-result vd)]
     ;; structural-record-type
     [(list (c-structural-record-type f?1 known-fields-1 lb-1 ub-1)
            (c-structural-record-type f?2 known-fields-2 lb-2 ub-2))
      ;; For each key in the supertype, the subtype either has the same key and it can subtype, or all transitive lower bounds either also don't have the key or their field can be a subtype.
      (define transitive-lb-1
        (variable-transitive-lower-bounds sub))
-     (for/and ([k (dict-keys known-fields-2)])
-       (if (dict-has-key? known-fields-1 k)
-           (rec (dict-ref known-fields-1 k) (dict-ref known-fields-2 k))
-           (and (not (structural-record-type-finalized? sub))
-                (for/and ([lb transitive-lb-1])
-                  (can-subtype-unify?/structural-record-type-lower-bound/field
-                   lb k (dict-ref known-fields-2 k))))))]
+     (define basic-result
+       (for/and ([k (dict-keys known-fields-2)])
+         (if (dict-has-key? known-fields-1 k)
+             (rec* (dict-ref known-fields-1 k) (dict-ref known-fields-2 k))
+             (and (not (structural-record-type-finalized? sub))
+                  (for/and ([lb transitive-lb-1])
+                    (match-define (list basic-result variable-dict)
+                      (can-subtype-unify?/structural-record-type-lower-bound/field/variable-dict
+                       lb k (dict-ref known-fields-2 k)))
+                    (set! vd (variable-dict-merge vd variable-dict))
+                    basic-result)))))
+     (list basic-result vd)]
     ;; generic-type
     [(list (generic-type name1 constructor1 type-arguments1 variances1)
            (generic-type name2 constructor2 type-arguments2 variances2))
      ;; TODO - generic types need to store the variance type for each field.
      ;;        For a start, let's assume all fields are invariant.
-     (and (eq? constructor1 constructor2)
-          (for/and ([l type-arguments1]
-                    [r type-arguments2]
-                    [v variances1])
-            (match v
-              ['invariant (can-unify? l r)]
-              ['covariant (rec l r)]
-              ['contravariant (rec r l)])))]
+     (define basic-result
+       (and (eq? constructor1 constructor2)
+            (for/and ([l type-arguments1]
+                      [r type-arguments2]
+                      [v variances1])
+              (match v
+                ['invariant
+                 (match-define (list basic-result variable-dict)
+                   (can-unify?/variable-dict l r))
+                 (set! vd (variable-dict-merge vd variable-dict))
+                 basic-result]
+                ['covariant (rec* l r)]
+                ['contravariant (rec* r l)]))))
+     (list basic-result vd)]
+    ;; parameter type
+    [(list (parameter-type sym-l) (parameter-type sym-r))
+     (list (eq? sym-l sym-r) vd)]
     ;; base-type
     [(list (base-type lname lsuper _) (base-type rname rsuper _))
-     (->bool (memq super (base-type->parent-chain sub)))]
+     (list (->bool (memq super (base-type->parent-chain sub))) vd)]
     ;; While base-type-ranges can only be in type variables, it is convenient to recursively use this function to test them
     [(list (base-type-range l-low l-high) (base-type-range r-low r-high))
-     (->bool
-      (if l-low
-          (memq r-high (base-type->parent-chain l-low))
-          (or (memq r-high (base-type->parent-chain l-high))
-              (memq l-high (base-type->parent-chain r-high)))))]
+     (list
+      (->bool
+       (if l-low
+           (memq r-high (base-type->parent-chain l-low))
+           (or (memq r-high (base-type->parent-chain l-high))
+               (memq l-high (base-type->parent-chain r-high)))))
+      vd)]
     [(list (base-type _ _ _) (base-type-range _ _))
-     (rec (mk-base-type-range sub sub) super)]
+     (rec/tail (mk-base-type-range sub sub) super)]
     [(list (base-type-range _ _) (base-type _ _ _))
-     (rec sub (mk-base-type-range super super))]
-    [else #f]))
+     (rec/tail sub (mk-base-type-range super super))]
+    [else (list #f #f)]))
 
 (define (can-X-unify?/one-type-variable tv rtype inner-can-unify?)
+  (define vd (hasheq tv (list rtype)))
   (cond
-    [(not (core-type-variable-type tv)) #t]
+    [(not (core-type-variable-type tv)) (list #t vd)]
     [else
      (define t (core-type-variable-type tv))
      (define (struct-rec predicate)
        (match (filter predicate t)
-         [(list) #f]
-         [(list one) (inner-can-unify? one rtype)]))
+         [(list) (list #f (hasheq))]
+         [(list one) (list (inner-can-unify? one rtype) vd)]))
      (match rtype
-       [(base-type name superbase _)
-        (for/or ([possibility t])
-          (match possibility
-            [(base-type-range low high)
-             (inner-can-unify? possibility rtype)]
-            [else #f]))]
+       [(or (? base-type?)
+            (? base-type-range?))
+        (define basic-result
+          (for/or ([possibility t])
+            (match possibility
+              [(base-type-range low high)
+               (inner-can-unify? possibility rtype)]
+              [else #f])))
+        (list basic-result vd)]
        [(? function-type?) (struct-rec function-type?)]
        [(? product-type?) (struct-rec product-type?)]
        [(? nominal-record-type?) (struct-rec nominal-record-type?)]
@@ -1470,6 +1535,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
         (struct-rec nominal-record-definition-type?)]
        [(? structural-record-type?)
         (struct-rec structural-record-type?)]
+       [(? parameter-type?) (struct-rec parameter-type?)]
        [(generic-type name constructor type-arguments variances)
         (define inner-matched
           (filter (λ (x) (match x
@@ -1478,8 +1544,8 @@ TODO - when generating a record ref, I'll need to compare something like (record
                            [else #f]))
                   t))
         (match inner-matched
-          [(list) #f]
-          [(list one) (inner-can-unify? one rtype)]
+          [(list) (list #f vd)]
+          [(list one) (list (inner-can-unify? one rtype) vd)]
           [(list one more ...)
            (error 'xsmith
                   "A type variable seems to have two generic types of the same type.  This is currently an error.  Type:  ~v"
@@ -1490,22 +1556,26 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(list (product-type inner1 lowers1 uppers1)
            (product-type inner2 lowers2 uppers2))
      (cond
-       [(not inner1) #t]
-       [(not inner2) #t]
-       [(not (equal? (length inner1) (length inner2))) #f]
+       [(not inner1) (list #t (hasheq l (list r) r (list l)))]
+       [(not inner2) (list #t (hasheq l (list r) r (list l)))]
+       [(not (equal? (length inner1) (length inner2))) (list #f (hasheq))]
        [else
-        (for/and ([li inner1]
-                  [ri inner2])
-          (inner-can-unify? li ri))])]))
+        (list (for/and ([li inner1]
+                        [ri inner2])
+                (inner-can-unify? li ri))
+              (hasheq))])]))
 
 
-(define (can-subtype-unify?/structural-record-type-lower-bound/field
+(define (can-subtype-unify?/structural-record-type-lower-bound/field/variable-dict
          lower-bound-srt field-key super-field-value)
   (match lower-bound-srt
     [(c-structural-record-type lb-f? lb-kf _ _)
-     (or (and (not (dict-has-key? lb-kf field-key)) (not lb-f?))
-         (and (dict-has-key? lb-kf field-key)
-              (can-subtype-unify? (dict-ref lb-kf field-key) super-field-value)))]))
+     (if (and (not (dict-has-key? lb-kf field-key)) (not lb-f?))
+         (list #t (hasheq))
+         (if (dict-has-key? lb-kf field-key)
+             (can-subtype-unify?/variable-dict
+              (dict-ref lb-kf field-key) super-field-value)
+             (list #f (hasheq))))]))
 
 
 (define (unify! t1* t2*)
@@ -1518,76 +1588,141 @@ TODO - when generating a record ref, I'll need to compare something like (record
            (subtype-unify! t2 t1))))
 
 
+;; When checking can-unify? (or can-subtype-unify?), we need to keep a mapping
+;; from variables to the types they need to be able to unify with.
+;; At the end of unification, even if each part of a compound type can be unified,
+;; we need to check whether there were duplicate types for any given variable that
+;; can't be unified.
+;; Eg. (can-unify? (function-type tv1 tv1) (function-type int int)) should be #t,
+;; but (can-unify? (function-type tv1 tv1) (function-type string int)) should be #f.
+;; Here is a helper to merge dictionaries with this info.
+(define (variable-dict-merge vd1 vd2)
+  (cond [(or (not vd2) (hash-empty? vd2)) vd1]
+        [(or (not vd1) (hash-empty? vd1)) vd2]
+        [else
+         (for/fold ([vd vd1])
+                   ([(k v) (in-hash vd2)])
+           (hash-set vd k (append (hash-ref vd k (list)) v)))]))
+(define (check-can-unify-variable-dict vd)
+  (for/and ([(var type-list) (in-hash vd)])
+    (let loop ([type-list type-list])
+      (match type-list
+        [(list) #t]
+        [(list t1) #t]
+        [(list t1 more ...)
+         (for/and ([t more])
+           ;; Whether we are checking can-unify? or can-subtype-unify?, we will just
+           ;; check whether the types to be unified for a duplicate type variable
+           ;; can symmetric unify.  We don't have a way to tell whether they should
+           ;; have a subtype relationship or which direction it should be.
+           (match-define (list basic-result variable-dict)
+             (can-unify?/variable-dict t1 t))
+           ;; We just care about the basic result here.  If we try to do this
+           ;; variable-dict thing recursively we may never terminate.
+           ;; Ideally we could not collect the variable dicts the second time
+           ;; around, but that would mean more code...
+           basic-result)]))))
+
 ;; symmetric can-unify? can't just check if each can subtype-unify the other,
 ;; because there could be cases like:
 ;; (type-variable dog penguin) (type-variable labradoodle bird)
 ;; where each side can subtype-unify with the other, but they can't be subtype
 ;; unified in BOTH directions.
-(define (can-unify? l* r*)
+(define (can-unify? l r)
+  (match-define (list basic-result variable-dict)
+    (can-unify?/variable-dict l r))
+  (and basic-result
+       (check-can-unify-variable-dict variable-dict)))
+(define (can-unify?/variable-dict l* r*)
   (define l (canonicalize-if-variable l*))
   (define r (canonicalize-if-variable r*))
-  (define (rec l r)
-    (can-unify? l r))
+  (define vd (hasheq))
+  (define (rec/tail l r)
+    (match-define (list basic-result variable-dict)
+      (can-unify?/variable-dict l r))
+    (list basic-result
+          (if basic-result
+              (variable-dict-merge vd variable-dict)
+              #f)))
+  (define (rec* l r)
+    (match-define (list basic-result variable-dict)
+      (can-unify?/variable-dict l r))
+    (when basic-result
+      (set! vd (variable-dict-merge vd variable-dict)))
+    basic-result)
   (match (list l r)
     ;; 2x type-variable
     [(list (c-type-variable l-inner-t l-lb l-ub)
            (c-type-variable r-inner-t r-lb r-ub))
      (match (list (flatten (list l-inner-t))
                   (flatten (list r-inner-t)))
-       [(list (list #f) _) #t]
-       [(list _ (list #f)) #t]
+       [(list (list #f) _) (list #t (variable-dict-merge
+                                     vd (hasheq l (list r) r (list l))))]
+       [(list _ (list #f)) (list #t (variable-dict-merge
+                                     vd (hasheq l (list r) r (list l))))]
        [(list ls rs)
-        (for*/or ([ll ls]
-                  [rr rs])
-          (rec ll rr))])]
+        (define basic
+          (for*/or ([ll ls]
+                    [rr rs])
+            (rec* ll rr)))
+        (list basic (variable-dict-merge vd (hasheq l (list r) r (list l))))])]
     ;; left type-variable
     [(list (c-type-variable _ _ _) _)
-     (can-X-unify?/one-type-variable l r (λ (l r) (rec l r)))]
+     (match-define (list basic-result variable-dict)
+       (can-X-unify?/one-type-variable l r (λ (l r) (rec* l r))))
+     (list basic-result (variable-dict-merge vd variable-dict))]
     ;; right type-variable
     [(list _ (c-type-variable _ _ _))
-     (can-X-unify?/one-type-variable r l (λ (l r) (rec l r)))]
+     (match-define (list basic-result variable-dict)
+       (can-X-unify?/one-type-variable r l (λ (l r) (rec* l r))))
+     (list basic-result (variable-dict-merge vd variable-dict))]
     ;; function-type
     [(list (function-type arg-l ret-l)
            (function-type arg-r ret-r))
-     (and
-      (rec ret-l ret-r)
-      (rec arg-r arg-l))]
+     (define basic
+       (and
+        (rec* ret-l ret-r)
+        (rec* arg-r arg-l)))
+     (list basic vd)]
     ;; product-type
     [(list (product-type inner1 lowers1 uppers1)
            (product-type inner2 lowers2 uppers2))
-     (can-X-unify?/product-type l r rec)]
+     (match-define (list basic-result variable-dict)
+       (can-X-unify?/product-type l r rec*))
+     (list basic-result (variable-dict-merge vd variable-dict))]
     ;; nominal-record-type
     [(list (? nominal-record-type?) (? nominal-record-type?))
-     (match (list l r)
-       [(list (c-nominal-record-type #f #f inners1 lb1 ub1)
-              (c-nominal-record-type #f #f inners2 lb2 ub2))
-        (->bool (and (for/and ([k (dict-keys inners1)])
-                       (or (not (dict-has-key? inners2 k))
-                           (rec (dict-ref inners1 k) (dict-ref inners2 k))))
-                     (for/and ([k (dict-keys inners2)])
-                       (or (not (dict-has-key? inners1 k))
-                           (rec (dict-ref inners1 k) (dict-ref inners2 k))))))]
-       [(list (c-nominal-record-type #f #f inners1 lb1 ub1)
-              (c-nominal-record-type name2 super2 inners2 lb2 ub2))
-        (define inner-vals (dict-values inners2))
-        (for/and ([k (dict-keys inners1)])
-          (cond [(not k) (let ([needed-type (dict-ref inners1 k)])
-                           (->bool (ormap (λ (x) (rec x needed-type))
-                                          inner-vals)))]
-                [else (and (dict-has-key? inners2 k)
-                           (rec (dict-ref inners1 k) (dict-ref inners2 k)))]))]
-       [(list (c-nominal-record-type name1 super1 kfd1 lb1 ub1)
-              (c-nominal-record-type #f #f kfd2 lb2 ub2))
-        (rec r l)]
-       [(list (c-nominal-record-type name1 super1 kfd1 lb1 ub1)
-              (c-nominal-record-type name2 super2 kfd2 lb2 ub2))
-        ;; TODO - verify that names are unique?
-        (equal? name1 name2)]
-       )]
+     (define basic-result
+       (match (list l r)
+         [(list (c-nominal-record-type #f #f inners1 lb1 ub1)
+                (c-nominal-record-type #f #f inners2 lb2 ub2))
+          (->bool (and (for/and ([k (dict-keys inners1)])
+                         (or (not (dict-has-key? inners2 k))
+                             (rec* (dict-ref inners1 k) (dict-ref inners2 k))))
+                       (for/and ([k (dict-keys inners2)])
+                         (or (not (dict-has-key? inners1 k))
+                             (rec* (dict-ref inners1 k) (dict-ref inners2 k))))))]
+         [(list (c-nominal-record-type #f #f inners1 lb1 ub1)
+                (c-nominal-record-type name2 super2 inners2 lb2 ub2))
+          (define inner-vals (dict-values inners2))
+          (for/and ([k (dict-keys inners1)])
+            (cond [(not k) (let ([needed-type (dict-ref inners1 k)])
+                             (->bool (ormap (λ (x) (rec* x needed-type))
+                                            inner-vals)))]
+                  [else (and (dict-has-key? inners2 k)
+                             (rec* (dict-ref inners1 k) (dict-ref inners2 k)))]))]
+         [(list (c-nominal-record-type name1 super1 kfd1 lb1 ub1)
+                (c-nominal-record-type #f #f kfd2 lb2 ub2))
+          (rec* r l)]
+         [(list (c-nominal-record-type name1 super1 kfd1 lb1 ub1)
+                (c-nominal-record-type name2 super2 kfd2 lb2 ub2))
+          ;; TODO - verify that names are unique?
+          (equal? name1 name2)]))
+     (list basic-result (variable-dict-merge vd (hasheq l (list r) r (list l))))]
     ;; nominal-record-definition-type
     [(list (nominal-record-definition-type inner1)
            (nominal-record-definition-type inner2))
-     (rec inner1 inner2)]
+     (rec/tail inner1 inner2)]
     ;; structural-record-type
     [(list (c-structural-record-type f?1 known-fields-1 lb-1 ub-1)
            (c-structural-record-type f?2 known-fields-2 lb-2 ub-2))
@@ -1597,29 +1732,45 @@ TODO - when generating a record ref, I'll need to compare something like (record
      ;; * Struct A has more fields than struct B, but struct B has a lower bound that has one of those fields as an incompatible type.
      (define tlb1 (variable-transitive-lower-bounds l))
      (define tlb2 (variable-transitive-lower-bounds r))
-     (for/and ([k (set-union (dict-keys known-fields-1) (dict-keys known-fields-2))])
-       (define f1 (dict-ref known-fields-1 k #f))
-       (define f2 (dict-ref known-fields-2 k #f))
-       (cond [(and f1 f2) (rec f1 f2)]
-             [f1 (and (not (structural-record-type-finalized? r))
-                      (for/and ([lb tlb2])
-                        (can-subtype-unify?/structural-record-type-lower-bound/field
-                         lb k f1)))]
-             [f2 (and (not (structural-record-type-finalized? l))
-                      (for/and ([lb tlb1])
-                        (can-subtype-unify?/structural-record-type-lower-bound/field
-                         lb k f2)))]
-             [else (error 'this-should-be-impossible-but-cond-unhelpfully-returns-void-on-fall-through-so-im-adding-this-just-in-case/can-unify/srt)]))]
+     (define basic
+       (for/and ([k (set-union (dict-keys known-fields-1) (dict-keys known-fields-2))])
+         (define f1 (dict-ref known-fields-1 k #f))
+         (define f2 (dict-ref known-fields-2 k #f))
+         (cond
+           [(and f1 f2) (rec* f1 f2)]
+           [f1 (and (not (structural-record-type-finalized? r))
+                    (for/and ([lb tlb2])
+                      (match-define (list basic-result variable-dict)
+                        (can-subtype-unify?/structural-record-type-lower-bound/field/variable-dict
+                         lb k f1))
+                      (when basic-result
+                        (set! vd (variable-dict-merge vd variable-dict)))
+                      basic-result))]
+           [f2 (and (not (structural-record-type-finalized? l))
+                    (for/and ([lb tlb1])
+                      (match-define (list basic-result variable-dict)
+                        (can-subtype-unify?/structural-record-type-lower-bound/field/variable-dict
+                         lb k f2))
+                      (when basic-result
+                        (set! vd (variable-dict-merge vd variable-dict)))
+                      basic-result))]
+           [else (error 'this-should-be-impossible-but-cond-unhelpfully-returns-void-on-fall-through-so-im-adding-this-just-in-case/can-unify/srt)])))
+     (list basic vd)]
     ;; generic-type
     [(list (generic-type name1 constructor1 type-arguments1 variances1)
            (generic-type name2 constructor2 type-arguments2 variances2))
-     (and (eq? constructor1 constructor2)
-          (for/and ([inner-l type-arguments1]
-                    [inner-r type-arguments2])
-            (rec inner-l inner-r)))]
+     (define basic-result
+       (and (eq? constructor1 constructor2)
+            (for/and ([inner-l type-arguments1]
+                      [inner-r type-arguments2])
+              (rec* inner-l inner-r))))
+     (list basic-result vd)]
+    ;; parameter-type
+    [(list (parameter-type sym-l) (parameter-type sym-r))
+     (list (eq? sym-l sym-r) vd)]
     ;; base-type
     [(list (base-type _ _ _) (base-type _ _ _))
-     (eq? l r)]
+     (list (eq? l r) vd)]
     [(list (base-type-range l-low l-high) (base-type-range r-low r-high))
      ;; In this case we return the new range that the variables would occupy if symmetrically unified.
      (define new-high
@@ -1628,29 +1779,33 @@ TODO - when generating a record ref, I'll need to compare something like (record
              [(memq l-high (base-type->parent-chain r-high))
               r-high]
              [else 'bad]))
-     (and (not (eq? new-high 'bad))
-          (let ([new-low (match (list l-low r-low)
-                           [(list #f _) r-low]
-                           [(list _ #f) l-low]
-                           [else
-                            (cond [(memq r-low (base-type->parent-chain l-low))
-                                   r-low]
-                                  [(memq l-low (base-type->parent-chain r-low))
-                                   l-low]
-                                  [else 'bad])])])
-            (and (not (eq? 'bad new-low))
-                 (or (not new-low)
-                     (->bool (memq new-high (base-type->parent-chain new-low)))))))]
+     (define basic
+       (and (not (eq? new-high 'bad))
+            (let ([new-low (match (list l-low r-low)
+                             [(list #f _) r-low]
+                             [(list _ #f) l-low]
+                             [else
+                              (cond [(memq r-low (base-type->parent-chain l-low))
+                                     r-low]
+                                    [(memq l-low (base-type->parent-chain r-low))
+                                     l-low]
+                                    [else 'bad])])])
+              (and (not (eq? 'bad new-low))
+                   (or (not new-low)
+                       (->bool (memq new-high
+                                     (base-type->parent-chain new-low))))))))
+     (list basic vd)]
     [(list (base-type _ _ _) (base-type-range _ _))
-     (can-unify? (mk-base-type-range l l) r)]
+     (rec/tail (mk-base-type-range l l) r)]
     [(list (base-type-range _ _) (base-type _ _ _))
-     (can-unify? l (mk-base-type-range r r))]
-    [else #f]))
+     (rec/tail l (mk-base-type-range r r))]
+    [else (list #f #f)]))
 
 
 ;; A parameter to hold the list of constructors for base or composite types (with minimally constrained type variables inside).
 (define current-xsmith-type-constructor-thunks
-  (make-parameter (list default-base-type)))
+  ;; TODO - maybe the default should be something that raises an error?
+  (make-parameter (list (λ () default-base-type))))
 ;; TODO - this should be configurable.
 (define type-max-concretization-depth (make-parameter 5))
 (define record-type-max-fields (make-parameter 5))
@@ -1686,6 +1841,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
       [(base-type-range low high)
        ;; TODO - this should be a random choice.  But I also need to deal with the #f low case and enumerate all possibilities.  For now I just want to get the code working again.
        high]
+      [(parameter-type _) t]
       [(product-type inner lb ub)
        (define inner-types inner)
        (if inner-types
@@ -1821,6 +1977,22 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (check-true (can-unify? an-or1->int int->int))
   (check-true (can-unify? an-or2->int int->int))
   (check-true (can-unify? an-or3->int int->int))
+
+
+  (let ()
+    ;; test multiple instances of the same type variable
+    (define v1 (fresh-type-variable))
+    (define f1 (function-type v1 v1))
+    (check-true (can-unify? f1 (function-type integer integer)))
+    (check-true (can-unify? (function-type integer integer) f1))
+    (check-true (can-subtype-unify? f1 (function-type integer integer)))
+    (check-true (can-subtype-unify? (function-type integer integer) f1))
+    (check-false (can-unify? f1 (function-type string integer)))
+    (check-false (can-unify? (function-type string integer) f1))
+    (check-false (can-subtype-unify? f1 (function-type string integer)))
+    (check-false (can-subtype-unify? (function-type string integer) f1))
+    )
+
   )
 
 ;; TODO - It might make sense for Xsmith to track construction of
@@ -1838,6 +2010,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
     [(c-type-variable _ _ _) #f]
     [(base-type _ _ _) #t]
     [(base-type-range l r) (equal? l r)]
+    [(parameter-type _) #t]
     [(function-type a r)
      (and (rec a) (rec r))]
     [(c-nominal-record-type name super fields lb ub)
@@ -1944,6 +2117,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
     ;; No more variables
     [(list (c-type-variable _ _ _) _) (error 'at-least-as-settled "internal error, shouldn't reach this point with a type variable, got l: ~v, r: ~v\n" v constraint-type)]
     [(list _ (c-type-variable _ _ _)) (error 'at-least-as-settled "internal error, shouldn't reach this point with a type variable, got l: ~v, r: ~v\n" v constraint-type)]
+    [(list (parameter-type _) _) #t]
     [(list (base-type _ _ _) _) #t]
     [(list (base-type-range min max) _)
      (or (not (can-unify? v constraint-type))
@@ -2026,6 +2200,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (match t
     [(base-type _ _ _) #f]
     [(base-type-range _ _) #f]
+    [(parameter-type _) #f]
     [(function-type arg ret) (or (rec arg) (rec ret))]
     [(product-type inners lb ub)
      (match inners
@@ -2064,6 +2239,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
          (match t
            [(base-type _ _ _) (work vars todos dones)]
            [(base-type-range _ _) (work vars todos dones)]
+           [(parameter-type _) (work vars todos dones)]
            [(function-type arg ret)
             (work vars (list* arg ret todos) dones)]
            [(product-type inners lb ub)
@@ -2109,9 +2285,16 @@ TODO - when generating a record ref, I'll need to compare something like (record
   (match t
     [(base-type _ _ _) #f]
     [(base-type-range _ _) #f]
+    ;; Though parameter-types should only be found inside function types...
+    [(parameter-type _) #f]
     [(function-type arg ret) #t]
     [(product-type inners lb ub)
      (if potential?
+         ;; TODO - I noticed this while working on something else, but I think
+         ;;        this is wrong.  The test for the if should be
+         ;;        (and potential (not inners)), so it doesn't return #t
+         ;;        for concrete product types that don't have anything inside.
+         ;;        But I want to actually fix this separately.
          #t
          (when (not inners)
            (error 'type-contains-function-type? "given non-settled type: ~v" t)))
@@ -2140,6 +2323,213 @@ TODO - when generating a record ref, I'll need to compare something like (record
      (if potential?
          #t
          (error 'type-contains-function-type? "given non-settled type: ~v" t))]))
+
+
+(define (structurally-recur-on-type/where-polymorphism-valid
+         t transformer
+         ;; if collect? is true, make a list of the result
+         ;; of the transformer on the type and its children
+         ;; instead of reconstructing the type.
+         #:collect? [collect? #f])
+  (define (rec t)
+    (structurally-recur-on-type/where-polymorphism-valid t transformer
+                                                         #:collect? collect?))
+  ;; Do preorder traversal.
+  (define t* (transformer t))
+  (match (if collect? t t*)
+    [(function-type arg ret)
+     (if collect?
+         (list t* (rec arg) (rec ret))
+         (function-type (rec arg) (rec ret)))]
+    [(product-type (list inners ...) lb ub)
+     (if collect?
+         (cons t* (map rec inners))
+         (mk-product-type (map rec inners)))]
+    [(generic-type name constructor inners variances)
+     (if collect?
+         (cons t* (map rec inners))
+         (generic-type name constructor (map rec inners) variances))]
+    [(c-type-variable (list single-it) _ _)
+     (rec single-it)]
+    ;; All other types are either atomic or are unsupported for
+    ;; doing polymoprhic function replacement.
+    [(or
+      (? base-type?)
+      (? base-type-range?)
+      (? parameter-type?)
+      (? nominal-record-type?)
+      (? nominal-record-definition-type?)
+      (? structural-record-type?)
+      (? core-type-variable?))
+     t*]))
+
+
+;; TODO - I should make a more generic type tree walking function.
+;; It could have an optional predicate for whether to recur, what
+;; function to apply to child nodes, an option to reconstruct the same
+;; type with the transformed children or collect the child results
+;; (and results on the node itself) in some other way, a function to
+;; apply to the type when not recurring into it, a way to potentially
+;; short-circuit evaluation based on an intermediate result... It
+;; could potentially replace several functions in this file with more
+;; declarative specifications of how to do the traversal. But it has to
+;; support a robust set of specifications to be able to subsume so many
+;; other ad-hoc tree walking functions.
+
+
+(define (type->function-type-list-for-polymorphism t)
+  (define (transformer t)
+    (if (function-type? t)
+        t
+        '()))
+  (flatten
+   (list
+    (structurally-recur-on-type/where-polymorphism-valid
+     t transformer #:collect? #t))))
+
+(define (type-swap-for-polymorphism t old-t new-t)
+  (define (transformer t)
+    (if (can-unify? t old-t)
+        new-t
+        t))
+  (structurally-recur-on-type/where-polymorphism-valid t transformer))
+
+(define (replace-parametric-types-with-variables t)
+  (define param-hash (make-hasheq))
+  (define (transformer t)
+    (match t
+      [(parameter-type sym)
+       (if (hash-has-key? param-hash sym)
+           (hash-ref param-hash sym)
+           (let ([ftv (fresh-type-variable)])
+             (hash-set! param-hash sym ftv)
+             ftv))]
+      [else t]))
+  (structurally-recur-on-type/where-polymorphism-valid t transformer))
+
+(define (type-contains-parameter-type? t)
+  (let/ec return
+    (define (super-escaping-predicate t)
+      (and (parameter-type? t) (return #t)))
+    (structurally-recur-on-type/where-polymorphism-valid
+     t super-escaping-predicate #:collect? #t)
+    ;; If we didn't use the escape continuation to return true, it's false.
+    #f))
+
+(define (type->type-list-for-polymorphism t)
+  ;; return a flattened list of all types in the tree t,
+  ;; except not recurring into those where polymoprhic replacements
+  ;; are invalid.
+  (flatten
+   (list
+    (structurally-recur-on-type/where-polymorphism-valid t (λ(x)x) #:collect? #t))))
+
+(define (make-parametric-type-based-on t)
+  ;; Here we make a type that maybe has parameter types in it that
+  ;; could unify with type t.
+  ;; To make this simple, we are going to concretize the type first.
+  (define ct (concretize-type t))
+  ;; A parametric type needs to have the same parameter type in both the
+  ;; input and output sides of a function.
+
+  (define function-types (type->function-type-list-for-polymorphism ct))
+
+  (define (function-type->replacement-candidate ft)
+    (define arg-types (type->type-list-for-polymorphism
+                       (function-type-arg-type ft)))
+    (define ret-types (type->type-list-for-polymorphism
+                       (function-type-return-type ft)))
+    (define ret-types-shuffled (wrap-external-randomness
+                                (shuffle ret-types)))
+    (for/or ([ret ret-types-shuffled])
+      (for/or ([arg arg-types])
+        (and (can-unify? arg ret) ret))))
+
+  (define replacement-choice-list
+    (for/or ([ft (wrap-external-randomness
+                  (shuffle function-types))])
+      (define choice (function-type->replacement-candidate ft))
+      (and choice (list ft choice))))
+
+  (define result
+    (and replacement-choice-list
+         ;; Replace the type with a parameter just in the function type,
+         ;; then replace that function type in the overall type.
+         (type-swap-for-polymorphism
+          t
+          (car replacement-choice-list)
+          (type-swap-for-polymorphism (car replacement-choice-list)
+                                      (cadr replacement-choice-list)
+                                      (make-fresh-parameter-type)))))
+
+  (define (make-more-parametric-with-probability t)
+    ;; TODO - make the probability configurable.
+    (if (random-bool)
+        (make-parametric-type-based-on t)
+        t))
+
+  (if result
+      (make-more-parametric-with-probability result)
+      t))
+
+(module+ test
+  (require
+   quickcheck
+   rackunit/quickcheck
+   (prefix-in r: racket/base)
+   )
+  (let ()
+    (define t1
+      (replace-parametric-types-with-variables
+       (function-type (parameter-type 'a) (parameter-type 'a))))
+    (check-true (can-unify? t1 (function-type dog dog)))
+    (check-false (can-unify? t1 (function-type dog bird)))
+
+
+    ;; Quickcheck test for round-trip unification of
+    ;; type -> parameterized type -> type with variables
+    ;; conversion.
+    (define-generic-type my-list-type ([type covariant]))
+    (check-false (can-unify? (parameter-type 'a) (my-list-type (parameter-type 'a))))
+    (check-false (can-unify? (parameter-type 'a)
+                             (fresh-type-variable
+                              (my-list-type (parameter-type 'a)))))
+    (define function-type-generator
+      (make-generator
+       (λ (size random-generator)
+         ;; TODO - this throws away the quickcheck random-generator, but I don't
+         ;; think it really matters much.
+         ;; TODO - it would be good to use the size argument
+         (with-new-random-source #:seed (random-seed-value)
+           (parameterize ([current-xsmith-type-constructor-thunks
+                           (list
+                            (λ() dog)
+                            (λ() bird)
+                            (λ() (my-list-type (fresh-type-variable)))
+                            (λ() (function-type (fresh-type-variable)
+                                                (fresh-type-variable)))
+                            (λ() (function-type (mk-product-type #f)
+                                                (fresh-type-variable)))
+                            (λ() (mk-product-type #f))
+                            (λ() (fresh-structural-record-type))
+                            )])
+             (concretize-type (function-type (fresh-type-variable)
+                                             (fresh-type-variable))))))))
+
+    (define replace-parametric-types-with-variables/round-trip-property
+      (property ([ftype function-type-generator])
+                (let ([parameterized (replace-parametric-types-with-variables
+                                      (make-parametric-type-based-on
+                                       ftype))])
+                  (and (can-unify? ftype parameterized)
+                       (void?
+                        (with-handlers ([(λ (e) #t) (λ (e) e)])
+                          (unify! ftype parameterized)))))))
+    ;; TODO - I don't remember the real random seed max...
+    (define random-max-int (expt 2 29))
+    (with-new-random-source #:seed (r:random random-max-int)
+      (check-property replace-parametric-types-with-variables/round-trip-property))
+    ))
 
 
 ;; This is a copy/pasted version of list-subtract from the `set` generic implementation.  The generic uses `equal?`-based testing, but I'm only using it on things where I want `eq?`-based testing.
@@ -2332,13 +2722,13 @@ TODO - when generating a record ref, I'll need to compare something like (record
     (define-syntax (subtype-check stx)
       (syntax-parse stx
         [(_ t/f sub super)
-         #'(let ([bool t/f]
+         #`(let ([bool t/f]
                  [b sub]
                  [p super])
-             (check-equal? t/f (can-subtype-unify? b p))
+             #,(syntax/loc stx (check-equal? (can-subtype-unify? b p) bool))
              (if bool
-                 (check-not-exn (λ () (subtype-unify! b p)))
-                 (check-exn exn? (λ () (subtype-unify! b p)))))]))
+                 #,(syntax/loc stx (check-not-exn (λ () (subtype-unify! b p))))
+                 #,(syntax/loc stx (check-exn exn? (λ () (subtype-unify! b p))))))]))
 
     (subtype-check #t (g dog dog dog) (g dog dog dog))
     (subtype-check #t (g dog labradoodle animal) (g dog dog dog))
