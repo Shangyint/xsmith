@@ -37,6 +37,7 @@
 (define scribblings '(("scribblings/xsmith.scrbl" () (library))))
 (define deps '("base"
                "version-string-with-git-hash"
+               "quickcheck"
                "rackunit-lib"
                "at-exp-lib"
                "pprint"
