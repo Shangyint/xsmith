@@ -1127,6 +1127,9 @@
 ;; command-line feature switch.
 (define simple-encoding-codecs
   (list "ascii" "utf_16" "utf_8"))
+;; We define a single-element set of codecs for use as needed.
+(define ascii-encoding-codec
+  (list "ascii"))
 ;; NOTE - These error handling mechanisms are enumerated under: https://docs.python.org/3/library/codecs.html#codecs.register_error
 ;;        Aside from 'strict' (which is accordingly commented out), they should prevent runtime errors.
 ;; TODO - Wrapping this in a custom function in the header could accommodate implementing 'strict' and
@@ -1165,9 +1168,13 @@
                                  rparen))]
  [StrMethodEncodeTwo Expression
                      ([str : Expression]
-                      [encoding = (random-ref (if (xsmith-feature-enabled? 'advanced-encoding)
-                                                  encoding-codecs
-                                                  simple-encoding-codecs))]
+                      [encoding = (random-ref (cond
+                                                [(xsmith-feature-enabled? 'simple-encoding)
+                                                 simple-encoding-codecs]
+                                                [(xsmith-feature-enabled? 'advanced-encoding)
+                                                 encoding-codecs]
+                                                [else
+                                                 ascii-encoding-codec]))]
                       [errors = (random-ref encoding-error-handling-schemes)])
                      #:prop type-info
                      [byte-string-type
@@ -1198,9 +1205,13 @@
                                    rparen))]
  [BytesMethodDecodeTwo Expression
                        ([bts : Expression]
-                        [encoding = (random-ref (if (xsmith-feature-enabled? 'advanced-encoding)
-                                                    encoding-codecs
-                                                    simple-encoding-codecs))]
+                        [encoding = (random-ref (cond
+                                                  [(xsmith-feature-enabled? 'simple-encoding)
+                                                   simple-encoding-codecs]
+                                                  [(xsmith-feature-enabled? 'advanced-encoding)
+                                                   encoding-codecs]
+                                                  [else
+                                                   ascii-encoding-codec]))]
                         [errors = (random-ref decoding-error-handling-schemes)])
                        #:prop type-info
                        [string-type
@@ -1760,6 +1771,7 @@ def to_string(x):
   #:format-render python-format-render
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "# ~a" l)) lines)
                                          "\n"))
-  #:features ([advanced-encoding #f]))
+  #:features ([advanced-encoding #f]
+              [simple-encoding #f]))
 
 (module+ main (python3-command-line))
