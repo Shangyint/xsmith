@@ -1305,11 +1305,14 @@ few of these methods.
                 options/higher-order-effect-filtered)
         options/higher-order-effect-filtered))
 
-  (if any-effect-possible?
+  (if (and any-effect-possible? (not function?))
       ;; When any effect is possible, we should just not reference definitions,
       ;; only function parameters (which are guaranteed never to be the target
       ;; of assignment nodes).
       ;; This means we should not lift a definition.
+      ;; However, when the type we are referencing is a function, we should
+      ;; still allow lifts, because functions are already disallowed to be
+      ;; mutated.
       options/param-filtered
       (reference-options-add-lift node options/param-filtered concrete-type)))
 
