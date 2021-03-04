@@ -162,20 +162,33 @@
     ))
 
 (define (biased-random-string)
+  ;; NOTE: There appears to be an issue with Unicode handling across Python
+  ;;       versions that leads to inconsistent behavior. For now, Unicode
+  ;;       generation is being disabled and Python will only work with ASCII.
+  ;;
+  ;; FIXME: Find out why this behavior exists and fix it.
+  (random-string-from-char-producing-proc random-ascii-char))
+#;(define (biased-random-string)
   (match (random 3)
     [0 (random-string)]
-    [1 (random-string-from-char-producing-proc
-        (λ () (random-char-in-range (range 0 128))))]
+    [1 (random-string-from-char-producing-proc random-ascii-char)]
     [2 (random-string-from-char-producing-proc biased-random-char)]))
 
 (define (biased-random-char)
+  ;; NOTE: There appears to be an issue with Unicode handling across Python
+  ;;       versions that leads to inconsistent behavior. For now, Unicode
+  ;;       generation is being disabled and Python will only work with ASCII.
+  ;;
+  ;; FIXME: Find out why this behavior exists and fix it.
+  (random-ascii-char))
+#;(define (biased-random-char)
   ;; Random-char very rarely generates ascii, which is more common.
   ;; More saliently, low-value characters are interned in Racket and
   ;; high-value characters are not.  So I want to be sure to generate
   ;; both to have some variety.
   (if (random-bool)
       (random-char)
-      (random-char-in-range (range 0 128))))
+      (random-ascii-char)))
 
 (define (random-byte-list-length) (random 30))
 (define (random-byte) (random 256))
