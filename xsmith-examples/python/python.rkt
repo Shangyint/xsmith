@@ -161,27 +161,27 @@
     [5 (random 10)]
     ))
 
-(define (biased-random-string)
+#;(define (biased-random-string)
   ;; NOTE: There appears to be an issue with Unicode handling across Python
   ;;       versions that leads to inconsistent behavior. For now, Unicode
   ;;       generation is being disabled and Python will only work with ASCII.
   ;;
   ;; FIXME: Find out why this behavior exists and fix it.
   (random-string-from-char-producing-proc random-ascii-char))
-#;(define (biased-random-string)
+(define (biased-random-string)
   (match (random 3)
     [0 (random-string)]
     [1 (random-string-from-char-producing-proc random-ascii-char)]
     [2 (random-string-from-char-producing-proc biased-random-char)]))
 
-(define (biased-random-char)
+#;(define (biased-random-char)
   ;; NOTE: There appears to be an issue with Unicode handling across Python
   ;;       versions that leads to inconsistent behavior. For now, Unicode
   ;;       generation is being disabled and Python will only work with ASCII.
   ;;
   ;; FIXME: Find out why this behavior exists and fix it.
   (random-ascii-char))
-#;(define (biased-random-char)
+(define (biased-random-char)
   ;; Random-char very rarely generates ascii, which is more common.
   ;; More saliently, low-value characters are interned in Racket and
   ;; high-value characters are not.  So I want to be sure to generate
@@ -1436,9 +1436,16 @@ def is_sequence(x):
 
 
 def to_string(x):
-    if any(map(lambda t: isinstance(x, t), (bool, int, float, complex, str, bytes, bytearray, memoryview))):
+    if any(map(lambda t: isinstance(x, t), (bool, int, float, complex, bytes, bytearray, memoryview))):
         # Primitive types with known-good `__repr__` implementations.
         return repr(x)
+    elif isinstance(x, str):
+        # Strings can be problematic due to Unicode stuff.
+        try:
+            output = x.encode('ascii').decode('ascii')
+        except UnicodeEncodeError as _:
+            output = repr([ord(c) for c in x])
+        return output
     elif isinstance(x, tuple):
         return '(' + ', '.join(map(to_string, x)) + ')'
     elif isinstance(x, list):
