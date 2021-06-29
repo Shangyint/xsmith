@@ -923,7 +923,7 @@
                     (if (eq? convention 'unix)
                         (build-path/convention-type 'unix "a-relative-path")
                         (build-path/convention-type 'windows "a-relative-path")))
-                (cdr ps)))))
+                (apply build-path (cdr ps))))))
 
     (define (bytes->path/windows s)
       (bytes->path (bytes-path-prep s) 'windows))
