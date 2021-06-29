@@ -258,7 +258,10 @@
   (when (not (equal? rosette-last-ast-serial-number
                      current-ast-serial))
     (set! rosette-last-ast-serial-number current-ast-serial)
-    (rt:clear-asserts!)))
+    (eprintf "Whoa, the symbolic analysis is totally broken right now!")
+    ;; TODO - Rosette changed its interface, and now this `clear-asserts!` function doesn't exist.  I'm not going to evaluate at the moment what this means for the symbolic analysis overall, but I think I need this feature... maybe there is something similar, or another way to do what I'm trying to do.
+    ;(rt:clear-asserts!)
+    ))
 
 (add-attribute
  cish-rules
