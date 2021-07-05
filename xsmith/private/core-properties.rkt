@@ -1523,7 +1523,14 @@ few of these methods.
               (subtype-unify! my-type my-type-from-parent))))))
 
 (define (xsmith_type-info-func/wrap . args)
-  (λ (n) (apply xsmith_type-info-func n args)))
+  (λ (n)
+    (with-handlers ([(λ (e) #t)
+                     (λ (e)
+                       (xd-printf "Exception during type checking for node of ast-type ~v with serial number ~v\n"
+                                  (ast-node-type n)
+                                  (ast-child 'xsmithserialnumber n))
+                       (raise e))])
+      (apply xsmith_type-info-func n args))))
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
