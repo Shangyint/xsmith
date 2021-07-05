@@ -1581,12 +1581,26 @@ few of these methods.
   (define my-cached-type (ast-child 'xsmithcachedtype node))
   (define my-type (or my-cached-type (fresh-type-variable)))
   (when my-type-constraint
-    (unify! my-type my-type-constraint))
+    (with-handlers
+      ([(λ (e) #t)
+        (λ (e)
+          (xd-printf "Error unifying to type constraint\n")
+          (xd-printf "my-type: ~v\n" my-type)
+          (xd-printf "my-type-constraint: ~v\n" my-type-constraint)
+          (raise e))])
+      (unify! my-type my-type-constraint)))
   (when (and binder-type-field
              (not (att-value 'xsmith_is-hole? node))
              (not (bud-node? (ast-child binder-type-field node))))
     ;; We still need to unify the annotation to be sure things stay in sync.
-    (unify! my-type (ast-child binder-type-field node)))
+    (with-handlers
+      ([(λ (e) #t)
+        (λ (e)
+          (xd-printf "Error unifying a binder node's inferred type to its stored type field.\n")
+          (xd-printf "my-type: ~v" my-type)
+          (xd-printf "binder field type: ~v" (ast-child binder-type-field node))
+          (raise e))])
+      (unify! my-type (ast-child binder-type-field node))))
   (define my-type-from-parent
     (att-value '_xsmith_type-constraint-from-parent node))
   (define debug-print-1 (type-debug-print-helper node))
