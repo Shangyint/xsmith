@@ -832,12 +832,13 @@
                      [(immutable (fresh-structural-record-type (hash)))
                       (λ (n t)
                         (define inner-t (fresh-type-variable))
-                        (unify! (immutable (fresh-structural-record-type
-                                            (hash (ast-child 'fieldname n)
-                                                  inner-t)))
-                                t)
-                        (hash 'record t
-                              'newvalue inner-t))]]))
+                        (define record-t
+                          (subtype-unify! (immutable (fresh-structural-record-type
+                                                      (hash (ast-child 'fieldname n)
+                                                            inner-t)))
+                                          t))
+                        (hash 'record record-t
+                               'newvalue inner-t))]]))
                 #'())
 
          #,@(if (use? use-mutable-structural-record)
