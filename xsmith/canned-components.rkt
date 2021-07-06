@@ -83,18 +83,7 @@
 
 
 
-(define (immutable-structural-record-type-constraint single? finalized?)
-  (λ (n)
-    (if (att-value 'xsmith_is-hole? n)
-        (immutable
-         (fresh-structural-record-type (hash)))
-        (immutable
-         (fresh-structural-record-type
-          #:finalized? finalized?
-          (for/hash ([k (if single?
-                            (list (ast-child 'fieldname n))
-                            (ast-child 'fieldnames n))])
-            (values k (fresh-type-variable))))))))
+
 (define mutable-structural-record-assignment-type-rhs
   (λ (n t)
     (define newtype (fresh-type-variable))
@@ -811,11 +800,14 @@
                        (hash 'fieldnames all-fields
                              'expressions (length all-fields)))
                      #:prop type-info
-                     [(immutable-structural-record-type-constraint #f #t)
+                     [(immutable (fresh-structural-record-type (hash)))
                       (λ (n t)
-                        (define fsrt (fresh-structural-record-type))
+                        (define names (ast-child 'fieldnames n))
+                        (define name-type-dict (for/hash ([fn names])
+                                                 (values fn (fresh-type-variable))))
+                        (define fsrt (fresh-structural-record-type name-type-dict))
                         (define mfsrt (immutable fsrt))
-                        (unify! mfsrt t)
+                        (subtype-unify! mfsrt t)
                         (define td (structural-record-type-known-field-dict fsrt))
                         (for/hash ([c (ast-children (ast-child 'expressions n))]
                                    [f (ast-child 'fieldnames n)])
@@ -837,7 +829,7 @@
                       [record : Expression]
                       [newvalue : Expression])
                      #:prop type-info
-                     [(immutable-structural-record-type-constraint #t #f)
+                     [(immutable (fresh-structural-record-type (hash)))
                       (λ (n t)
                         (define inner-t (fresh-type-variable))
                         (unify! (immutable (fresh-structural-record-type
@@ -872,17 +864,13 @@
                        (hash 'fieldnames necessary-fields
                              'expressions (length necessary-fields)))
                      #:prop type-info
-                     [(λ (n)
-                        (if (att-value 'xsmith_is-hole? n)
-                            (mutable
-                             (fresh-structural-record-type (hash)))
-                            (mutable
-                             (fresh-structural-record-type
-                              #:finalized? #t
-                              (for/hash ([k (ast-child 'fieldnames n)])
-                                (values k (fresh-type-variable)))))))
+                     [(mutable (fresh-structural-record-type (hash)))
                       (λ (n t)
-                        (define fsrt (fresh-structural-record-type))
+                        (define known-fields
+                          (for/hash ([k (ast-child 'fieldnames n)])
+                            (values k (fresh-type-variable))))
+                        (define fsrt (fresh-structural-record-type known-fields
+                                                                   #:finalized? #t))
                         (define mfsrt (mutable fsrt))
                         (unify! mfsrt t)
                         (define td (structural-record-type-known-field-dict fsrt))
