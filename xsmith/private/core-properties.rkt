@@ -2307,10 +2307,12 @@ The second arm is a function that takes the type that the node has been assigned
                    (if (eq? c sibling)
                        '()
                        (att-value '_xsmith_effects sibling)))))
-           (remove-duplicates
-            (flatten (cons lift-constraints
-                           (cons extended-family-constraints
-                                 direct-constraints)))))))
+           (define full-constraints
+             (remove-duplicates
+              (flatten (cons lift-constraints
+                             (cons extended-family-constraints
+                                   direct-constraints)))))
+           full-constraints)))
     (define _xsmith_no-io-conflict?-info
       (for/hash ([n (cons #f io-nodes)])
         (values
