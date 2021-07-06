@@ -2079,12 +2079,13 @@ The second arm is a function that takes the type that the node has been assigned
   #:transformer
   (λ (this-prop-info)
     (define _xsmith_strict-child-order?-info
-      (hash-set
-       (for/hash ([(n v) (in-dict this-prop-info)])
-         (values n (syntax-parse v
-                     [#t #'always-true-attribute]
-                     [#f #'always-false-attribute])))
-       #f #'always-false-attribute))
+      (let ([h (for/hash ([(n v) (in-dict this-prop-info)])
+                 (values n (syntax-parse v
+                             [#t #'always-true-attribute]
+                             [#f #'always-false-attribute])))])
+        (if (not (hash-has-key? h #f))
+            (hash-set h #f #'always-false-attribute)
+            h)))
     (list _xsmith_strict-child-order?-info)))
 
 (define (non-hole-node? x)
