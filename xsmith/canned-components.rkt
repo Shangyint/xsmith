@@ -833,10 +833,10 @@
                       (λ (n t)
                         (define inner-t (fresh-type-variable))
                         (define record-t
-                          (subtype-unify! (immutable (fresh-structural-record-type
-                                                      (hash (ast-child 'fieldname n)
-                                                            inner-t)))
-                                          t))
+                          (immutable (fresh-structural-record-type
+                                      (hash (ast-child 'fieldname n)
+                                            inner-t))))
+                        (subtype-unify! record-t t)
                         (hash 'record record-t
                                'newvalue inner-t))]]))
                 #'())
