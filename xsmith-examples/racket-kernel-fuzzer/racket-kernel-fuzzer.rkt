@@ -148,6 +148,12 @@
                        #:bool-type exact-bool
                        )
 
+(add-property
+ racket-comp
+ strict-child-order?
+ ;; Racket enforces strict left-to-right evaluation for everything.
+ ;; Well, unless you are using concurrency, but that's another can of worms.
+ [#f #t])
 
 (add-property
  racket-comp
