@@ -2443,6 +2443,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                                 (shuffle ret-types)))
     (for/or ([ret ret-types-shuffled])
       (for/or ([arg arg-types])
+        ;; TODO - must be sure the ret type is not only an argument type within a return type...  IE don't generate (list 'a -> 'a -> int), because the result type ('a -> int) is invalid (at least in SML).
         (and (can-unify? arg ret) ret))))
 
   (define replacement-choice-list
