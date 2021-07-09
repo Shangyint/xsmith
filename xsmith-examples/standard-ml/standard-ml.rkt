@@ -719,7 +719,8 @@ fun safeSmallDivide(a, b) =
 if (b = 0 orelse (a = min_as_small andalso b = ~1)) then a else a div b
 
 fun safeSmallModulo(a, b) =
-if b = 0 then a else a mod b
+(* Return 0 when b is 0 so I can use it in other safe functions. *)
+if b = 0 then 0 else a mod b
 
 fun safeSmallRemainder(a, b) =
 if b = 0 then a else Int.rem(a, b)
@@ -732,12 +733,12 @@ fun safe_cdr(l, fallback) = if (null l) then fallback else (List.tl l)
 fun safeLast(l, fallback) = if (null l) then fallback else (List.last l)
 fun safeListNth(l, index, fallback) = if (null l) then fallback
   else let val i = index mod (List.length l) in List.nth(l, i) end
-fun safeListTake(l, amount) = List.take(l, amount mod (List.length l))
-fun safeListDrop(l, amount) = List.drop(l, amount mod (List.length l))
+fun safeListTake(l, amount) = List.take(l, safeSmallModulo(amount, (List.length l)))
+fun safeListDrop(l, amount) = List.drop(l, safeSmallModulo(amount, (List.length l)))
 
 fun safeStringSub(s, i) =
 if (String.size s) = 0 then #\"a\"
-  else String.sub(s, (safeSmallAbs(i) mod (String.size s)))
+  else String.sub(s, (safeSmallModulo(safeSmallAbs(i), (String.size s))))
 
 ")
 
