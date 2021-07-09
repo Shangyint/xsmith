@@ -202,7 +202,7 @@ TODO - running / compiling SML
   (λ (n)
     (let ([box-var (text (fresh-var-name "loopbox"))])
       (v-append
-       (h-append (text "let ")
+       (h-append (text "let val ")
                  box-var
                  (text " = ref ")
                  (render-child 'collection n)
@@ -218,7 +218,7 @@ TODO - running / compiling SML
                       (text " > 0 do")
                       (nest nest-step
                             (v-append
-                             (h-append (text "let ") (render-child 'elemname n)
+                             (h-append (text "let val ") (render-child 'elemname n)
                                        (text " = !") box-var (text " in ("))
                              (h-append box-var (text " := !") box-var (text " - 1;"))
                              (render-child 'body n)))
