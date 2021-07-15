@@ -2457,8 +2457,9 @@ TODO - add proper documentation.
 (define (_xsmith_edit-single-info/wrapper edit-procs)
   (λ (n)
     (define result-pre-wrap
-      (for/or ([p edit-procs])
-        (p n)))
+      (and (not (att-value 'xsmith_is-hole? n))
+           (for/or ([p edit-procs])
+             (p n))))
     (and result-pre-wrap
          ;; We return the node that was edited so that we can
          ;; automatically re-type it in the elaboration loop.
