@@ -775,8 +775,13 @@
                "called on non-hole node"))))
 (define _xsmith_resolve-reference-name-function
   (λ (node name)
-    (resolve-reference
-     (reference name (att-value '_xsmith_scope-graph-scope node)))))
+    (with-handlers ([(λ (e) #t)
+                     (λ (e)
+                       (xd-printf "Exception in name resolution for reference node with serial number: ~a\n"
+                                  (ast-child 'xsmithserialnumber node))
+                       (raise e))])
+      (resolve-reference
+       (reference name (att-value '_xsmith_scope-graph-scope node))))))
 (define xsmith_binding-function
   (λ (node [require-binder-or-reference #t])
     (if (att-value '_xsmith_is-reference-node? node)
