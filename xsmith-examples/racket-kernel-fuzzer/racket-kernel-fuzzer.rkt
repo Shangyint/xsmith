@@ -1208,6 +1208,24 @@
  )
 
 
+;; This is a quick hack that removes lift chains.
+;; I'm not sure that I want to commit to this generally.
+;; We could add it to canned-components or something.
+;; But maybe we occasionally DO want a definition to have an immediate reference as its RHS.
+;; So I would rather try to do something that limits lift chains to a certain (small) depth.
+(add-choice-method
+ racket-comp
+ no-ref-on-def-rhs
+ [#f (λ () #t)]
+ [VariableReference
+  (λ ()
+    (not (equal? (ast-node-type (parent-node (current-hole)))
+                 'Definition)))])
+(add-property racket-comp
+              choice-filters-to-apply
+              [#f (no-ref-on-def-rhs)])
+
+
 
 (define (type-thunks-for-concretization)
   (list
