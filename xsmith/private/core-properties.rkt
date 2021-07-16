@@ -458,9 +458,9 @@ hole for the type.
                                     [else #'#f])))))
                        field-names))))
                (define binder-name-field
-                 #,(first (hash-ref binder-field-names-dict node)))
+                 (send this _xsmith_binder-name-field))
                (define binder-type-field
-                 #,(second (hash-ref binder-field-names-dict node)))
+                 (send this _xsmith_binder-type-field))
                ;; TODO - get name and type directly for lift nodes
                (define binder-hash
                  (if binder-name-field
@@ -972,13 +972,16 @@ It just reads the values of several other properties and produces the results fo
             (binding name n type def-or-param-symbol))))))
 
 (define-property binder-info
-  #:reads (grammar)
   #:appends
   (attribute _xsmith_binder-type-field)
+  (choice-method _xsmith_binder-type-field)
+  (attribute _xsmith_binder-name-field)
+  (choice-method _xsmith_binder-name-field)
+  (attribute _xsmith_binder-def-or-param)
   (attribute xsmith_definition-binding)
   #:transformer
-  (λ (this-prop-info grammar-info)
-    (define nodes (dict-keys grammar-info))
+  (λ (this-prop-info)
+    (define nodes (dict-keys this-prop-info))
     (define name+type+d/p-hash
       (for/hash ([node (cons #f nodes)])
         (values node
@@ -986,12 +989,25 @@ It just reads the values of several other properties and produces the results fo
                   [x:binder-info-clause
                    (and (attribute x.binder-info)
                         (list #'x.name-field #'x.type-field #'x.def/param))]))))
-    (define _xsmith_binder-type-field
+    (define (make-binder-info-hash choice-method? accessor)
       (for/hash ([node (cons #f nodes)])
         (cond [(dict-ref name+type+d/p-hash node #f)
                =>
-               (λ (l) (values node #`(λ (n) '#,(second l))))]
-              [else (values node #'always-false-attribute)])))
+               (λ (l) (values node #`(λ #,(if choice-method? #'() #'(n))
+                                       '#,(accessor l))))]
+              [else (values node (if choice-method?
+                                     #'(λ () #f)
+                                     #'always-false-attribute))])))
+    (define _xsmith_binder-name-field_attribute
+      (make-binder-info-hash #f first))
+    (define _xsmith_binder-name-field_cm
+      (make-binder-info-hash #t first))
+    (define _xsmith_binder-type-field_attribute
+      (make-binder-info-hash #f second))
+    (define _xsmith_binder-type-field_cm
+      (make-binder-info-hash #t second))
+    (define _xsmith_binder-def-or-param_attribute
+      (make-binder-info-hash #f third))
     (define xsmith_definition-binding-info
       (for/fold ([rule-info (hash #f #'always-false-attribute)])
                 ([node nodes])
@@ -1003,7 +1019,12 @@ It just reads the values of several other properties and produces the results fo
             #'(make/xsmith_definition-binding-info 'name-field-name
                                                    'type-field-name
                                                    'def-or-param))])))
-    (list _xsmith_binder-type-field xsmith_definition-binding-info)))
+    (list _xsmith_binder-type-field_attribute
+          _xsmith_binder-type-field_cm
+          _xsmith_binder-name-field_attribute
+          _xsmith_binder-name-field_cm
+          _xsmith_binder-def-or-param_attribute
+          xsmith_definition-binding-info)))
 
 (define (make/_xsmith_resolve-reference field)
   (λ (n)
@@ -1491,9 +1512,9 @@ few of these methods.
 (define (xsmith_type-info-func/parent-relation-only node
                                                     reference-unify-target
                                                     reference-field
-                                                    definition-type-field
-                                                    definition-name-field
-                                                    parameter?)
+                                                    n->definition-type-field
+                                                    n->definition-name-field
+                                                    n->parameter?)
   ;; Most arguments aren't necessary, I just copied it from the main type function
   ;; to not have to think about it much.
   (define my-cached-type (ast-child 'xsmithcachedtype node))
@@ -1503,6 +1524,9 @@ few of these methods.
       ;; the slow path.
       (att-value 'xsmith_type node)
       (let ()
+        (define definition-type-field (n->definition-type-field node))
+        (define definition-name-field (n->definition-name-field node))
+        (define parameter? (n->parameter? node))
         (define my-type my-cached-type)
         (define my-type-from-parent
           (att-value '_xsmith_type-constraint-from-parent node))
@@ -1536,9 +1560,9 @@ few of these methods.
 (define (xsmith_type-info-func node
                                reference-unify-target
                                reference-field
-                               definition-type-field
-                               definition-name-field
-                               parameter?)
+                               n->definition-type-field
+                               n->definition-name-field
+                               n->parameter?)
   #|
   Here we unify types we get from the various sources of typing info:
   * The type that a grammar node claims for itself
@@ -1573,6 +1597,10 @@ few of these methods.
 
   TODO - maybe allow users to set a flag to enable/disable subtyping in this way.
   |#
+
+  (define definition-type-field (n->definition-type-field node))
+  (define definition-name-field (n->definition-name-field node))
+  (define parameter? (n->parameter? node))
   (define binder-type-field (att-value '_xsmith_binder-type-field node))
   (define my-type-constraint
     (if (att-value 'xsmith_is-hole? node)
@@ -1835,19 +1863,6 @@ The second arm is a function that takes the type that the node has been assigned
                                             [i node-reference-info-cleansed])
                                    (values n (second i))))
 
-    (define binder-type-field
-      (for/hash ([n nodes])
-        (values n (syntax-parse (dict-ref binder-info-info n #'#f)
-                    [x:binder-info-clause #''x.type-field]))))
-    (define binder-name-field
-      (for/hash ([n nodes])
-        (values n (syntax-parse (dict-ref binder-info-info n #'#f)
-                    [x:binder-info-clause #''x.name-field]))))
-    (define parameter?-hash
-      (for/hash ([n nodes])
-        (values n (syntax-parse (dict-ref binder-info-info n #'#f)
-                    [x:binder-info-clause
-                     (datum->syntax #'here (attribute x.parameter?))]))))
 
     (define _xsmith_children-type-dict-info
       (for/hash ([n (dict-keys node-child-dict-funcs)])
@@ -1875,9 +1890,12 @@ The second arm is a function that takes the type that the node has been assigned
             (values n #`(xsmith_type-info-func/wrap
                          #,(dict-ref node-reference-unify-target n)
                          #,(dict-ref node-reference-field n)
-                         #,(dict-ref binder-type-field n)
-                         #,(dict-ref binder-name-field n)
-                         #,(dict-ref parameter?-hash n))))))
+                         (λ (node) (att-value '_xsmith_binder-type-field node))
+                         (λ (node) (att-value '_xsmith_binder-name-field node))
+                         (λ (node)
+                           (eq? 'parameter
+                                 (att-value '_xsmith_binder-def-or-param node)))
+                         )))))
     (define _xsmith_re-type-info
       (if (dict-empty? this-prop-info)
           (hash #f #'(λ (node) default-base-type))
@@ -1902,9 +1920,12 @@ The second arm is a function that takes the type that the node has been assigned
             (values n #`(xsmith_type-info-func/parent-relation-only/wrap
                          #,(dict-ref node-reference-unify-target n)
                          #,(dict-ref node-reference-field n)
-                         #,(dict-ref binder-type-field n)
-                         #,(dict-ref binder-name-field n)
-                         #,(dict-ref parameter?-hash n))))))
+                         (λ (node) (att-value '_xsmith_binder-type-field node))
+                         (λ (node) (att-value '_xsmith_binder-name-field node))
+                         (λ (node)
+                           (eq? 'parameter
+                                 (att-value '_xsmith_binder-def-or-param node)))
+                         )))))
     (define _xsmith_satisfies-type-constraint?-info
       (hash #f #'(λ ()
                    #;(eprintf "testing type for ~a\n" this)

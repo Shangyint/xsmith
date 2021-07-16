@@ -662,11 +662,12 @@
         (define hole-index-in-parent
           (ast-child-index lifting-hole-node))
 
-        ;; TODO - these field names should probably be looked up...
-        (rewrite-terminal 'name new-hole name)
+        (define binding-name-field (att-value '_xsmith_binder-name-field new-hole))
+        (define binding-type-field (att-value '_xsmith_binder-type-field new-hole))
+        (rewrite-terminal binding-name-field new-hole name)
+        (rewrite-terminal binding-type-field new-hole type)
         (rewrite-terminal 'xsmithliftdepth
                           new-hole lift-depth)
-        (rewrite-terminal 'type new-hole type)
 
         (define choices
           (att-value '_xsmith_hole->choice-list new-hole))
