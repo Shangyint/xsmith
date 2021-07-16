@@ -665,14 +665,11 @@
 
         (define choices
           (att-value '_xsmith_hole->choice-list new-hole))
-        (when (not (equal? (length choices) 1))
-          (error
-           'xsmith
-           (format
-            "lift attempted for node type with more than 1 replacement choice: ~a"
-            lifted-ast-type)))
+        (define non-subtype-choice
+          (for/or ([c choices])
+            (and (eq? lifted-ast-type (send c xsmith_ast-node-type)) c)))
         (define new-declaration
-          (send (car choices) _xsmith_fresh
+          (send non-subtype-choice _xsmith_fresh
                 (hash 'xsmithliftdepth lift-depth)))
         (enqueue-inter-choice-transform
          (λ ()
@@ -1408,6 +1405,9 @@ Perform error checking:
                             choice-method-name
                             cdef-body-for-base)
                            ...
+                           (define/public (xsmith_ast-node-type)
+                             (error 'xsmith_ast-node-type
+                                    "Can't be called on base node choice object"))
                            (super-new)))
                        (define choice-name
                          (class choice-parent
@@ -1416,6 +1416,9 @@ Perform error checking:
                            ...
                            (override c-method.prop-name)
                            ...
+                           (define (xsmith_ast-node-type)
+                             'g-part.node-name)
+                           (override xsmith_ast-node-type)
                            (super-new)))
                        ...)
 
