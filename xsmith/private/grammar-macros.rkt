@@ -652,6 +652,11 @@
                 type))
               (fresh-var-name "lift_")))
         (define new-hole (make-hole-func lifted-ast-type))
+        (xd-printf "Lifting binding ~v, of type ~v, with SN ~v, caused by node with SN ~v\n"
+                   name
+                   type
+                   (ast-child 'xsmithserialnumber new-hole)
+                   (ast-child 'xsmithserialnumber lifting-hole-node))
         (define lifting-hole-parent
           (ast-parent lifting-hole-node))
         (define hole-index-in-parent
