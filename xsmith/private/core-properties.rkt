@@ -791,16 +791,6 @@ It just reads the values of several other properties and produces the results fo
         (values node-name
                 (grammar-node-name->field-info-list node-name grammar-info))))
 
-    (define node-binder-types
-      (for/hash ([node nodes])
-        (values node
-                (syntax-parse (dict-ref binder-info-info node #'#f)
-                  [x:binder-info-clause (syntax->datum #'x.def/param)]))))
-    (define binder-nodes (filter (λ (n) (dict-ref node-binder-types n)) nodes))
-    (define definition-nodes (filter (λ (n) (equal? (dict-ref node-binder-types n)
-                                                    'definition))
-                                     nodes))
-
     (define (ast-subtype? subtype-node-name supertype-node-name)
       (define subtype-inheritance-chain
         (cons subtype-node-name
@@ -808,6 +798,21 @@ It just reads the values of several other properties and produces the results fo
                                                       subtype-node-name)
                                             grammar-info)))
       (member supertype-node-name subtype-inheritance-chain))
+
+    (define node-binder-types
+      (for/hash ([node nodes])
+        (values node
+                (syntax-parse (dict-ref binder-info-info node #'#f)
+                  [x:binder-info-clause (syntax->datum #'x.def/param)]))))
+    (define binder-nodes (filter (λ (n) (dict-ref node-binder-types n)) nodes))
+    (define base-definition-nodes
+      (filter (λ (n) (equal? (dict-ref node-binder-types n)
+                             'definition))
+              nodes))
+    (define definition-nodes (filter (λ (n) (for/or ([bdn base-definition-nodes])
+                                              (ast-subtype? n bdn)))
+                                     nodes))
+
 
     (define field-types-hash
       ;; get a list of field types that a node contains
