@@ -148,11 +148,11 @@ Choices for AST growth should be some sort of object.
                     all-keys)))
   (define (cpad x)
     (define this-len (string-length (symbol->string x)))
-    (define pad-string (make-string (- key-max-len this-len) (string-ref "." 0)))
+    (define pad-string (make-string (max 0 (- key-max-len this-len)) (string-ref "." 0)))
     (string-append (symbol->string x) pad-string))
   (define (dpad n)
     (define ns (number->string n))
-    (define pad-string (make-string (- 3 (string-length ns)) (string-ref " " 0)))
+    (define pad-string (make-string (max 0 (- 3 (string-length ns))) (string-ref " " 0)))
     (string-append pad-string ns))
 
   (header "Given a hole, frequency a choice is (1) valid (2) chosen")
