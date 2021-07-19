@@ -1381,7 +1381,7 @@ Example:
 lift-type->ast-binder-type]{
 If you have more than one binding node in your language (i.e. via @racket[binder-info]) you must specify this property.
 This property should be defined once for the base node (@racket[#f]).
-It is a mapping from the type of a desired definition (e.g. @tt{int}, @tt{float}, @tt{int -> int}, ...) to the AST node type (e.g. @racket[VariableDefinition], @racket[FunctionDefinition]).
+It is a mapping from the type of a desired definition (e.g. @tt{int}, @tt{float}, @tt{int -> int}, ...) to the AST node type (e.g. @verb{VariableDefinition}, @verb{FunctionDefinition}).
 This is important when different kinds of definitions use different AST nodes.
 Otherwise it is just boilerplate...
 @; introduces these private rules:
@@ -2099,8 +2099,8 @@ Type considerations:
 }
 
 @defform[#:kind "spec-property" #:id block-user? block-user?]{
-Property for nodes that use the Block node as a child to support definition children as well as a list of statements.
-When given @racket[#t], the child Block won't increase the calculated AST depth.
+Property for nodes that use the @verb{Block} node as a child to support definition children as well as a list of statements.
+When given @racket[#t], the child @verb{Block} won't increase the calculated AST depth.
 
 @racketblock[
 (add-basic-statements my-component
