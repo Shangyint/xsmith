@@ -35,6 +35,7 @@
 (require
  (only-in scribble/core make-element)
  scribble/base
+ (only-in scribble/manual DFlag racket racketmodname hash-lang)
  (for-syntax
   clotho/racket/base
   syntax/parse
@@ -52,31 +53,34 @@
     [(_ name:id)
      #'@seclink["generated-rules" (symbol->string 'name)]]))
 
+(define-syntax-rule (hash-lang-lang mod-name)
+  @racket[@#,hash-lang[] @#,racketmodname[mod-name]])
+
 
 (define (command-line-options-table)
   @itemlist[
-            @item{@verb{--help} -- See all command-line options.  The @verb{--help} list will automatically stay up to date, unlike this documentation.}
+            @item{@DFlag{help} -- See all command-line options.  The @verb{--help} list will automatically stay up to date, unlike this documentation.}
             @; TODO - the version option should be able to print the xsmith version AND the version of a fuzzer made using xsmith.  There should be an argument for giving a program version.
-            @item{@verb{--version} -- Prints the version info of Xsmith and exits.}
-            @item{@verb{--server <true-or-false>} -- Whether to run the web server.  Defaults to @verb{false}.}
-            @item{@verb{--server-port <port-number>} -- Port to use when running server.  Defaults to @verb{8080}.}
-            @item{@verb{--server-ip <ip-address>} -- Listen for connections to @verb{<ip-address>}.  Use @verb{false} to accept connections from all the machine's addresses.  Defaults to @verb{127.0.0.1}.}
-            @item{@verb{--server-path <url-path>} -- Run the server at @verb{localhost:8080/url-path}.  Defaults to @verb{/}.}
-            @item{@verb{--netstring-server <socket-path>} -- Run as a netstring server on a Unix domain socket at given path.}
-            @item{@verb{--netstring-ignore-input <netstring-ignore-input>} -- Whether to ignore netstring input and just use random seeds for netstring server mode.}
-            @item{@verb{--seed <seed>} -- Random seed for program generation.  Defaults to whatever Racket does to initialize randomness normally.}
-            @item{@verb{--output-file <filename>} -- Outputs to <filename> instead of standard output when not used with @verb{--server}.}
-            @item{@verb{--max-depth <n>} -- Maximum depth of the generated program tree.}
-            @item{@verb{--render-on-error <true-or-false>} -- Print the partial tree (using the render-node-info property) if an error is encountered.  Defaults to @verb{false}.}
-            @item{@verb{--s-exp-on-error <true-or-false>} -- Whether to show a partial program tree when an error occurs.  Defaults to @verb{false}.}
-            @item{@verb{--s-exp-print-override <true-or-false>} -- Print an s-expression representation of the tree instead of using the normal renderer.  Defaults to @verb{false}.}
-            @item{@verb{--s-exp-show-base-fields <mode>} -- Show (hidden) base fields when printing s-exp representation for debugging.  @verb{t} to show all fields, @verb{f} for none, @verb{xsmithserialnumber} for serial numbers.}
-            @item{@verb{--inspection-serials <serial-numbers>} -- Comma separated serial numbers for extra debug printing.  Defaults to @verb{none}.}
-            @item{@verb{--print-debug <print-debug?>} -- Print debug info even when generation is successful.  Defaults to @verb{false}.}
-            @item{@verb{--seq-to-file <seq-to-file>} -- Output the generated randomness sequence to a file at the given path.  If not given, no file will be saved.}
-            @item{@verb{--seq-from-file <seq-from-file>} -- Use the bytes in the given file as the source of randomness.  Supersedes any other options that define the random source.}
-            @item{@verb{--with-<feature> <true-or-false>} -- Enables or disables generator-specific features, where @verb{<feature>} is replaced with concrete feature names.}
-            @item{@verb{--timeout <timeout>} -- Timeout for generation, in seconds.}
+            @item{@DFlag{version} -- Prints the version info of Xsmith and exits.}
+            @item{@DFlag{server <true-or-false>} -- Whether to run the web server.  Defaults to @verb{false}.}
+            @item{@DFlag{server-port <port-number>} -- Port to use when running server.  Defaults to @verb{8080}.}
+            @item{@DFlag{server-ip <ip-address>} -- Listen for connections to @verb{<ip-address>}.  Use @verb{false} to accept connections from all the machine's addresses.  Defaults to @verb{127.0.0.1}.}
+            @item{@DFlag{server-path <url-path>} -- Run the server at @verb{localhost:8080/url-path}.  Defaults to @verb{/}.}
+            @item{@DFlag{netstring-server <socket-path>} -- Run as a netstring server on a Unix domain socket at given path.}
+            @item{@DFlag{netstring-ignore-input <netstring-ignore-input>} -- Whether to ignore netstring input and just use random seeds for netstring server mode.}
+            @item{@DFlag{seed <seed>} -- Random seed for program generation.  Defaults to whatever Racket does to initialize randomness normally.}
+            @item{@DFlag{output-file <filename>} -- Outputs to <filename> instead of standard output when not used with @verb{--server}.}
+            @item{@DFlag{max-depth <n>} -- Maximum depth of the generated program tree.}
+            @item{@DFlag{render-on-error <true-or-false>} -- Print the partial tree (using the render-node-info property) if an error is encountered.  Defaults to @verb{false}.}
+            @item{@DFlag{s-exp-on-error <true-or-false>} -- Whether to show a partial program tree when an error occurs.  Defaults to @verb{false}.}
+            @item{@DFlag{s-exp-print-override <true-or-false>} -- Print an s-expression representation of the tree instead of using the normal renderer.  Defaults to @verb{false}.}
+            @item{@DFlag{s-exp-show-base-fields <mode>} -- Show (hidden) base fields when printing s-exp representation for debugging.  @verb{t} to show all fields, @verb{f} for none, @verb{xsmithserialnumber} for serial numbers.}
+            @item{@DFlag{inspection-serials <serial-numbers>} -- Comma separated serial numbers for extra debug printing.  Defaults to @verb{none}.}
+            @item{@DFlag{print-debug <print-debug?>} -- Print debug info even when generation is successful.  Defaults to @verb{false}.}
+            @item{@DFlag{seq-to-file <seq-to-file>} -- Output the generated randomness sequence to a file at the given path.  If not given, no file will be saved.}
+            @item{@DFlag{seq-from-file <seq-from-file>} -- Use the bytes in the given file as the source of randomness.  Supersedes any other options that define the random source.}
+            @item{@DFlag{with-<feature> <true-or-false>} -- Enables or disables generator-specific features, where @verb{<feature>} is replaced with concrete feature names.}
+            @item{@DFlag{timeout <timeout>} -- Timeout for generation, in seconds.}
             ])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

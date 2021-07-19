@@ -37,6 +37,7 @@
   scribble/core
   (for-label
    xsmith
+   (only-in racket/class send)
    (except-in clotho module)))
 
 @(define-runtime-path minimal-example-path "minimal-example.rkt")
@@ -57,7 +58,7 @@ The grammar and properties are used to generate a @(racr) grammar, @italic{attri
 Program generation starts by generating an AST hole for a given grammar production.
 Generation continues by filling holes with concrete AST nodes, which may introduce new holes as child nodes.
 The grammar specification is used to determine how to fill holes in the AST.
-For example, in a grammar with addition and subtraction expressions, a generic Expression hole may be replaced by an Addition or Subtraction node.
+For example, in a grammar with addition and subtraction expressions, a generic @verb{Expression} hole may be replaced by an @verb{Addition} or @verb{Subtraction} node.
 A choice object is created for each valid possible replacement.
 Choice objects have methods (called @italic{choice-methods}) which aid in choosing a concrete replacement.
 Some of these methods act as predicates to filter out choices that are not legal in a particular context, such as choices that introduce more holes when the maximum tree depth has been reached.
@@ -114,7 +115,7 @@ Hole nodes are @(racr) AST nodes.
 For every node type in the grammar, a hole node is created as a subclass of that node, inheriting all of its @(racr) attributes.
 A hole can be recognized by the @rule[xsmith_is-hole?] attribute.
 
-Consider the following (partial) grammar defined in the @verbatim|{my-spec-component}| grammar specification:
+Consider the following (partial) grammar defined in the @racket[my-spec-component] grammar specification:
 
 @racketblock[
 (add-to-grammar
@@ -126,13 +127,13 @@ Consider the following (partial) grammar defined in the @verbatim|{my-spec-compo
                       [right : Expression])])
 ]
 
-When a fresh AdditionExpression is created, it will include two Expression hole nodes.
-When the generator gets to those holes, a choice object is created for each subclass of Expression (including Expression itself unless it is disabled with the @racket[may-be-generated] property).
-The choice objects have types corresponding to LiteralInt and AdditionExpression, and therefore may have different implementations for various choice methods.
-The choice objects all have access to the Expression hole (through @racket[current-hole]), but while choice objects have access to their specialized choice method implementations, the hole is of type Expression, and so all @(racr) attributes that may be queried are specialized only as far as Expression, not to LiteralInt or AdditionExpression.
+When a fresh @verb{AdditionExpression} is created, it will include two @verb{Expression} hole nodes.
+When the generator gets to those holes, a choice object is created for each subclass of @verb{Expression} (including @verb{Expression} itself unless it is disabled with the @racket[may-be-generated] property).
+The choice objects have types corresponding to @verb{LiteralInt} and @verb{AdditionExpression}, and therefore may have different implementations for various choice methods.
+The choice objects all have access to the Expression hole (through @racket[current-hole]), but while choice objects have access to their specialized choice method implementations, the hole is of type @verb{Expression}, and so all @(racr) attributes that may be queried are specialized only as far as @verb{Expression}, not to @verb{LiteralInt} or @verb{AdditionExpression}.
 
-Although Xsmith @italic{can} create holes for any type of production defined in the grammar, by default it will only generate more general holes.
-In the case of this example, the default behavior would be for Xsmith to generate Expression holes, but not LiteralInt or AdditionExpression holes.
+Although Xsmith @emph{can} create holes for any type of production defined in the grammar, by default it will only generate more general holes.
+In the case of this example, the default behavior would be for Xsmith to generate @verb{Expression} holes, but not @verb{LiteralInt} or @verb{AdditionExpression} holes.
 More specific holes are used either when a grammar production specifies that a child must be of a specific kind, or when a custom @racket[fresh] implementation uses @racket[make-hole] with a specific kind of production.
 For example, we could extend the above example:
 
@@ -151,8 +152,8 @@ For example, we could extend the above example:
                                 [right : LiteralInt])])
 ]
 
-Now, an Expression hole could be filled with LiteralInt, AdditionExpression, or LiteralSubtractionExpression.
-However, where the AdditionExpression's two Expression child holes could be filled with any kind of Expression, the LiteralSubtractionExpression's children will only be LiteralInts.
+Now, an @verb{Expression} hole could be filled with @verb{LiteralInt}, @verb{AdditionExpression}, or @verb{LiteralSubtractionExpression}.
+However, while the @verb{AdditionExpression}'s two @verb{Expression} child holes could be filled with any kind of @verb{Expression}, the @verb{LiteralSubtractionExpression}'s children will only be @verb{LiteralInts}.
 
 
 
@@ -175,7 +176,7 @@ RACR caches the results of attribute evaluation, flushing the cache when there a
 For a full understanding of attributes, you must also read @hyperlink["https://github.com/christoff-buerger/racr/blob/master/racr/documentation/contents.md"]{the RACR documentation.}
 
 Attributes are evaluated using @racket[att-value].
-For example, if you have a node @verbatim|{my-node}| and wish to evaluate the attribute @verbatim|{xsmith_type}| on that node, you would do: @racket[(att-value 'xsmith_type my-node)].
+For example, if you have a node @racket[my-node] and wish to evaluate the attribute @racket[xsmith_type] on that node, you would do: @racket[(att-value 'xsmith_type my-node)].
 
 Some attributes are defined automatically by properties.
 You may or may not need to write custom attributes while creating a fuzzer, though we have tried to provide as many useful attributes as possible to avoid this.
@@ -189,7 +190,7 @@ When Xsmith begins filling in a hole node, it creates a choice object for each g
 choice methods are used to filter and choose which of those productions to generate and guide generation.
 
 choice methods are run using the @racket[send] method-calling syntax on the choice object.
-For example, if you wish to run the @verbatim|{xsmith_choice-weight}| rule on @verbatim|{some-choice-object}|, you would do: @racket[(send xsmith_choice-weight some-choice-object)].
+For example, if you wish to run the @racket[xsmith_choice-weight] rule on @racket[some-choice-object], you would do: @racket[(send xsmith_choice-weight some-choice-object)].
 
 choice methods are just Racket class methods.
 You may or may not need to write custom choice methods while creating a fuzzer, but custom choice methods are less likely to be needed than custom attributes.
@@ -226,7 +227,7 @@ This probability can be controlled with the @racket[reference-choice-info] prope
 
 Importantly, lifts can only be done when there is a surrounding node that can hold the lifted definition.
 Only definitions are lifted, not function parameters.
-In practice, this means that your outermost “program” node needs to have a field with @tt{Definition *}, so any number of definitions may be lifted to it.
+In practice, this means that your outermost “program” node needs to have a field with @verb{Definition *}, so any number of definitions may be lifted to it.
 
 
 @section[#:tag"getting-started"]{Getting Started}
@@ -250,12 +251,12 @@ We're going to create a simple arithmetic language, so we'll name our spec compo
 
 The spec component is where we store definitions of the grammar productions, properties, attributes, and choice methods.
 Let's add some productions to the grammar defined by this spec component!
-When adding nodes, we must always specify three components: the node's name, its supertype (also called a "parent type"), and a list of children nodes.
-We'll define a top-level node that we will later use to specify where to start program generation, which we'll call @tt{Program}.
-The @tt{Program} production will have a single child: an @tt{Expression}.
-Therefore, we will also need to provide a base @tt{Expression} production.
+When adding nodes, we must always specify three components: the node's name, its supertype (also called a ``parent type''), and a list of children nodes.
+We'll define a top-level node that we will later use to specify where to start program generation, which we'll call @verb{Program}.
+The @verb{Program} production will have a single child: an @verb{Expression}.
+Therefore, we will also need to provide a base @verb{Expression} production.
 Neither of these nodes has a supertype, so we will supply @racket[#f] in the supertype field after the node name.
-Note that the names of node types should be capitalized camel case (punctuation characters like @tt{-} and @tt{_} are disallowed).
+Note that the names of node types should be capitalized camel case (punctuation characters like @litchar{-} and @litchar{_} are disallowed).
 
 @racketblock[
 (add-to-grammar
@@ -265,7 +266,7 @@ Note that the names of node types should be capitalized camel case (punctuation 
  )
 ]
 
-We want the @tt{Expression} node to be abstract and not generated itself, so we'll use the @racket[may-be-generated] property to restrict it.
+We want the @verb{Expression} node to be abstract and not generated itself, so we'll use the @racket[may-be-generated] property to restrict it.
 
 @racketblock[
 (add-property
@@ -288,7 +289,7 @@ We can replace the above definition using this style:
 
 (Note that we cannot use both forms, as this will produce an error due to conflicting definitions of a property value for a given grammar production.)
 
-If we add node types that are subtypes of Expression, they can be generated in Expression holes.
+If we add node types that are subtypes of @verb{Expression}, they can be generated in @verb{Expression} holes.
 Let's add a node for literal integers.
 
 @racketblock[
@@ -297,8 +298,8 @@ Let's add a node for literal integers.
  [LiteralInt Expression ([v = (random 100)])])
 ]
 
-Note that the literal node contains a child @tt{v} that is a normal Racket value, not a grammar node type.
-It is initialized with the expression on the right-hand side of the @tt{=} sign.
+Note that the literal node contains a child @racket[v] that is a normal Racket value, not a grammar node type.
+It is initialized with the expression on the right-hand side of the @racket[=] sign.
 
 The literal integers generated in our language will only be values from 0 to 99.
 Note that we can add the initialization expression inline as above or with the @racket[fresh] property.
@@ -307,7 +308,7 @@ If we don't add an initialization expression, then non-node fields will be initi
 Let's add addition expressions.
 Because we have multiple Expressions, we need to give them names.
 Note that we aren't supplying initialization code.
-Because they are grammar node typed, they will be initialized with Expression Hole nodes (same with the Program node's Expression child).
+Because they are grammar node typed, they will be initialized with @verb{Expression} Hole nodes (same with the @verb{Program} node's @verb{Expression} child).
 
 @racketblock[
 (add-to-grammar
@@ -330,15 +331,15 @@ We will call the type @tt{int} and add an implementation of the @racket[type-inf
  [Addition [int (λ (n t) (hash 'l int 'r int))]])
 ]
 
-Each rule supplied to the property is surrounded in square brackets, @tt{[]}.
+Each rule supplied to the property is surrounded in square brackets, @litchar{[]}.
 
 The left-hand side of each of these rules is an expression that returns the type the node can inhabit.
-Most often, this will just be the name of the node type, such as @tt{Program} and @tt{LiteralInt} in this example.
+Most often, this will just be the name of the node type, such as @verb{Program} and @verb{LiteralInt} in this example.
 If a node can inhabit multiple types, @racket[fresh-type-variable] can be used to specify an unconstrained or partially constrained type.
 
 On the right-hand side is a function with two parameters: the node currently being evaluated, and the type that is currently being used to confine generation of that node.
 The body of the function returns a dictionary mapping children (by name or by node object) to a type.
-Note that type variables are unified during the type analysis, so you should take care with object/pointer equality (i.e., @racket[eq?]) of type variables.
+Note that type variables are unified during the type analysis, so you should take care with object/pointer equality (i.e. @racket[eq?]) of type variables.
 
 Now we need to specify how to print our programs, or “render” them.
 For this, we use the @racket[render-node-info] property.
@@ -362,7 +363,7 @@ More often, we render programs with some intermediate data structure and convert
 Most Xsmith fuzzers either use s-expressions for rendering Lisp-like languages, or else the @tt{pprint} Racket library's document objects.
 You can, of course, use your own custom implementation if you prefer.
 
-We put everything together with the @racket[define-xsmith-interface-functions] macro, which compiles our language specification and defines the @tt{arith-command-line} function.
+We put everything together with the @racket[define-xsmith-interface-functions] macro, which compiles our language specification and defines the @racket[arith-command-line] function.
 
 @racketblock[
 (define-xsmith-interface-functions
@@ -377,10 +378,10 @@ Note that we give it a function for how it wraps comments.
 Specifically it is a function that takes a list of single-line strings and returns a single string that's been appropriately formatted to be commented in your language.
 There are many optional arguments to the @racket[define-xsmith-interface-functions] that changes the way it behaves.
 
-To actually run our fuzzer, we need to run the @tt{arith-command-line} function.
+To actually run our fuzzer, we need to run the @racket[arith-command-line] function.
 Let's put it in our main submodule.
 Then when we run our program from the command line it will generate a program.
-It automatically has @tt{--help} support, and has various options, such as setting a seed, a max depth, etc.
+It automatically has @DFlag{help} support, and has various options, such as setting a seed, a max depth, etc.
 
 @racketblock[
 (module+ main
@@ -391,7 +392,7 @@ It automatically has @tt{--help} support, and has various options, such as setti
 @section[#:tag "minimal-example"]{Minimal Example}
 
 Below is a complete generator of arithmetic expressions, following the implementation we just outlined in @secref{getting-started}.
-Note that we use @tt{#lang clotho} instead of @tt{#lang racket}, which allows us to capture, replay, and modify random choices during generation.
+Note that we use @hash-lang-lang[clotho] instead of @hash-lang-lang[racket], which allows us to capture, replay, and modify random choices during generation.
 
 @(nested-flow
 (style 'code-inset '())
@@ -410,12 +411,12 @@ Note that we use @tt{#lang clotho} instead of @tt{#lang racket}, which allows us
 
 Here is a bigger example that contains variables and references to those variables.
 
-Note that instead of a @tt{Program} node, we use the @tt{LetStar} node as the base node from which to begin generation.
-The purpose in having a specific top-level @tt{Program} node is to be sure that the top-level node can have definitions lifted to it.
-The @tt{LetStar} node in the following example satisfies this purpose.
+Note that instead of a @verb{Program} node, we use the @verb{LetStar} node as the base node from which to begin generation.
+The purpose in having a specific top-level @verb{Program} node is to be sure that the top-level node can have definitions lifted to it.
+The @verb{LetStar} node in the following example satisfies this purpose.
 
 This example also renders to s-expressions rather than directly to strings like the @seclink["minimal-example"]{previous example}.
-Because of this change, we have to give @racket[xsmith-command-line] another optional argument, called @tt{format-render}, specifying how we convert our rendered format into strings.
+Because of this change, we have to give @racket[xsmith-command-line] another optional argument, called @racket[#:format-render], specifying how we convert our rendered format into strings.
 
 @(nested-flow
 (style 'code-inset '())
@@ -433,7 +434,7 @@ Because of this change, we have to give @racket[xsmith-command-line] another opt
 @section{An Upgrade: Using Canned Components}
 
 Many programming languages share various features in common, such as binding scope, arithmetic expressions, functions, etc.
-The @seclink["canned-components"]{@tt{xsmith/canned-components}} library in Xsmith provides tools for quickly building this common infrastructure for your language specification with minimal effort.
+The @racketmodname[xsmith/canned-components] library in Xsmith provides tools for quickly building this common infrastructure for your language specification with minimal effort.
 It supplies the ability to enable various productions as needed, as well as default implementations of the @racket[type-info] and @racket[fresh] properties for those nodes.
 Here is an example of a fuzzer built using Canned Components.
 
