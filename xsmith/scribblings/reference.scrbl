@@ -45,6 +45,7 @@
 
  racket/contract/base
  racket/dict
+ (only-in racket/class send this class object?)
 
  @; if racr had scribble documentation this would provide hyperlinks
  @;racr
@@ -245,7 +246,7 @@ The fuzzer name defaults to the name of the first spec component provided.
 The command-line function is named the id passed to @racket[#:command-line-name], defaulting to @tt{<fuzzer-name>-command-line} with @tt{<fuzzer-name>} replaced appropriately.
 The command-line function takes no arguments and parses @racket[current-command-line-arguments].
 
-@racket[#:comment-wrap] takes a list of strings which contain info about the generated program, such as the command line used to generate it, the @racket[#:fuzzer-name], the @racket[#:fuzzer-version], and the random seed number.  It should return a string representing those lines commented out.  Such as the following, assuming the "#" character is the line-comment character in your language:
+@racket[#:comment-wrap] takes a list of strings which contain info about the generated program, such as the command line used to generate it, the @racket[#:fuzzer-name], the @racket[#:fuzzer-version], and the random seed number.  It should return a string representing those lines commented out.  Such as the following, assuming the @litchar{#} character is the line-comment character in your language:
 
 @racketblock[
 (λ (lines)
@@ -264,19 +265,19 @@ In other words, when a type variable is concretized it will only choose base typ
 However, deeper types can still be made through other means.
 
 The @racket[#:type-thunks] argument should be a list or thunk that returns a list of thunks that return a type.
-IE @tt{(listof (-> type?))} or @tt{(-> (listof (-> type?)))}.
+I.e. @racket[(listof (-> type?))] or @racket[(-> (listof (-> type?)))].
 However, @racket[#f] may be returned instead of a thunk or instead of a type to filter out a given type in some situations.
 
 The @racket[#:features] argument takes a list of lists containing a feature name (as an identifier) and a default value (as a boolean), and optionally a list of documentation strings.
-Each feature will be included in the command-line options as @verb{--with-<feature-name>}.
-Documentation strings will be displayed in the @verb{--help} text, one per line.
+Each feature will be included in the command-line options as @DFlag{with-<feature-name>}.
+Documentation strings will be displayed in the @DFlag{help} text, one per line.
 The values of these features is available via @racket[xsmith-feature-enabled?].
 
 
 @racket[#:extra-parameters] is a list of specifications for extra custom command line parameters.
-Each list contains an identifier to be used as the name of the parameter (eg. for use in the command-line interface), a documentation string, a parameter, and a normalization function (or @racket[#f]).
+Each list contains an identifier to be used as the name of the parameter (e.g. for use in the command-line interface), a documentation string, a parameter, and a normalization function (or @racket[#f]).
 The normalization function should take the string given on the command line and convert it to the value that is actually parameterized during program generation.
-The following example defines a @racket["--max-widgets"] parameter with a default of 3:
+The following example defines a @DFlag{max-widgets} parameter with a default of 3:
 
 @racketblock[(define widget-parameter
                (make-parameter 3))
@@ -299,7 +300,7 @@ Various attributes are automatically defined within the spec, see @secref{genera
 
 Properties (defined with @racket[define-property]) are used to derive more @(racr) attributes as well as Xsmith choice-methods, and extra properties can be used in your fuzzer by adding them with @racket[#:properties].
 Each property may have a transformer function that alters other properties, attributes, or choice-methods.
-All properties referenced within a spec-component are used to generate attributes and choice-methods, as well as any properties specified in the @racket[maybe-properties] list.
+All properties referenced within a @racket[spec-component] are used to generate attributes and choice-methods, as well as any properties specified in the @racket[maybe-properties] list.
 Unless values for that property have also been specified within a spec component, properties in the @racket[#:properties] list will only be able to generate rules based on the default value for the property.
 Note that any property that has a value attached to a node in the grammar will be run, but if you have defined custom properties that don't have values attached you may need to add the properties to this list.
 In other words, if you have a property that defines an attribute on the default node without attaching a value to any node, you need to add it here or the attribute won't actually be added.
@@ -323,14 +324,14 @@ Adds grammar productions to @racket[spec-component].
 @racket[node-name] will be the name of the grammar production in @(racr).
 @racket[parent-name] is either the name of the parent grammar production or @racket[#f].
 
-Names for the node and fields are limited to alphabetic characters.  You may want to use camelCase style names since kebab-style or snake_style names are invalid due to this limitation.
+Names for the node and fields are limited to alphabetic characters.  You may want to use @tt{camelCase} style names since @tt{kebab-style} or @tt{snake_style} names are invalid due to this limitation.
 
 Fields are then specified.
 Each nonterminal inherits all fields of its parent nodes.
 A field has a name, a type, an optional kleene star, and an optional initialization expression.
 The type of each field is the name of the nonterminal that it must be or @racket[#f] for fields that may contain arbitrary Racket values.
 A field name may be the same as the type, in which case the type does not need to be specified.
-If a type is not specified and the name does not match the name of a nonterminal, then the type #f is used.
+If a type is not specified and the name does not match the name of a nonterminal, then the type @racket[#f] is used.
 If the optional kleene star is supplied, the field will be a list field.
 If a kleene star is provided for a non-false type, the name and type must be specified separately.
 
@@ -357,7 +358,7 @@ Example:
  [SumExpression Expression ([addends : Expression * = (random 5)])])
 ]
 
-The example defines a piece of a grammath that includes some kinds of expressions.
+The example defines a piece of a grammar that includes some kinds of expressions.
 When a @verb{LiteralInt} expression is generated, it's @verb{v} field will be populated with a random number.
 Since the @racket[random] expression is evaluated for each fresh @verb{LiteralInt}, they will (probably) receive different values for @verb{v}.
 When an @verb{AditionExpression} node is generated, it will be populated with an @verb{Expression} hole node for each of its @verb{left} and @verb{right} fields.
@@ -390,8 +391,8 @@ Xsmith creates a choice object class for each node type in the specification gra
 
 Choice-methods are methods on the choice objects.  Some choice-methods are used by @racket[choice-filters-to-apply] to filter choices.  Other choice-methods may be used by those filters or in the body of the @racket[fresh] property as helper methods.  While most information about the AST and the current choice are probably computed using attributes, information about choosing a specific node type to fill in an abstract hole (such as an expression hole which may be filled with many different types of expressions) are computed using choice-methods.
 
-Choice-methods are methods in Racket's class system and therefore have the @racket[this] macro available for use in their bodies to access other methods (eg. with the @racket[send] macro).
-Choice-methods also have the @racket[current-hole] macro available within their body so that they can query attributes of the @(racr) AST being elaborated (eg. with @verb{att-value} to access attributes and @verb{ast-parent} to inspect other nodes in the AST).
+Choice-methods are methods in Racket's class system and therefore have the @racket[this] macro available for use in their bodies to access other methods (e.g. with the @racket[send] macro).
+Choice-methods also have the @racket[current-hole] macro available within their body so that they can query attributes of the @(racr) AST being elaborated (e.g. with @racket[att-value] to access attributes and @racket[ast-parent] to inspect other nodes in the AST).
 
 Since choice-methods are methods in Racket's @racket[class] system, they must be defined with a literal @racket[lambda] (with no parameter for the implicit @racket[this] argument).  If a method needs to modify state (such as to cache the computation of available references of the appropriate type), I would normally recommend the “let-over-lambda” pattern, but that is not allowed in this case.  To make up for this, I recommend using @racket[make-weak-hasheq] to hold the state, using the @racket[this] object as a key.
 
@@ -430,7 +431,7 @@ Elsewhere it raises a syntax error.
 }
 
 @defform[(make-hole hole-type-expression)]{
-Within the context of a spec component (eg. in the body of @racket[add-attribute], @racket[add-property], @racket[add-to-grammar], etc), @racket[make-hole] is a function to generate a hole of a given type.
+Within the context of a spec component (e.g. in the body of @racket[add-attribute], @racket[add-property], @racket[add-to-grammar], etc), @racket[make-hole] is a function to generate a hole of a given type.
 
 For example, to make a hole node that will eventually be replaced with some type of @verb{Expression} node:
 @racketblock[(make-hole 'Expression)]
@@ -441,7 +442,7 @@ Outside of a spec component context, it raises a syntax error.
 }
 
 @defform[(make-fresh-node node-type-expression optional-field-value-dict)]{
-Within the context of a spec component (eg. in the body of @racket[add-attribute], @racket[add-property], @racket[add-to-grammar], etc), @racket[make-fresh-node] is a function to generate a fresh node of the given type.
+Within the context of a spec component (e.g. in the body of @racket[add-attribute], @racket[add-property], @racket[add-to-grammar], etc), @racket[make-fresh-node] is a function to generate a fresh node of the given type.
 Construction of the new node is guided by the @racket[fresh] property.
 
 For example, to generate a fresh @verb{AdditionExpression} node, specifying values for some of its fields:
@@ -493,17 +494,17 @@ The transformer function must return a list of dictionaries mapping grammar node
 Property transformers are run during @racket[define-xsmith-interface-functions] in an order determined by the read/write dependencies among the properties.
 Appending goes before rewriting, which goes before reading.
 
-If a property appends (using the #:appends keyword) to a property or rule, its return dictionary will be appended to the existing dictionary for that property/rule.
+If a property appends (using the @racket[#:appends] keyword) to a property or rule, its return dictionary will be appended to the existing dictionary for that property/rule.
 This allows a property or rule to be specified in part by the property that appends and in part by another property or the user.
 If an appended rule (or property that disallows multiple values) ends up with two values for any node, an error is raised.
 
-If a property rewrites (using the #:rewrites keyword) to a property or rule, its return dictionary replaces any previous dictionary for that property/rule.
+If a property rewrites (using the @racket[#:rewrites] keyword) to a property or rule, its return dictionary replaces any previous dictionary for that property/rule.
 Rewriting a property also automatically implies reading that property.
 A property or rule may only be rewritten by one property transformer.
 
 Example showing the arguments and return type needed by transformers:
-The transformer argument order is its own property, then #:reads dictionaries in the order declared, then #:rewrites dictionaries in the order declared.
-The transformer return order is #:rewrites dictionaries in the order declared then #:writes dictionaries in the order declared.
+The transformer argument order is its own property, then @racket[#:reads] dictionaries in the order declared, then @racket[#:rewrites] dictionaries in the order declared.
+The transformer return order is @racket[#:rewrites] dictionaries in the order declared then @racket[#:writes] dictionaries in the order declared.
 @racketblock[
 (define-property my-property
   #:reads (property a) (property b)
@@ -512,13 +513,12 @@ The transformer return order is #:rewrites dictionaries in the order declared th
   #:transformer
   (λ (this-prop-dict prop-a-dict prop-b-dict prop-c-dict)
     (code:comment "compute output dictionaries...")
-    (list dict-for-c dict-for-d dict-for-e)
-    ))
+    (list dict-for-c dict-for-d dict-for-e)))
 ]
 
 The syntax object value for a property can be anything, since property transformers define the grammar and semantics of properties.
 
-The syntax object value for @verb{attributes} and @verb{choice-methods} should be a syntax object specifying a function (IE a @racket[lambda]).
+The syntax object value for @verb{attributes} and @verb{choice-methods} should be a syntax object specifying a function (i.e. a @racket[lambda]).
 @verb{attributes} may be any syntax that evaluates to a function (so you may return an identifier that references a function or an expression that computes a function such as let-over-lambda), but choice-method syntax is provided to Racket's @racket[class] macro, which requires literal @racket[lambda] forms.
 
 @; TODO - internal properties read the grammar, but the API for that is horrible.
@@ -529,7 +529,7 @@ Dictionaries may or may not contain an entry for each nonterminal in the grammar
 A dictionary may even be empty.
 
 In addition to nonterminals, each dictionary may include a mapping for the value @racket[#f], which will define a default value used for the (super secret) parent node that @racket[define-xsmith-interface-functions] defines.
-If nothing is specified for #f, attributes and choice-methods will have a default which errors, providing a helpful error message.
+If nothing is specified for @racket[#f], attributes and choice-methods will have a default which errors, providing a helpful error message.
 
 If the @racket[#:allow-duplicates?] argument is supplied and is @racket[#t], then @racket[add-property] may be used more than once for the property for the same node, and the syntax object in the dictionary for the property will be a syntax list of the syntax objects specified in the various @racket[add-property] calls.
 But by default only one use of @racket[add-property] is allowed per property per node type, and the syntax object in the dict is the single syntax object from the one call.
@@ -570,7 +570,7 @@ This provides a simpler interface to quickly define properties that have no depe
 
 Defines a property that generates an attribute or choice-method according to @racket[rule-type].
 The optional @racket[#:default] value will be associated with the implicit @racket[#f] node (and thus be inherited by other nodes unless overrided).
-The default is given as literal syntax (IE no hash-quote or @racket[syntax] form needed).
+The default is given as literal syntax (i.e., no hash-quote or @racket[syntax] form needed).
 The optional transformer should be a syntax parser, or in other words, it must be a function from a syntax object to a syntax object.
 The default transformer is the identity function, meaning the rule is written verbatim.
 Note that using the default transformer means there is little reason to use a property, since you can just use @racket[add-attribute] or @racket[add-choice-method] directly instead.
@@ -624,7 +624,7 @@ Example:
 
 Normally @verb{B} would inherit a method from @verb{A} when none was specified for it.
 But in this case it inherits the default (@racket[#f]).
-When a user tries @verb{(att-value 'some-bool-flag <node-of-type-B>)} it will return @racket[#f], not @racket[#t].
+When a user tries @racket[(att-value 'some-bool-flag <node-of-type-B>)] it will return @racket[#f], not @racket[#t].
 }
 
 
@@ -673,7 +673,7 @@ When a user tries @verb{(att-value 'some-bool-flag <node-of-type-B>)} it will re
 @;}
 @;
 @;@defproc[(grammar-node-name->field-info-list [name symbol?] [grammar-clause-hash any/c])
-@;         (listof/c grammar-node-field-struct?)]{
+@;         (listof grammar-node-field-struct?)]{
 @;This function should be called with a node type name and the grammar object given as an argument to a property transformer that reads the grammar.
 @;
 @;It returns a list of structs containing information about the node's fields (including fields inherited from super node types).
@@ -730,7 +730,7 @@ This is useful if you wish to have a refiner toggled on or off by a command-line
 
 Additionally, you may wish to have some predicate shared among all clauses of a refiner.
 The @racket[#:global-predicate] parameter allows for this.
-Similar to @racket[refiner-predicate], @racket[#:global-predicate] accepts a single predicate function as argument.
+Similar to @racket[#:refiner-predicate], @racket[#:global-predicate] accepts a single predicate function as argument.
 This function will be prepended to the list of functions for each clause.
 
 The @racket[refiner-clause]s are similar to those used by the @racket[add-property] (and similar) functions.
@@ -882,8 +882,8 @@ Because Xsmith doesn't currently support import elements at all, modifying this 
 }
 
 @defparam[current-path-greater-than comparator
-         (-> (listof/c (or/c 'reference 'parent 'import 'declaration))
-             (listof/c (or/c 'reference 'parent 'import 'declaration))
+         (-> (listof (or/c 'reference 'parent 'import 'declaration))
+             (listof (or/c 'reference 'parent 'import 'declaration))
              any/c)]{
 
 If there are two valid resolution paths (determined by @racket[current-well-formedness-regexp]) for a name, this comparator determines which path is chosen.
@@ -1098,7 +1098,7 @@ Note that the complexity of the @tt{Convert} example arises because the input ty
 @defform[#:kind "spec-property" #:id fresh fresh]{
 This property determines how fresh nodes are constructed (by the @racket[make-fresh-node] function).
 
-Acceptable values for this property are expressions which produce a @racket[dict?] object, or expressions which produce a function of type (-> dict? dict?).  Keys of the dictionary must be field names of the node being generated.  The values in the dictionary are used to fill node fields of the appropriate name.  Any field whose name is not in the dictionary will be filled by evaluating the default init-expr defined in the grammar (via @racket[add-to-grammar]).
+Acceptable values for this property are expressions which produce a @racket[dict?] object, or expressions which produce a function of type @racket[(-> dict? dict?)].  Keys of the dictionary must be field names of the node being generated.  The values in the dictionary are used to fill node fields of the appropriate name.  Any field whose name is not in the dictionary will be filled by evaluating the default @racket[init-expr] defined in the grammar (via @racket[add-to-grammar]).
 
 Example:
 @racketblock[
@@ -1116,11 +1116,11 @@ Example:
 
 This is useful for fields that must be determined together.  For example, a function call needs the function name and the number of arguments to be chosen together rather than independently.
 
-As with all choice-methods, @racket[this] and @racket[current-hole] are available for use in expressions, which you may want to do for eg. accessing available bindings or mutable information connected to the choice object.
+As with all choice-methods, @racket[this] and @racket[current-hole] are available for use in expressions, which you may want to do for e.g. accessing available bindings or mutable information connected to the choice object.
 
 If the result is a procedure instead of a dictionary, that procedure must accept and return a dictionary.  It is called with a dictionary that is empty unless the node being created is the result of lifting a definition.  In that case it will have the appropriate name and type fields with the name and type chosen by the lifting mechanism.  In the case of lifting a definition, the name and type fields in the return dictionary are ignored.  This procedure option is allowed because your fresh expression may need access to the name or type to determine the values of other fields.  If a definition node only has a name and type field then a fresh property is unnecessary when lifting, and if lifting is the only way you generate definitions then fresh properties or initializers for definition nodes are unnecessary.
 
-If the value for a field (IE values inside the result dictionary) is a procedure, it will be called with 0 arguments.  This allows the fresh property to provide a default value that is not evaluated when @racket[make-fresh-node] is called with an appropriate value.
+If the value for a field (i.e. values inside the result dictionary) is a procedure, it will be called with 0 arguments.  This allows the fresh property to provide a default value that is not evaluated when @racket[make-fresh-node] is called with an appropriate value.
 
 }
 
@@ -1133,7 +1133,7 @@ This property determines the probability that different kinds of nodes will be c
 The expression provided as the choice weight will be evaluated in the context of a method call, so @racket[this] and @racket[current-hole] are available.
 
 Choice weights should be positive integer values.  The default weight is 10 unless set explicitly.
-Alternatively, you can specify a function that takes the node (IE the current hole) and returns a weight.
+Alternatively, you can specify a function that takes the node (i.e. the current hole) and returns a weight.
 
 Example:
 @racketblock[
@@ -1174,11 +1174,11 @@ Example:
 }
 
 @defform[#:kind "spec-property" #:id wont-over-deepen wont-over-deepen]{
-The default for this property is probably what you want, so probably just be sure to add this to the extra #:properties flag of @racket[assemble-part-specs].
+The default for this property is probably what you want, so probably just be sure to add this to the extra @racket[#:properties] flag of @racket[assemble-part-specs].
 
 But if you want to set it:
 
-The property accepts expressions which will evaluate to booleans (IE anything but only #f is false...), which are evaluated if the choice is made at the point where the AST is at it maximum depth.  A true value means that the choice is acceptable, false otherwise.  The default is computed by checking whether a node includes AST-node-typed fields.  If it does not it is considered atomic and therefore acceptable to choose when the AST is already at its maximum depth.
+The property accepts expressions which will evaluate to booleans (i.e., anything but only @racket[#f] is false...), which are evaluated if the choice is made at the point where the AST is at it maximum depth.  A true value means that the choice is acceptable, false otherwise.  The default is computed by checking whether a node includes AST-node-typed fields.  If it does not it is considered atomic and therefore acceptable to choose when the AST is already at its maximum depth.
 }
 
 
@@ -1274,7 +1274,7 @@ Here is an example that randomly chooses any option available, that only lifts w
 @defform[#:kind "spec-property" #:id binding-structure binding-structure]{
 This property is used on nodes that can have binders as children.
 It determines the visibility of those binders to their siblings.
-Options are @racket['serial] (like @verb{let*} in scheme), @racket['parallel] (like @verb{let} in scheme), @racket['recursive] (like @verb{letrec} in scheme), and @racket['serial/all].
+Options are @racket['serial] (like @verb{let*} in Scheme), @racket['parallel] (like @verb{let} in Scheme), @racket['recursive] (like @verb{letrec} in Scheme), and @racket['serial/all].
 
 Each of @racket['serial], @racket['parallel], and @racket['recursive] allow all non-binder children to see the bindings provided by all binder children, and differ only in how the right-hand side of the binder nodes see the binders.
 The @racket['serial/all] flag is like @racket['serial], but each node can only see bindings in nodes declared before them in the grammar spec.  The @racket['serial/all] flag is useful for creating nodes whose non-binder children see different subsets of the binder nodes.
@@ -1325,7 +1325,7 @@ If you have any kind of mutable record, array, etc, tag the read and write nodes
 
 The property takes a list of either the identifier @tt{read} or the identifier @tt{write}, then an expression for the key for the kind of mutable container.
 The key can be anything, but it needs to be @racket[eq?] for each access of the same container type and not @racket[eq?] for accesses to different container types.
-Eg. you could use the type constructor, or just a symbol for the name of the type.
+E.g., you could use the type constructor, or just a symbol for the name of the type.
 
 Example:
 @racketblock[
@@ -1379,9 +1379,9 @@ Example:
 
 @defform[#:kind "spec-property" #:id lift-type->ast-binder-type
 lift-type->ast-binder-type]{
-If you have more than one binding node in your language (IE via @racket[binder-info]) you must specify this property.
-This property should be defined once for the base node (#f).
-It is a mapping from the type of a desired definition (eg. int, float, int -> int, ...) to the AST node type (eg. VariableDefinition, FunctionDefinition).
+If you have more than one binding node in your language (i.e. via @racket[binder-info]) you must specify this property.
+This property should be defined once for the base node (@racket[#f]).
+It is a mapping from the type of a desired definition (e.g. @tt{int}, @tt{float}, @tt{int -> int}, ...) to the AST node type (e.g. @racket[VariableDefinition], @racket[FunctionDefinition]).
 This is important when different kinds of definitions use different AST nodes.
 Otherwise it is just boilerplate...
 @; introduces these private rules:
@@ -1408,7 +1408,7 @@ Example:
 This property accepts a syntax list of choice-method names to use as a filter for the node type.  Generally this should be set on the greatest super node type (or @racket[#f] if there is no explicit super node type in your grammar).  Each choice-method in the list is called on the choice object with no arguments.  Each rule that returns @racket[#f] rules the node out as a choice for filling in a hole.
 
 Uses for this include restricting where certain nodes can appear.
-For example, the easiest way to create a fuzzer for a language with functions is to have a Lambda expression node.
+For example, the easiest way to create a fuzzer for a language with functions is to have a @verb{Lambda} expression node.
 However, some languages do not support first-class functions.
 But you can still encode the fuzzer as having a lambda node that is simply restricted to only be generated as children of definition nodes, or perhaps only global definition nodes.
 
@@ -1449,8 +1449,8 @@ The returned thunk @emph{must} perform an edit in such a way that the @racket[ed
 The edit property may be specified multiple times, each with a different procedure that potentially performs an edit.
 If multiple edit procedures are specified, the ordering of the procedures is not guaranteed, so if an order between them is necessary, they must have their own method of signalling between them.
 
-One way the edit property may be used to stage edits is to specify a @racket[fresh] property that fills nodes as bud nodes (with @tt{create-ast-bud}), then check for that node's dependencies (eg. sibling nodes) in the edit property.
-When the dependencies are appropriately filled, the edit property can then replace the bud node with a hole node (using @tt{rewrite-subtree} and @racket[make-hole]) to be filled in normally.
+One way the edit property may be used to stage edits is to specify a @racket[fresh] property that fills nodes as bud nodes (with @racket[create-ast-bud]), then check for that node's dependencies (e.g. sibling nodes) in the edit property.
+When the dependencies are appropriately filled, the edit property can then replace the bud node with a hole node (using @racket[rewrite-subtree] and @racket[make-hole]) to be filled in normally.
 Note that if you follow this pattern, you need to take care in other properties (such as @racket[type-info]) to check whether children are bud nodes before trying to query their attributes.
 
 @racketblock[
@@ -1507,7 +1507,7 @@ Note that if you do @racket[unify!] a type variable, that unification needs to b
 In other words, if you randomly choose a type at any point, you need to store that type in a grammar attribute and consistently unify against it.
 
 When inspecting types, generally don't use functions like @racket[function-type-return-type], which only work on @racket[function-type] structs and not @racket[fresh-type-variable]s that have been unified to become function types.
-Instead, prefer functions like racket[function-type-return-type!] (note the !), which @racket[unify!] the given type to the type to be accessed, then access the inner type.
+Instead, prefer functions like @racket[function-type-return-type!] (note the @litchar{!}), which @racket[unify!] the given type to the type to be accessed, then access the inner type.
 Alternatively, use a pattern of constructing the type you want to use as a @racket[fresh-type-variable], construct the rest of the type around it, then @racket[unify!] thata outer type to the type you want to query.
 For example:
 @racketblock[
@@ -1518,7 +1518,7 @@ For example:
 ]
 
 
-@defproc[(type? [t any/c]) bool?]{
+@defproc[(type? [t any/c]) boolean?]{
 Predicate for types.
 }
 
@@ -1551,11 +1551,11 @@ Example:
 Creates a fresh type variable that is constrained to be a subtype of @racket[t].
 }
 
-@defproc[(type-variable? [t any/c]) bool?]{
+@defproc[(type-variable? [t any/c]) boolean?]{
 Predicate for type variables.
 }
 
-@defproc[(can-unify? [t1 type?] [t2 type?]) bool?]{
+@defproc[(can-unify? [t1 type?] [t2 type?]) boolean?]{
 Returns whether two types can be unified without actually unifying them.
 
 Note that if @racket[(can-unify? t1 t2)] is true, then both @racket[(can-subtype-unify? t1 t2)] and @racket[(can-subtype-unify? t2 t1)] are true, but it is NOT the case that @racket[(can-subtype-unify? t1 t2)] and @racket[(can-subtype-unify? t2 t1)] imply that @racket[(can-unify? t1 t2)] is true!
@@ -1567,7 +1567,7 @@ If unification fails an exception is raised.  Right now a failure to unify might
 
 }
 
-@defproc[(can-subtype-unify? [sub type?] [super type?]) bool?]{
+@defproc[(can-subtype-unify? [sub type?] [super type?]) boolean?]{
 Returns whether two types can be subtype-unified without actually unifying them.
 }
 @defproc[(subtype-unify! [sub type?] [super type?]) void?]{
@@ -1611,13 +1611,13 @@ Get the name of a base type.
 Creates a function type.
 For multi-argument functions, use a @racket[product-type] for the argument type.
 }
-@defproc[(function-type? [t any/c]) bool?]{
+@defproc[(function-type? [t any/c]) boolean?]{
 Predicate for function types.
 }
 @defproc[(function-type-arg-type [t function-type?]) type?]{
 Get the argument type.
 Remember that you can't deconstruct type variables that are not fully constrained!
-IE Don't actually use this, use @racket[function-type-arg-type!] instead.
+I.e., don't actually use this, use @racket[function-type-arg-type!] instead.
 }
 @defproc[(function-type-arg-type! [t type?]) type?]{
 Like @racket[function-type-arg-type], but @racket[unify!]s the given type with a function type, and thus works on type variables.
@@ -1625,14 +1625,14 @@ Like @racket[function-type-arg-type], but @racket[unify!]s the given type with a
 @defproc[(function-type-return-type [t function-type?]) type?]{
 Get the return type.
 Remember that you can't deconstruct type variables that are not fully constrained!
-IE Don't actually use this, use @racket[function-type-return-type!] instead.
+I.e., don't actually use this, use @racket[function-type-return-type!] instead.
 }
 @defproc[(function-type-return-type! [t type?]) type?]{
 Like @racket[function-type-return-type], but @racket[unify!]s the given type with a function type, and thus works on type variables.
 }
 
 
-@defproc[(product-type [types (or/c (listof types?) #f)]) type?]{
+@defproc[(product-type [types (or/c (listof type?) #f)]) type?]{
 Creates a product type (tuple).  If @racket[types] is @racket[#f], the length of the tuple is unspecified, and it can be @racket[unify!]-ed with a product type of any length.
 
 Example:
@@ -1649,7 +1649,7 @@ Example:
 ]
 }
 
-@defproc[(product-type? [t any/c]) bool?]{
+@defproc[(product-type? [t any/c]) boolean?]{
 Predicate for product types.
 }
 
@@ -1693,7 +1693,7 @@ Example:
 ]
 }
 
-@defproc[(generic-type? [t any/c]) bool?]{
+@defproc[(generic-type? [t any/c]) boolean?]{
 Returns true when @racket[t] is a generic type.
 Not very useful, since you probably want to know if it is an instance of a specific generic.
 }
@@ -1708,7 +1708,7 @@ Remember that you can't deconstruct type variables that are not fully constraine
 }
 
 
-@defproc[(nominal-record-type? [t any/c]) bool?]{
+@defproc[(nominal-record-type? [t any/c]) boolean?]{
 Predicate for nominal record types.
 
 Partially specified @racket[nominal-record-type?]s are created with @racket[nominal-record-type-with].
@@ -1780,14 +1780,14 @@ Like @racket[nominal-record-type-known-field-dict], but it @racket[unify!]s the 
 Constructor.
 See note in @racket[nominal-record-type?] for how it is used.
 }
-@defproc[(nominal-record-definition-type? [t any/c]) bool?]{
+@defproc[(nominal-record-definition-type? [t any/c]) boolean?]{
 Predicate for nominal record definition types constructed with @racket[nominal-record-definition-type].
 }
 @defproc[(nominal-record-definition-type-type [t nominal-record-definition-type?]) nominal-record-type?]{
 Getter for the @racket[nominal-record-type] inside a @racket[nominal-record-definition-type].
 }
 
-@defproc[(structural-record-type? [v any/c]) bool/c]{
+@defproc[(structural-record-type? [v any/c]) boolean?]{
 Predicate for structural record types.
 }
 @defproc[(fresh-structural-record-type
@@ -1806,7 +1806,7 @@ Because this may be updated by unification, and type exploration is lazy where p
 Like @racket[structural-record-type-known-field-dict], but @racket[unify!]s the given type with a structural record type, and thus works on type variables.
 }
 
-@defproc[(force-type-exploration-for-node! [n ast-node?]) void/c]{
+@defproc[(force-type-exploration-for-node! [n ast-node?]) void?]{
 Type exploration is lazy, and is only done far enough for the built-in algorithm to check whether potential fresh nodes will have appropriate types for a given hole.
 
 If you need to manually inspect details of types inside @racket[type-info], you should use this function on the node whose type is in question to be sure the returned type reflects a maximally unified view.
@@ -1815,7 +1815,7 @@ TODO - explain better when you need to use this.
 
 }
 
-@defproc[(settled-type? [t type?]) bool?]{
+@defproc[(settled-type? [t type?]) boolean?]{
 A settled type is a type that either has no variables (a la @racket[type-has-no-variables?]) or that has type variables that have been completely constrained.
 
 In other words, all type variables contained in this type (including @racket[product-type]s, @racket[nominal-record-type]s, and @racket[structural-record-type]s) have been unified such that they only have one option, which is itself settled.
@@ -1830,11 +1830,11 @@ If @tt{string} has no subtypes, then @tt{string} is the only type it can be unif
 However, the @racket[settled-type?] function doesn't currently have access to the list of subtypes (because currently they can be created dynamically), so it doesn't know that it's effectively settled.
 }
 
-@defproc[(type-has-no-variables? [t type?]) bool?]{
-If this returns true, then @racket[t] is both a @racket[settled-type?] AND has no type variable wrappers (IE created at some point by @racket[fresh-type-variable]).
+@defproc[(type-has-no-variables? [t type?]) boolean?]{
+If this returns true, then @racket[t] is both a @racket[settled-type?] AND has no type variable wrappers (i.e. created at some point by @racket[fresh-type-variable]).
 Note that it may have @racket[product-type]s, @racket[nominal-record-type]s, and @racket[structural-record-type]s, but only ones that have been settled.
 
-Mostly this is just useful to tell whether you can confidently use projection functions (eg. @racket[product-type-inner-type-list]) without running into type variable wrappers.
+Mostly this is just useful to tell whether you can confidently use projection functions (e.g. @racket[product-type-inner-type-list]) without running into type variable wrappers.
 }
 
 @defproc[(concretize-type [t type?]) type?]{
@@ -1911,13 +1911,13 @@ For each element of the list, @racket[field-expression] is evaluated again.
 }
 
 @defproc[(node-type [n any/c]) any/c]{
-Returns the symbol of the type of n, or #f if n is not a proper non-bud, non-list @racket[ast-node?].
+Returns the symbol of the type of @racket[n], or @racket[#f] if @racket[n] is not a proper non-bud, non-list @racket[ast-node?].
 
 Wrapper for @racket[ast-node-type] that returns false rather than erroring when it gets bud nodes or list nodes...
 }
 
 @defproc[(parent-node [n any/c]) any/c]{
-Wrapper for ast-parent that returns #f rather than erroring when the given node doesn't have a parent.
+Wrapper for @racket[ast-parent] that returns @racket[#f] rather than erroring when the given node doesn't have a parent.
 }
 
 @defproc[(top-ancestor-node [n any/c]) any/c]{
@@ -1925,34 +1925,34 @@ Calls @racket[parent-node] until it reaches the last parent, and returns it.
 }
 
 @defproc[(node-subtype? [n any/c]) any/c]{
-Wrapper for @racket[ast-subtype?] that returns #f rather than erroring when the given node is a bud, list, or non-node.
+Wrapper for @racket[ast-subtype?] that returns @racket[#f] rather than erroring when the given node is a bud, list, or non-node.
 }
 
 @section{xsmith/app}
 @defmodule[xsmith/app]
 
-The xsmith/app module provides a convenient @tt{#%app} replacement for accessing attributes (AKA methods, or attributes on AST nodes) and methods (AKA choice-methods) on choice objects.
+The @racketmodname[xsmith/app] module provides a convenient @racket[#%app] replacement for accessing attributes (a.k.a. methods, or attributes on AST nodes) and methods (a.k.a. choice-methods) on choice objects.
 
 See @secref["application" #:doc '(lib "scribblings/reference/reference.scrbl")] for more details on @tt{#%app}.
 
-Note that these bindings are @italic{not} provided by the main @tt{xsmith} module.
+Note that these bindings are @emph{not} provided by the main @racketmodname[xsmith] module.
 
 @defform[(#%app form ...)]{
 When the first form (after the [probably implicit] @racket[#%app] identifier) is a quoted symbol, the form is treated as a method application.
 
-In short, if the node @tt{n} is an @racket[ast-node?], then:
+In short, if the node @racket[n] is an @racket[ast-node?], then:
 @racketblock[($xsmith_type n)]
 is essentially rewritten as:
 @racketblock[(att-value 'xsmith_type n)]
 
-Additionally, if @tt{n} is an @racket[object?] (probably a @racket[choice-object?]), then:
+Additionally, if @racket[n] is an @racket[object?] (probably a @racket[choice-object?]), then:
 @racketblock[($choice-method-name n 1 2 3)]
 is essentially rewritten as:
 @racketblock[(send n choice-method-name 1 2 3)]
 
-In practice, whether @tt{n} is an @racket[ast-node?] or @racket[object?] can't be determined statically, so it is tested at runtime.
+In practice, whether @racket[n] is an @racket[ast-node?] or @racket[object?] can't be determined statically, so it is tested at runtime.
 
-If the first form is not a quoted symbol, then the @racket[racket/base:#%app] from is used.
+If the first form is not a quoted symbol, then the @racket[racket/base:#%app] form is used.
 }
 
 @defform[(define-xsmith-app xsmith-app-name inner-app prefix)]{
@@ -1979,7 +1979,7 @@ The expressions use all the other provided types.
 
 For some examples that use these canned components, see the @tt{xsmith-examples/simple} directory.
 
-Note that these bindings are @italic{not} provided by the main @tt{xsmith} module.
+Note that these bindings are @emph{not} provided by the main @racketmodname[xsmith] module.
 
 @defform[(define-basic-spec-component grammar-component)]{
 Defines the @verb{grammar-component} using @racket[define-spec-component], then adds definitions for @verb{Expression}, @verb{Statement}, @verb{Definition}, @verb{DefinitionNoRhs}, and @verb{FormalParameter}.
@@ -2024,28 +2024,28 @@ For now, you really just need to look at the source of canned-components to see 
 The following top-level node types are always added to the grammar:
 
 @itemlist[
-@item{An abstract @tt{Expression} node (IE @racket[may-be-generated] is false).}
+@item{An abstract @verb{Expression} node (i.e., @racket[may-be-generated] is false).}
 ]
 
 If @racket[#:ProgramWithSequence] is true,
-@tt{(ProgramWithSequence #f ([definitions : Definition *] ExpressionSequence))}
+@racket[(ProgramWithSequence #f ([definitions : Definition *] ExpressionSequence))]
 is added.  Use this when your language is free from the nonsense of statements.
 
-The following @tt{Expression} node types are always added:
+The following @verb{Expression} node types are always added:
 
 TODO - document all of the field names
 
 @itemlist[
-@item{@tt{VariableReference} with @tt{name}}
-@item{@tt{ProcedureApplication}}
-@;@item{@tt{NumberLiteral} (abstract)}
-@item{@tt{IntLiteral} -- uses @racket[int] type}
-@item{@tt{Plus}}
-@item{@tt{Minus}}
-@item{@tt{Times}}
-@item{@tt{SafeDivide}}
-@item{@tt{LessThan}}
-@item{@tt{GreaterThan}}
+@item{@verb{VariableReference} with @tt{name}}
+@item{@verb{ProcedureApplication}}
+@;@item{@verb{NumberLiteral} (abstract)}
+@item{@verb{IntLiteral} -- uses @racket[int] type}
+@item{@verb{Plus}}
+@item{@verb{Minus}}
+@item{@verb{Times}}
+@item{@verb{SafeDivide}}
+@item{@verb{LessThan}}
+@item{@verb{GreaterThan}}
 ]
 
 Other options mostly add a single node type with the same name as the option.  The exceptions are:
@@ -2081,10 +2081,10 @@ For now, you really just need to look at the source of canned-components to see 
 The following node types are always added to the grammar:
 
 @itemlist[
-@item{An abstract @tt{Statement} node (IE @racket[may-be-generated] is false).}
-@item{@tt{ReturnStatement} with @tt{Expression}}
-@item{@tt{Block} (a Statement subtype) with @tt{definitions} and @tt{statements}}
-@item{@tt{IfElseStatement} with @tt{test} @tt{then} @tt{else}}
+@item{An abstract @verb{Statement} node (i.e., @racket[may-be-generated] is false).}
+@item{@verb{ReturnStatement} with @verb{Expression}}
+@item{@verb{Block} (a @verb{Statement} subtype) with @verb{definitions} and @verb{statements}}
+@item{@verb{IfElseStatement} with @verb{test} @verb{then} @verb{else}}
 ]
 
 The optional arguments add a node with the same name as the keyword.
@@ -2092,9 +2092,9 @@ The optional arguments add a node with the same name as the keyword.
 
 Type considerations:
 @itemlist[
-@item{@tt{ReturnStatement} is of type @racket[(return-type (fresh-type-variable))]}
-@item{@tt{Block} and @tt{IfElseStatement} are of type @racket[(fresh-maybe-return-type)]}
-@item{@tt{AssignmentStatement}, @tt{ExpressionStatement}, and others are of type @racket[no-return-type]}
+@item{@verb{ReturnStatement} is of type @racket[(return-type (fresh-type-variable))]}
+@item{@verb{Block} and @verb{IfElseStatement} are of type @racket[(fresh-maybe-return-type)]}
+@item{@verb{AssignmentStatement}, @verb{ExpressionStatement}, and others are of type @racket[no-return-type]}
 ]
 }
 
@@ -2179,7 +2179,7 @@ Example:
 A type used for statements in return position.
 
 This is used to encode where a return statement is needed and what type it must be.
-In other words, the block in a @tt{LambdaWithBlock} has @racket[return-type], the last statement in the block is unified to have the same type.
+In other words, the block in a @verb{LambdaWithBlock} has @racket[return-type], the last statement in the block is unified to have the same type.
 
 For the curious, it is implemented as a @racket[generic-type?] with a covariant inner type.
 }
@@ -2191,21 +2191,21 @@ A type for statements that don't return.  In other words, it's @racket[void-type
 @defproc[(fresh-maybe-return-type) type?]{
 Use this for compound statements that can optionally contain a return statement.
 
-IE @racket[(fresh-type-variable (return-type (fresh-type-variable)) no-return-type)].
+I.e., @racket[(fresh-type-variable (return-type (fresh-type-variable)) no-return-type)].
 }
 
 @defthing[void-type base-type?]{
-A void type.  Used by @tt{AssignmentExpression} and the like.
+A void type.  Used by @verb{AssignmentExpression} and the like.
 }
 @defthing[number-type base-type?]{}
-@defthing[int-type base-type?]{Subtype of @racket[number]}
-@defthing[float-type base-type?]{Subtype of @racket[number]}
+@defthing[int-type base-type?]{Subtype of @racket[number-type]}
+@defthing[float-type base-type?]{Subtype of @racket[number-type]}
 @defthing[bool-type base-type?]{}
 @defthing[string-type base-type?]{}
 
 @defproc[(mutable [t type?]) type?]{
 Used for encoding mutable versions of types.
-Eg. canned components provide @racket[(mutable (array-type (fresh-type-variable)))] and similar.
+E.g., canned components provide @racket[(mutable (array-type (fresh-type-variable)))] and similar.
 
 It is implemented as a @racket[generic-type?] with a covariant inner type.
 }
