@@ -155,10 +155,10 @@
               ...)
              #:attr definition? (syntax-parse #'def/param
                                   [(~datum definition) #t]
-                                  [else #f])
+                                  [_ #f])
              #:attr parameter? (syntax-parse #'def/param
                                  [(~datum parameter) #t]
-                                 [else #f])
+                                 [_ #f])
              #:attr lift-target? (and (attribute definition?)
                                       (syntax-parse #'lift-target-stx [#t #t] [#f #f]))
              #:attr binder-info #t
@@ -331,7 +331,7 @@
           ['xsmithserialnumber `((xsmithserialnumber
                                   ,(ast-child 'xsmithserialnumber n)))]
           ;; We could put the other fields here, but I don't care to right now.
-          [else '()])
+          [_ '()])
       ,@(map (λ (spec)
                (match spec
                  [(list field-name #f #f)
@@ -898,7 +898,7 @@ It just reads the values of several other properties and produces the results fo
                                     #`['#,n '#,f]
                                     #f))
                               definition-nodes))
-                     [else #f]))
+                     [_ #f]))
                  (define parent-destinations
                    (default-lift-destinations-impl
                      n type lift-depth lifting-hole-node))
@@ -1682,7 +1682,7 @@ few of these methods.
           ;; The reference node is already related by subtyping to the type
           ;; assigned by its parent.  So we already have the flexibility of subtyping.
           [#t (unify! var-type my-type)]
-          [else (void)]))
+          [_ (void)]))
       ;; This shouldn't be necessary, but something is going wrong,
       ;; so I'll give a chance to get this error message.
       (with-handlers
@@ -1838,7 +1838,7 @@ The second arm is a function that takes the type that the node has been assigned
                     ([n nodes])
             (define f (syntax-parse (dict-ref this-prop-info n default-prop-info)
                         [(_ f:expr) #'f]
-                        [else #f]))
+                        [_ #f]))
             (if f (hash-set h n f) h)))
         (hash-set
          h-no-false

@@ -185,7 +185,7 @@ If a (transitive) upper bound is ever equal to a (transitive) lower bound, that 
   (match tv
     [(c-type-variable (list the-type) _ _)
      the-type]
-    [else #f]))
+    [_ #f]))
 (define (c-type-variable-type tv)
   (core-type-variable-type (variable-canonicalize tv)))
 (define (c-type-variable-lower-bounds tv)
@@ -394,7 +394,7 @@ The minimum may be #f to mean any subtype of the maximum type.
   (match (list a b)
     [(list #f _) b]
     [(list _ #f) a]
-    [else
+    [_
      (define chain-a (base-type->parent-chain a))
      (define chain-b (base-type->parent-chain b))
      (define len-a (length chain-a))
@@ -416,7 +416,7 @@ The minimum may be #f to mean any subtype of the maximum type.
   (match (list a b)
     [(list #f _) a]
     [(list _ #f) b]
-    [else
+    [_
      (define chain-a (base-type->parent-chain a))
      (define chain-b (base-type->parent-chain b))
      (define len-a (length chain-a))
@@ -695,7 +695,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
             (define new-l (mk-base-type-range lsub new-lsup))
             (define new-r (mk-base-type-range new-rsub rsup))
             (list new-l new-r)))]
-    [else #f]))
+    [_ #f]))
 (module+ test
   (check-equal? (base-type-ranges->unified-versions
                  (mk-base-type-range #f dog)
@@ -794,7 +794,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                 [(list) (errsu "can't unify types: ~v and ~v (this error hopefully is unreachable...)"
                                sub super)]
                 [(list one) new-ranges]
-                [else new-ranges])]
+                [_ new-ranges])]
              [(list non-base)
               (rec non-base super)
               (list non-base)]))]
@@ -807,7 +807,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                 (set-core-type-variable-type!
                  sub
                  (list (mk-base-type-range #f super)))]
-               [else
+               [_
                 (set-core-type-variable-type!
                  sub
                  (list (type->skeleton-with-vars super)))
@@ -845,7 +845,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                 [(list) (errsu "can't unify types: ~v and ~v (this error hopefully is unreachable...)"
                                sub super)]
                 [(list one) new-ranges]
-                [else new-ranges])]
+                [_ new-ranges])]
              [(list non-base)
               (rec sub non-base)
               (list non-base)]))]
@@ -858,7 +858,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                 (set-core-type-variable-type!
                  super
                  (list (mk-base-type-range sub (base-type->superest sub))))]
-               [else
+               [_
                 (set-core-type-variable-type!
                  super
                  (list (type->skeleton-with-vars sub)))
@@ -934,7 +934,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
          [(list _ #f)
           (ripple-length! l1 super '())
           (inner-unify! sub super)]
-         [else (inner-unify! sub super)])]
+         [_ (inner-unify! sub super)])]
 
 
       ;; nominal record type
@@ -1004,7 +1004,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
        (unless (can-subtype-unify? sub super)
          (errsu "Base types: type ~v is not a subtype of type ~v."
                 sub super))]
-      [else (errsu "case analysis reached end: can't unify types: ~v and ~v" sub super)])))
+      [_ (errsu "case analysis reached end: can't unify types: ~v and ~v" sub super)])))
 
 (define (mk-ripple-subtype-unify-changes subtype-unify!-func)
   (define (done-pair-list-remove-with done-list target)
@@ -1202,7 +1202,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
       (map (λ (t)
              (match t
                [(base-type-range low high) (mk-base-type-range #f high)]
-               [else
+               [_
                 (define inner-sub (type->skeleton-with-vars t))
                 (subtype-unify! inner-sub t)
                 inner-sub]))
@@ -1406,7 +1406,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                     (memq lsup (base-type->parent-chain rsup))))]
               [(list (base-type-range lsub _) (base-type-range _ rsup))
                (rec* lsub rsup)]
-              [else (rec* sub sup)])))
+              [_ (rec* sub sup)])))
         (list basic (variable-dict-merge vd
                                          (hasheq sub (list super)
                                                  super (list sub))))])]
@@ -1506,7 +1506,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
      (rec/tail (mk-base-type-range sub sub) super)]
     [(list (base-type-range _ _) (base-type _ _ _))
      (rec/tail sub (mk-base-type-range super super))]
-    [else (list #f #f)]))
+    [_ (list #f #f)]))
 
 (define (can-X-unify?/one-type-variable tv rtype inner-can-unify?)
   (define vd (hasheq tv (list rtype)))
@@ -1526,7 +1526,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
             (match possibility
               [(base-type-range low high)
                (inner-can-unify? possibility rtype)]
-              [else #f])))
+              [_ #f])))
         (list basic-result vd)]
        [(? function-type?) (struct-rec function-type?)]
        [(? product-type?) (struct-rec product-type?)]
@@ -1541,7 +1541,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
           (filter (λ (x) (match x
                            [(generic-type _ iconstructor _ _)
                             (eq? constructor iconstructor)]
-                           [else #f]))
+                           [_ #f]))
                   t))
         (match inner-matched
           [(list) (list #f vd)]
@@ -1784,7 +1784,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
             (let ([new-low (match (list l-low r-low)
                              [(list #f _) r-low]
                              [(list _ #f) l-low]
-                             [else
+                             [_
                               (cond [(memq r-low (base-type->parent-chain l-low))
                                      r-low]
                                     [(memq l-low (base-type->parent-chain r-low))
@@ -1799,7 +1799,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
      (rec/tail (mk-base-type-range l l) r)]
     [(list (base-type-range _ _) (base-type _ _ _))
      (rec/tail l (mk-base-type-range r r))]
-    [else (list #f #f)]))
+    [_ (list #f #f)]))
 
 
 ;; A parameter to hold the list of constructors for base or composite types (with minimally constrained type variables inside).
@@ -1897,7 +1897,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                                                  (r return))]
       [(generic-type name ctor inners vs)
        (generic-type name ctor (map r inners) vs)]
-      [else (error 'concretize-type "internal error -- no case for type: ~a" t)]))
+      [_ (error 'concretize-type "internal error -- no case for type: ~a" t)]))
   (recur t 0))
 
 (module+ test
@@ -2078,7 +2078,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
                                            (generic-type-constructor t))))
                           cs))]
           ;; TODO - more cases, and make `else` an error.
-          [else #f]))
+          [_ #f]))
       ;; check if they have nothing in common
       (for/and ([c cs])
         (match c
@@ -2404,7 +2404,7 @@ TODO - when generating a record ref, I'll need to compare something like (record
            (let ([ftv (fresh-type-variable)])
              (hash-set! param-hash sym ftv)
              ftv))]
-      [else t]))
+      [_ t]))
   (structurally-recur-on-type/where-polymorphism-valid t transformer))
 
 (define (type-contains-parameter-type? t)

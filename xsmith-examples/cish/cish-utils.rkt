@@ -212,13 +212,13 @@ New types
 ;       [(basic-type gname gconst)
 ;        (and (or (not cname) (equal? gname cname))
 ;             (andmap (λ (c) (member c gconst)) cconst))]
-;       [else #f])]
+;       [_ #f])]
 ;    [(list-rest '-> c-args+ret)
 ;     (match given-t
 ;       [(list-rest '-> g-args+ret)
 ;        (and (equal? (length c-args+ret) (length g-args+ret))
 ;             (map type-satisfies? g-args+ret c-args+ret))]
-;       [else #f])]
+;       [_ #f])]
 ;    ;; if there is no constraint, anything goes
 ;    [#f #t]))
 ;

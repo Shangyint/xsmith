@@ -209,7 +209,7 @@
              ["*" "Star"]
              ["*?" "StarP"]
              ["*-" "Star"]
-             [else ""]))
+             [_ ""]))
          (reverse dividers-rev)))
 
   (define (merge-parts accum ps ds)
@@ -971,7 +971,7 @@
                                                       (symbol->string r))]
             [(list (? keyword?) (? keyword?)) (string<? (keyword->string l)
                                                         (keyword->string r))]
-            [else (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
+            [_ (error 'fuzzer-format "TODO - add more ways to sort for hash tables.  Given: ~v and ~v" l r)]))
         (string-join
          (for/list ([k (sort (hash-keys the-hash) hash-sort-lt)])
            (format "[~a . ~a]"
