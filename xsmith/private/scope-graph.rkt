@@ -163,7 +163,7 @@
       ['declaration #\d]
       ['parent #\p]
       ['import #\i]
-      [else (error 'scope-graph "Internal error - bad step, this shouldn't happen.")]))
+      [_ (error 'scope-graph "Internal error - bad step, this shouldn't happen.")]))
   (regexp-match (current-well-formedness-regexp)
                 (apply string (map step->char (resolution-path resolution)))))
 
@@ -177,7 +177,7 @@
       ['parent 1]
       ['import 2]
       ['declaration 3]
-      [else (error 'scope-graph "Internal error - bad step, this shouldn't happen.")]))
+      [_ (error 'scope-graph "Internal error - bad step, this shouldn't happen.")]))
   (cond
     [(equal? (car l) (car r)) (default-path-greater-than (cdr l) (cdr r))]
     [else (> (path-part->n (car l)) (path-part->n (car r)))]))

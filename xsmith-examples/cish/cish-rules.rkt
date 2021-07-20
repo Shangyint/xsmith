@@ -136,9 +136,9 @@
                    (list (abstract-value-merge/range result val-l)
                          sto-r
                          ret-r)))]
-            [else abstract-value/range/top])]
-         [else abstract-value/range/top])]
-      [else abstract-value/range/top])))
+            [_ abstract-value/range/top])]
+         [_ abstract-value/range/top])]
+      [_ abstract-value/range/top])))
 
 (define {abstract-comparison-op/range op opposite-op}
   {abstract-binary-op/range
