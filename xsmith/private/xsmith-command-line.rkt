@@ -842,12 +842,12 @@
                              [(λ (e) #t)
                               (λ (e) (set! error? e))])
                             (generation-thunk)))))
-                 (define (do-error-printing)
+                 (define (do-error-printing #:mode [mode "generating"])
                    (when error?
-                     (verbose-eprintf "Encountered an error during program generation.\n")
+                     (verbose-eprintf "Encountered an error during ~a program.\n" mode)
                      (output-error
                       error?
-                      "Error encountered while generating program!")
+                      (format "Error encountered while ~a program!" mode))
                      ;; If the user asked for it (and if any AST was salvaged from the
                      ;; generation stage), attempt to convert the partially completed AST
                      ;; to pre-print representation (PPR).
@@ -884,26 +884,29 @@
                    (capture-output!
                     (λ () (with-handlers ([(λ (e) #t)
                                            (λ (e) (set! error? e))])
-                            (if s-exp-print-override
-                                (with-output-to-string
-                                  (λ ()
-                                    (parameterize
-                                        ([current-s-exp-show-base-fields
-                                          s-exp-show-base-fields])
-                                      (pretty-print
-                                       (att-value '_xsmith_to-s-expression ast)
-                                       (current-output-port)
-                                       1))))
-                                (ast->string ast))))))
-                 (if error?
-                     (begin
-                       ;; Something went wrong during printing.
-                       (verbose-eprintf "Encountered error while printing program.\n")
-                       (printf "Error encountered while printing program.\n")
-                       (do-error-printing)
-                       (abort))
-                     (when print-debug-with-no-error?
-                       (eprintf "~a\n\n" (get-xsmith-debug-log!))))
+                            (parameterize ([current-xsmith-type-constructor-thunks
+                                            (if (procedure? type-constructor-thunks-func/list)
+                                                (type-constructor-thunks-func/list)
+                                                type-constructor-thunks-func/list)])
+                              (if s-exp-print-override
+                                  (with-output-to-string
+                                    (λ ()
+                                      (parameterize
+                                          ([current-s-exp-show-base-fields
+                                            s-exp-show-base-fields]
+                                           )
+                                        (pretty-print
+                                         (att-value '_xsmith_to-s-expression ast)
+                                         (current-output-port)
+                                         1))))
+                                  (ast->string ast)))))))
+                 (cond
+                   [error?
+                    ;; Something went wrong during printing.
+                    (do-error-printing #:mode "printing")
+                    (abort)]
+                   [print-debug-with-no-error? (eprintf "~a\n\n" (get-xsmith-debug-log!))])
+
                  ;; Everything was successful!
                  (verbose-eprintf "Program successfully generated.\n")
                  (display (comment-func (cons "This is a RANDOMLY GENERATED PROGRAM."
