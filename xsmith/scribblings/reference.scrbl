@@ -1140,12 +1140,12 @@ Example:
 (add-property
  my-spec-component
  choice-weight
- (code:line "The default choice weight.")
+ (code:comment "The default choice weight.")
  [#f (λ (n) 10)]
- (code:line "Generate more AdditionExpressions")
+ (code:comment "Generate more AdditionExpressions")
  [AdditionExpression 20]
  [MultiplicationExpression 15]
- (code:line "Generate fewer SumExpressions")
+ (code:comment "Generate fewer SumExpressions")
  [SumExpression 5])
 ]
 }
