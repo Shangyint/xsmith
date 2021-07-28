@@ -2005,6 +2005,7 @@ For example, a loop form where you bind a variable to each element of a given li
            [code:line #:LetSequential boolean]
            [code:line #:ExpressionSequence boolean]
            [code:line #:Booleans boolean]
+           [code:line #:Numbers boolean]
            [code:line #:Strings boolean]
            [code:line #:MutableArray boolean]
            [code:line #:MutableArraySafeAssignmentExpression boolean]
