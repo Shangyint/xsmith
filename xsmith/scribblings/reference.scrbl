@@ -807,7 +807,7 @@ This means that if you want its functionality to be applied to nodes which do no
   (code:comment "To prevent divide-by-zero errors, this refiner looks for generated")
   (code:comment "DivOps and checks whether their right-hand side is a 0. If it is, it")
   (code:comment "is replaced with a 13.")
-  #:follows:replace-rhs-val-with-zero
+  #:follows replace-rhs-val-with-zero
   #:refiner-predicate (λ () (xsmith-feature-enabled? 'prevent-divide-by-zero))
   [DivOp [(λ (n) (node-subtype? (ast-child 'rhs n) 'Val))
           (λ (n) (eq? 0 (ast-child 'v (ast-child 'rhs n))))
