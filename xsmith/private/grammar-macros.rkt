@@ -176,28 +176,48 @@
   ;;;; add-attribute, add-to-grammar, etc,
   ;;;; then it has a bunch of helper functions for the spec assembly macro.
 
+  (define-syntax-class id
+    (pattern name:identifier
+             #:fail-when (eq? '|| (syntax-e #'name))
+             "identifier must have length at least one"))
   (define-syntax-class prop-clause
     (pattern
      (prop-name:id (~and node-name (~or node-name-id:id #f)) prop-val:expr)))
+  (define-syntax-class node-name
+    ;; TODO - validate node-name: it should not have hyphens or other RACR-special characters
+    ;; not that necessary since there's already a validation at check-racr-grammar-name
+    (pattern name:id
+             #:fail-unless (char-upper-case? (string-ref (symbol->string (syntax-e #'name)) 0))
+             "must start with an uppercase letter (for node-name)"))
+  (define-syntax-class (name/type-id type)
+    (pattern name:node-name)
+    (pattern name:id
+             #:fail-unless (or type (andmap char-lower-case? (string->list (symbol->string (syntax-e #'name)))))
+             "must consist of only lowercase letters (for terminal)"))
+
   (define-syntax-class grammar-component
-    (pattern
-     (~or name:id
-          [name:id (~optional (~seq (~datum :) type:id))
-                   (~optional (~and (~datum *) kleene-star))
-                   (~optional (~seq (~datum =) init-expr:expr))])))
+    #:attributes (name type kleene-star init-expr)
+    (pattern (~var name (name/type-id #f))
+             #:attr type #f
+             #:attr kleene-star #f
+             #:attr init-expr #f)
+    (pattern [name:id (~optional (~seq (~datum :) type:node-name))
+                      (~optional (~and (~datum *) kleene-star))
+                      (~optional (~seq (~datum =) init-expr:expr))]
+             #:with (~var _ (name/type-id (attribute type))) #'name))
+
   (define-splicing-syntax-class grammar-inline-prop-clause
     (pattern (~seq #:prop name:id val:expr)))
   (define-syntax-class grammar-clause
-    ;; TODO - validate node-name: it should not have hyphens or other RACR-special characters
     (pattern
-     [node-name:id (~and parent (~or parent-name:id #f))
-                   (component:grammar-component ...)]))
+     [node-name:node-name (~and parent (~or* parent-name:node-name #f))
+                          (component:grammar-component ...)]))
   (define-syntax-class grammar-clause-with-inline-props
     (pattern
      (~and whole-stx
-           [node-name:id (~and parent (~or parent-name:id #f))
-                         (component:grammar-component ...)
-                         prop:grammar-inline-prop-clause ...])
+           [node-name:node-name (~and parent (~or* parent-name:node-name #f))
+                                (component:grammar-component ...)
+                                prop:grammar-inline-prop-clause ...])
      #:attr grammar-clause (syntax/loc #'whole-stx
                              (node-name parent (component ...)))))
 

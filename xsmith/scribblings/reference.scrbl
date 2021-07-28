@@ -309,22 +309,31 @@ In other words, if you have a property that defines an attribute on the default 
 
 
 @defform[(add-to-grammar spec-component grammar-clause ...)
-#:grammar [(grammar-clause (node-name parent-name (field ...) maybe-prop ..))
-           (parent-name identifier #f)
+#:grammar [(grammar-clause (node-name maybe-parent-name (field ...) prop ...))
+           (maybe-parent-name parent-name #f)
            (field name/type-id
                   (name/type-id maybe-type-id maybe-kleene-star maybe-init-expr))
            (maybe-type-id (code:line)
                           (code:line : type-name))
            (maybe-kleene-star (code:line) *)
            (maybe-init-expr (code:line) (code:line = init-expr))
-           (maybe-prop (code:line #:prop prop-id prop-val))]]{
+           (prop (code:line #:prop prop-id prop-val))]]{
 
 Adds grammar productions to @racket[spec-component].
 
+Names in the grammar productions are limited to alphabetic characters, but there could be additional restrictions. In particular:
+
+@itemlist[
+  @item{@racket[node-name] (and hence @racket[parent-name] and @racket[type-name] if provided) must begin with an uppercase letter. E.g., @verb{LiteralInt}}
+  @item{If @racket[type-name] is provided, then the field name @racket[name/type-id] has no other restrictions. E.g., @verb{sideEs}}
+  @item{If @racket[type-name] is not provided and the field name @racket[name/type-id] is a type, then @racket[name/type-id] must follow the restriction for node name. I.e., it must begin with an uppercase letter.}
+  @item{If @racket[type-name] is not provided and the field name @racket[name/type-id] is not a type (i.e., it is a terminal), then @racket[name/type-id] must consist of only lowercase letters. E.g., @verb{value}}
+]
+
+Due to the alphabetic character limitation, @tt{kebab-style} or @tt{snake_style} names are invalid. Depending on the restriction, you may want to use @tt{alllowercase}, @tt{camelCase}, or @tt{PascalCase} style names.
+
 @racket[node-name] will be the name of the grammar production in @(racr).
 @racket[parent-name] is either the name of the parent grammar production or @racket[#f].
-
-Names for the node and fields are limited to alphabetic characters.  You may want to use @tt{camelCase} style names since @tt{kebab-style} or @tt{snake_style} names are invalid due to this limitation.
 
 Fields are then specified.
 Each nonterminal inherits all fields of its parent nodes.
