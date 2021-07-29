@@ -538,7 +538,7 @@
                               'body t))]]))
                 #'())
 
-         #,@(if (use? use-expression-sequence)
+         #,@(if (or (use? use-expression-sequence) (use? use-program-with-sequence))
                 #'((add-to-grammar
                     component
                     [ExpressionSequence
