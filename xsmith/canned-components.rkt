@@ -159,7 +159,7 @@
            (if att
                (syntax-parse att
                  [#t #t]
-                 [#f #t])
+                 [#f #f])
                (~? default #f)))])))
 
 (define-syntax (define-basic-spec-component stx)
