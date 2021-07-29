@@ -88,7 +88,7 @@ array_safe_assignment = function(array, index, newvalue){
                     (list (ast-child 'Block n))))))
      (text "")
      (apply v-append
-            (map (λ (v) (text (format "console.log(~a)\n"
+            (map (λ (v) (text (format "print(~a)\n"
                                       (ast-child 'name v))))
                  (filter (λ (x) (base-type? (ast-child 'type x)))
                          definitions)))
