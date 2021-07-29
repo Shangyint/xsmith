@@ -212,14 +212,15 @@
     (pattern
      [node-name:node-name (~and parent (~or* parent-name:node-name #f))
                           (component:grammar-component ...)]))
-  (define-syntax-class grammar-clause-with-inline-props
+  (define-syntax-class (grammar-clause-with-inline-props component-name)
     (pattern
-     (~and whole-stx
-           [node-name:node-name (~and parent (~or* parent-name:node-name #f))
-                                (component:grammar-component ...)
-                                prop:grammar-inline-prop-clause ...])
-     #:attr grammar-clause (syntax/loc #'whole-stx
-                             (node-name parent (component ...)))))
+     [node-name:node-name (~and parent (~or* parent-name:node-name #f))
+                          (component:grammar-component ...)
+                          prop:grammar-inline-prop-clause ...]
+     #:with grammar-clause (syntax/loc this-syntax
+                             (node-name parent (component ...)))
+     #:with prop-code-gen
+     #`(begin (add-property #,component-name prop.name [node-name prop.val]) ...)))
 
   (struct grammar-node-field-struct
     (name type kleene-star? init-expr)
@@ -462,30 +463,15 @@
 
 
 (define-syntax-parser add-to-grammar
-  [(_ component:spec-component
-      clause:grammar-clause-with-inline-props ...)
+  [(_ component:spec-component raw-clause ...)
+   #:with ((~var clause (grammar-clause-with-inline-props #'component)) ...) (attribute raw-clause)
    #`(begin
        #,(stuff-spec-component #'component
                                #'spec-component-struct-grammar-info
                                #'set-spec-component-struct-grammar-info
                                #'((clause.node-name component-name) ...)
                                #'(clause.grammar-clause ...))
-
-       ;; This should be simpler, but if I try to just use clause.prop.name
-       ;; I get errors about the sub-property not being defined.  So I
-       ;; wrote this procedural mess instead.
-       #,@(flatten
-           (for/list ([c (syntax->list #'(clause ...))])
-             (syntax-parse c
-               [clause:grammar-clause-with-inline-props
-                (define node-name #'clause.node-name)
-                (for/list ([p (syntax->list #'(clause.prop ...))])
-                  (syntax-parse p
-                    [(prop:grammar-inline-prop-clause)
-                     #`(add-property component
-                                 prop.name
-                                 [#,node-name prop.val])]))])))
-       )])
+       clause.prop-code-gen ...)])
 
 (define-for-syntax (add-property-generic component-getter component-setter arg-stx)
   (syntax-parse arg-stx
