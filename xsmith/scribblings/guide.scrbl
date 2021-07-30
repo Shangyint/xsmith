@@ -229,6 +229,8 @@ Importantly, lifts can only be done when there is a surrounding node that can ho
 Only definitions are lifted, not function parameters.
 In practice, this means that your outermost “program” node needs to have a field with @verb{Definition *}, so any number of definitions may be lifted to it.
 
+Note that lifted definitions inherit the tree depth (relevant to @racket[xsmith-max-depth]) of the reference expression that caused the lift.
+This is to prevent xsmith from endlessly choosing to lift new things.
 
 @section[#:tag"getting-started"]{Getting Started}
 

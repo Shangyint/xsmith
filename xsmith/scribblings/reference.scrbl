@@ -142,6 +142,8 @@ Example:
 @racketblock[
 (att-value 'xsmith_ast-depth n)
 ]
+
+Related: @racket[xsmith-max-depth]
 }
 @item{@racket['xsmith_type]
 This attribute takes no arguments (besides a @(racr) node) and returns the type (@racket[type?]) of that node.
@@ -260,6 +262,7 @@ The command-line function takes no arguments and parses @racket[current-command-
 
 The @racket[#:default-max-depth] sets the “max” tree depth generated.
 It's a bit of a fib -- there are situations where Xsmith will allow deeper generation, but they are limited.
+See @racket[xsmith-max-depth].
 Similarly the @racket[#:default-type-max-depth] sets the maximum depth that will be used for type concretization.
 In other words, when a type variable is concretized it will only choose base types past that depth.
 However, deeper types can still be made through other means.
@@ -1183,11 +1186,13 @@ Example:
 }
 
 @defform[#:kind "spec-property" #:id wont-over-deepen wont-over-deepen]{
-The default for this property is probably what you want, so probably just be sure to add this to the extra @racket[#:properties] flag of @racket[assemble-part-specs].
+This property takes booleans (or expressions that produce @racket[#f] or non-false values).
+It defaults to @racket[#t] for nodes that have no AST-typed children, which tend to be nodes for literals, references, etc.
+It defaults to @racket[#f] for everything else.
 
-But if you want to set it:
+If you have types that don't have atomic constructors, you need to set @racket[wont-over-deepen] to true for its basic constructor.  The easiest example of this is functions -- lambda nodes have at least one interior expression, and thus are not automatically recognized to be atomic values that can be used at maximum tree depth.  If xsmith gets into a position where it needs a function type but it's already at max depth and lambda is not marked @racket[#t] for @racket[wont-over-deepen], xsmith with likely crash.
 
-The property accepts expressions which will evaluate to booleans (i.e., anything but only @racket[#f] is false...), which are evaluated if the choice is made at the point where the AST is at it maximum depth.  A true value means that the choice is acceptable, false otherwise.  The default is computed by checking whether a node includes AST-node-typed fields.  If it does not it is considered atomic and therefore acceptable to choose when the AST is already at its maximum depth.
+In other words, this is a property that lets xsmith fudge on its @racket[xsmith-max-depth] settings, but you need it sometimes.
 }
 
 
@@ -1905,6 +1910,10 @@ The feature name must have been supplied to the #:features argument of @racket[d
 
 @defproc[(xsmith-max-depth) number?]{
 Returns the maximum tree generation depth as set by the user via @racket[define-xsmith-interface-functions] or on the command line.
+
+Note that xsmith doesn't always honor this depth.  Eg. with @racket[wont-over-deepen] or @racket[depth-increase] you can adjust how xsmith works with depth.  The max depth is meant to be a fuzzy best-effort maximum to be able to reasonably bound generation time.
+
+See also @secref["lifting"].
 }
 
 @section{RACR Convenience Functions}
