@@ -364,16 +364,23 @@
                     [Plus Expression ([l : Expression] [r : Expression])]
                     [Minus Expression ([l : Expression] [r : Expression])]
                     [Times Expression ([l : Expression] [r : Expression])]
-                    [SafeDivide Expression ([l : Expression] [r : Expression])]
-                    [LessThan Expression ([l : Expression] [r : Expression])]
-                    [GreaterThan Expression ([l : Expression] [r : Expression])])
+                    [SafeDivide Expression ([l : Expression] [r : Expression])])
                    (add-property
                     component type-info
                     [IntLiteral [int no-child-types]]
                     [Plus [number numeric-bin-op-subtype]]
                     [Minus [number numeric-bin-op-subtype]]
                     [Times [number numeric-bin-op-subtype]]
-                    [SafeDivide [number numeric-bin-op-subtype]]
+                    [SafeDivide [number numeric-bin-op-subtype]]))
+                #'())
+         #,@(if (and (use? use-numbers)
+                     (use? use-booleans))
+                #'((add-to-grammar
+                    component
+                    [LessThan Expression ([l : Expression] [r : Expression])]
+                    [GreaterThan Expression ([l : Expression] [r : Expression])])
+                   (add-property
+                    component type-info
                     [LessThan [bool (numeric-bin-op/no-relation-to-return number)]]
                     [GreaterThan [bool (numeric-bin-op/no-relation-to-return number)]]))
                 #'())
