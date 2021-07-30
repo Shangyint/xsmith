@@ -282,7 +282,7 @@
                                                   1
                                                   variable-reference-weight))]))
                 #'())
-#,@(if (use? use-procedure-application)
+         #,@(if (use? use-procedure-application)
                 #'((add-to-grammar
                     component
                     [ProcedureApplication
@@ -845,7 +845,7 @@
                                             inner-t))))
                         (subtype-unify! record-t t)
                         (hash 'record record-t
-                               'newvalue inner-t))]]))
+                              'newvalue inner-t))]]))
                 #'())
 
          #,@(if (use? use-mutable-structural-record)
