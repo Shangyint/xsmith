@@ -1627,8 +1627,8 @@ few of these methods.
       ([(λ (e) #t)
         (λ (e)
           (xd-printf "Error unifying a binder node's inferred type to its stored type field.\n")
-          (xd-printf "my-type: ~v" my-type)
-          (xd-printf "binder field type: ~v" (ast-child binder-type-field node))
+          (xd-printf "my-type: ~v\n" my-type)
+          (xd-printf "binder field type: ~v\n" (ast-child binder-type-field node))
           (raise e))])
       (unify! my-type (ast-child binder-type-field node))))
   (define my-type-from-parent
