@@ -882,6 +882,8 @@
                                reduction-script
                                reduction-directory)
                    ;; TODO - clean up?
+                   ;; TODO - fix output so it doesn't capture noise from the reduction script
+                   ;; TODO - add a tag to the output stating that it's actually a reduced version of the program.
                    )
                  (define (do-error-printing #:mode [mode "generating"])
                    (when error?

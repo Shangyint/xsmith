@@ -41,6 +41,7 @@
  (submod "xsmith-utils.rkt" for-private)
  (submod "grammar-macros.rkt" for-private_reduction)
  "choice.rkt"
+ "scope-graph.rkt"
  (for-syntax
   racket/base
   syntax/parse
@@ -54,6 +55,11 @@
   (apply + 1 (map ast-size
                   (filter ast-node?
                           (ast-children/flat n)))))
+
+(define (distance-from-root n)
+  (if (ast-has-parent? n)
+      0
+      (+ 1 (distance-from-root (ast-parent n)))))
 
 (define (reduce-ast ast-original
                     ast->string
@@ -135,30 +141,62 @@
 
 
       ;; Tactic: replace reference node with most global, first declared definition of same type
-      (when reference?
-        ;; TODO - implement
-        (void))
+      (when (and reference? hole-type)
+        ;; TODO - the is-reference? property actually returns the name of the field.  I should maybe improve the name...
+        (define reference-name-field reference?)
+        (define p (ast-parent n))
+        (define new-hole (make-hole-normal (ast-node-type n)))
+        (rewrite-subtree n new-hole)
+
+        (define choices (att-value '_xsmith_hole->choice-list new-hole))
+        (define choices-or-reasons (map (λ (c) (send c _xsmith_apply-choice-filters))
+                                        choices))
+        (define choices-left (filter (λ (x) (is-a? x ast-choice%)) choices-or-reasons))
+        (if (not (equal? 1 (length choices-left)))
+            ;; Abort
+            (rewrite-subtree new-hole n)
+            (let* ([choice (car choices)]
+                   [reference-options (send choice _xsmith_reference-options!)]
+                   [non-lift (filter binding? reference-options)]
+                   [definitions (filter (λ (x) (eq? 'definition (binding-def-or-param x)))
+                                        non-lift)]
+                   [distances-from-root (map (λ (x) (distance-from-root (binding-ast-node x)))
+                                             definitions)]
+                   [min-distance-from-root (and (not (null? distances-from-root))
+                                                (apply min distances-from-root))]
+                   [closest-to-root (and min-distance-from-root
+                                         (filter (λ (x) (equal? min-distance-from-root
+                                                                (distance-from-root (binding-ast-node x))))
+                                                 definitions))]
+                   [sorted-by-lift-numbers
+                    (and min-distance-from-root
+                         (sort closest-to-root
+                               >
+                               #:key (λ (x)
+                                       (define m (regexp-match #px"\\d+" (binding-name x)))
+                                       (or (and m (string->number (car m)))
+                                           +inf.0))))]
+                   [best-binding (and sorted-by-lift-numbers
+                                     (car sorted-by-lift-numbers))]
+                   [new-name (and best-binding (binding-name best-binding))]
+                   [new-node (and new-name
+                                  (not (equal?
+                                        new-name
+                                        (ast-child reference-name-field n)))
+                                  (send choice _xsmith_fresh
+                                        (hash reference-name-field new-name)))])
+              (if (not new-node)
+                  ;; Abort
+                  (rewrite-subtree new-hole n)
+                  (begin
+                    (rewrite-subtree new-hole new-node)
+                    (if (version-successful!? (format "Reduced: replaced reference with top lift\n"))
+                        (return! #t)
+                        (rewrite-subtree new-node n)))))))
 
 
-      ;; Tactic: delete list node children (when not binders)
-      (let ([list-nodes (filter (λ (cn) (and (ast-node? cn)
-                                             (ast-list-node? cn)))
-                                (ast-children n))])
-        (for ([list-node list-nodes])
-          (let list-delete-loop ([i 1])
-            ;; RACR uses 1-based indexing
-            (when (<= i (ast-num-children list-node))
-              (define removed-child (ast-child i list-node))
-              (rewrite-delete removed-child)
-              (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size n)))
-                  (list-delete-loop i)
-                  (begin (rewrite-insert list-node i removed-child)
-                         (list-delete-loop (add1 i))))))))
-
-
-
-      ;; Tactic: delete unused binders in list nodes
-      ;; TODO - this should probably be done after I do the other transformations to the whole tree, then run to fixpoint
+      ;; Tactic: delete list node children
+      (delete-list-node-children n (λ (cn) #t))
 
 
       ;; Tactic: recur to children
@@ -166,5 +204,43 @@
         ;; We just ignore the return.
         (reduce-node cn))))
 
+  (define (delete-list-node-children n remove-predicate)
+    (define had-success? #f)
+    (let ([list-nodes (filter (λ (cn) (and (ast-node? cn)
+                                           (ast-list-node? cn)))
+                              (ast-children n))])
+      (for ([list-node list-nodes])
+        (let list-delete-loop ([i 1])
+          ;; RACR uses 1-based indexing
+          (when (<= i (ast-num-children list-node))
+            (define removed-child (ast-child i list-node))
+            (when (remove-predicate removed-child)
+              (rewrite-delete removed-child)
+              (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size n)))
+                  (begin
+                    (set! had-success? #t)
+                    (list-delete-loop i))
+                  (begin (rewrite-insert list-node i removed-child)
+                         (list-delete-loop (add1 i)))))))))
+    had-success?)
+
+  (define (remove-unused-binders n)
+    (let/ec return!
+
+      (define success?
+        (delete-list-node-children n (λ (x) (att-value '_xsmith_binder-type-field x))))
+
+      (define descendant-successes
+        (for/list ([cn (filter ast-node? (ast-children/flat n))])
+          (remove-unused-binders cn)))
+
+      (or success? (ormap (λ(x)x) descendant-successes))))
+
+
+  ;;; GO!
+
   (reduce-node root)
+  (let loop ()
+    (when (remove-unused-binders root)
+      (loop)))
   root)

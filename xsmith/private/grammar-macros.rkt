@@ -105,10 +105,13 @@
 
 ;; TODO - I don't like this, but I want to get the minimizer working, so I'm adding it for now.  I should instead make some better way to get access to the make-hole function for a spec.
 (define make-hole-direct #f)
+(define make-hole-normal #f)
 (define (set-make-hole-direct! f)
   (set! make-hole-direct f))
+(define (set-make-hole-normal! f)
+  (set! make-hole-normal f))
 (module+ for-private_reduction
-  (provide make-hole-direct))
+  (provide make-hole-direct make-hole-normal))
 
 (define-syntax-parameter make-hole
   (syntax-parser [stx (raise-syntax-error
@@ -1385,6 +1388,7 @@ Perform error checking:
                  ;; It means we can only have one generator in a program.
                  ;; But in practice right now that's always true anyway.
                  (set-make-hole-direct! make-hole-function/direct)
+                 (set-make-hole-normal! make-hole-function)
 
                  (splicing-syntax-parameterize
                      ([current-racr-spec (syntax-rules () [(_) spec])]
