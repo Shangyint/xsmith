@@ -1234,7 +1234,7 @@ Perform error checking:
                    ;; The base node has xsmithliftdepth and xsmithlifterwrapped fields injected
                    (format-id
                     #'spec
-                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped-xsmithcachedtype"
+                    "~a->xsmithserialnumber-xsmithliftdepth-xsmithlifterwrapped-xsmithholetype-xsmithcachedtype"
                     #'base-node-name)]
                   [(choice-name ...) (map node->choice
                                           (syntax->list #'(g-part.node-name ...)))]
@@ -1356,14 +1356,15 @@ Perform error checking:
                                   "Not in the defined grammar: ~a, expected one of: ~a"
                                   node-type
                                   (dict-keys hole-name-hash))))
+                     (define hole-type (dict-ref hole-name-hash node-type))
                      (define new-hole
                        (create-ast
                         spec
-                        (dict-ref hole-name-hash node-type)
+                        hole-type
                         (append
                          ;; This first list is for injected fields:
-                         ;; xsmithserialnumber, xsmithliftdepth, xsmithlifterwrapped, xsmithcachedtype
-                         (list (get-next-serial-number!) #f #f #f)
+                         ;; xsmithserialnumber, xsmithliftdepth, xsmithlifterwrapped, xsmithholetype, xsmithcachedtype
+                         (list (get-next-serial-number!) #f #f hole-type #f)
                          (map (λ (x) (create-ast-bud))
                               (make-list (dict-ref node-attr-length-hash
                                                    node-type)
@@ -1449,10 +1450,16 @@ Perform error checking:
                                     "Not in the defined grammar: ~a, expected one of: ~a"
                                     node-type
                                     (dict-keys hole-name-hash))))
-                       (send (new (dict-ref choice-object-hash node-type)
-                                  [hole (make-hole node-type)])
-                             _xsmith_fresh
-                             field-dict))
+                       (define new-node
+                         (send (new (dict-ref choice-object-hash node-type)
+                                    [hole (make-hole node-type)])
+                               _xsmith_fresh
+                               field-dict))
+                       ;; Set the hole type to #f to indicate that it made manually
+                       ;; rather than by replacing a hole (other than as an
+                       ;; implementation detail).
+                       (rewrite-terminal 'xsmithholetype new-node #f)
+                       new-node)
                      ;; Since with-specification creates a new scope,
                      ;; fresh-node-func can't be defined here and visible
                      ;; outside.  So we `set!` it in place.

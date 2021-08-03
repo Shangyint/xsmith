@@ -326,6 +326,7 @@
           [#t `((xsmithserialnumber ,(ast-child 'xsmithserialnumber n))
                 (xsmithliftdepth ,(ast-child 'xsmithliftdepth n))
                 (xsmithlifterwrapped ,(ast-child 'xsmithlifterwrapped n))
+                (xsmithholetype ,(ast-child 'xsmithholetype n))
                 (xsmithcachedtype ,(ast-child 'xsmithcachedtype n))
                 )]
           ['xsmithserialnumber `((xsmithserialnumber
@@ -567,6 +568,7 @@ hole for the type.
                   (map (λ (name) (dict-ref field-dict name #f))
                        (list 'xsmithliftdepth
                              'xsmithlifterwrapped))
+                  (list (ast-child 'xsmithholetype (current-hole)))
                   (list (ast-child 'xsmithcachedtype (current-hole)))
                   all-values-in-order))
 
@@ -613,6 +615,7 @@ hole for the type.
   #:appends
   (choice-method _xsmith_wont-over-deepen)
   (attribute xsmith_at-max-depth?)
+  (choice-method _xsmith_atomic?)
   #:transformer
   (λ (this-prop-info grammar-info)
     (define nodes (dict-keys grammar-info))
@@ -626,6 +629,7 @@ hole for the type.
                 (filter (λ(x)x)
                         (map grammar-node-field-struct-type
                              (dict-ref field-info-hash node))))))
+
     ;; If a node in the grammar has fields that are also nodes, it will make
     ;; the tree deeper.
     (define wont-over-deepen-info-defaults
@@ -658,9 +662,13 @@ hole for the type.
                       ;; But my basic heuristic that I first used is bad in the face
                       ;; of nominal record variable reference.
                       (or ok? override-ok? (current-force-deepen)))))))
+    ;; For the minimizer, I actually want to know if a node is truly atomic
+    (define _xsmith_atomic?-info
+      (for/hash ([node nodes])
+        (values node #`(λ () #,(dict-ref wont-over-deepen-info-defaults node)))))
     (define xsmith_at-max-depth?-info
       (hash #f #'(λ (n) (<= (xsmith-max-depth) (att-value 'xsmith_ast-depth n)))))
-    (list wont-over-deepen-info xsmith_at-max-depth?-info)))
+    (list wont-over-deepen-info xsmith_at-max-depth?-info _xsmith_atomic?-info)))
 
 
 #|
