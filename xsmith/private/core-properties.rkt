@@ -1047,6 +1047,7 @@ It just reads the values of several other properties and produces the results fo
   (choice-method _xsmith_is-read-reference-choice?)
   (attribute _xsmith_is-read-reference-node?)
   (attribute _xsmith_is-reference-node?)
+  (choice-method _xsmith_is-reference?)
   (attribute _xsmith_resolve-reference)
   #:transformer
   (λ (this-prop-info)
@@ -1078,6 +1079,9 @@ It just reads the values of several other properties and produces the results fo
     (define _xsmith_is-reference-node?-info
       (for/hash ([node reference-info-nodes])
         (values node #`(λ (n) #,(dict-ref _xsmith_is-reference-info node)))))
+    (define _xsmith_is-reference?-info/cm
+      (for/hash ([node reference-info-nodes])
+        (values node #`(λ () #,(dict-ref _xsmith_is-reference-info node)))))
     (define _xsmith_resolve-reference
       (for/hash ([node reference-info-nodes])
         (values node
@@ -1086,6 +1090,7 @@ It just reads the values of several other properties and produces the results fo
     (list _xsmith_is-read-reference-choice?-info
           _xsmith_is-read-reference-node?-info
           _xsmith_is-reference-node?-info
+          _xsmith_is-reference?-info/cm
           _xsmith_resolve-reference)))
 
 (define reference-choice-info-default

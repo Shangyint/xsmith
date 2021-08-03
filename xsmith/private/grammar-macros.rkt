@@ -103,6 +103,12 @@
   "spec-component-struct.rkt"
   ))
 
+;; TODO - I don't like this, but I want to get the minimizer working, so I'm adding it for now.  I should instead make some better way to get access to the make-hole function for a spec.
+(define make-hole-direct #f)
+(define (set-make-hole-direct! f)
+  (set! make-hole-direct f))
+(module+ for-private_reduction
+  (provide make-hole-direct))
 
 (define-syntax-parameter make-hole
   (syntax-parser [stx (raise-syntax-error
@@ -1346,17 +1352,8 @@ Perform error checking:
                     (list
                      (cons 'g-part.node-name 'ast-hole-name)
                      ...)))
-                 (define make-hole-function
-                   (λ (node-type)
-                     ;; do a dict-ref here just for error checking.
-                     (dict-ref hole-name-hash node-type
-                               (λ ()
-                                 (error
-                                  'make-hole
-                                  "Not in the defined grammar: ~a, expected one of: ~a"
-                                  node-type
-                                  (dict-keys hole-name-hash))))
-                     (define hole-type (dict-ref hole-name-hash node-type))
+                 (define make-hole-function/direct
+                   (λ (hole-type node-type)
                      (define new-hole
                        (create-ast
                         spec
@@ -1371,6 +1368,23 @@ Perform error checking:
                                          #f)))))
                      (enqueue-re-type new-hole)
                      new-hole))
+                 (define make-hole-function
+                   (λ (node-type)
+                     ;; do a dict-ref here just for error checking.
+                     (dict-ref hole-name-hash node-type
+                               (λ ()
+                                 (error
+                                  'make-hole
+                                  "Not in the defined grammar: ~a, expected one of: ~a"
+                                  node-type
+                                  (dict-keys hole-name-hash))))
+                     (define hole-type (dict-ref hole-name-hash node-type))
+                     (make-hole-function/direct hole-type node-type)))
+                 ;; This is not great, but I need to access the make-hole function in the minimizer.
+                 ;; So... let's just mutate a parameter to access it.
+                 ;; It means we can only have one generator in a program.
+                 ;; But in practice right now that's always true anyway.
+                 (set-make-hole-direct! make-hole-function/direct)
 
                  (splicing-syntax-parameterize
                      ([current-racr-spec (syntax-rules () [(_) spec])]

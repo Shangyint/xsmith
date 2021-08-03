@@ -40,6 +40,7 @@
  (submod "types.rkt" for-private)
  "core-macros-and-properties.rkt"
  "xsmith-utils.rkt"
+ "xsmith-reduce.rkt"
  "choice.rkt"
  (for-syntax
   racket/base
@@ -312,6 +313,8 @@
            (define output-file-name output-file-default)
            (define inspection-serials '())
            (define print-choice-log? #f)
+           (define reduction-script #f)
+           (define reduction-directory #f)
            (define options (xsmith-options-defaults))
 
            (define command-line-to-print (current-command-line-arguments))
@@ -474,6 +477,22 @@
                 (["Print a log of choices made during generation."
                   "Defaults to false."]
                  "print-choice-log")]
+               [("--reduction-script")
+                ,(λ (flag reduction-script*)
+                   (set! reduction-script reduction-script*))
+                (["Perform test-case reduction using the given script."
+                  "The script will be run in a working directory with a file"
+                  "called `reduction-candidate`, and should exit with 0 if the"
+                  "reduced file is valid/interesting and exit with nonzero otherwise"
+                  "Use --reduction-directory to control where it puts things."
+                  ]
+                 "reduction-script")]
+               [("--reduction-directory")
+                ,(λ (flag reduction-directory*)
+                   (set! reduction-directory reduction-directory*))
+                (["If using reduction script, run the script in the given directory."
+                  "Currently I don't guarantee that it's cleaned up or anything."]
+                 "reduction-directory")]
                [("--seq-to-file")
                 ,(λ (flag filename) (set! seq-to-file filename))
                 (["Output the generated randomness sequence to a file at the given path."
@@ -563,6 +582,8 @@
             #:output-file output-file-name
             #:inspection-serials inspection-serials
             #:print-choice-log print-choice-log?
+            #:reduction-script reduction-script
+            #:reduction-directory reduction-directory
 
             #:command-line-to-print command-line-to-print))
 
@@ -598,6 +619,8 @@
                   #:verbose [verbose? not-given]
                   #:inspection-serials [inspection-serials not-given]
                   #:print-choice-log [print-choice-log? not-given]
+                  #:reduction-script [reduction-script not-given]
+                  #:reduction-directory [reduction-directory not-given]
                   )
 
 
@@ -678,6 +701,8 @@
             #:verbose (arg verbose? verbose-default)
             #:inspection-serials (arg inspection-serials '())
             #:print-choice-log (arg print-choice-log? #f)
+            #:reduction-script (arg reduction-script #f)
+            #:reduction-directory (arg reduction-directory #f)
             )
            )
 
@@ -711,6 +736,8 @@
                   #:verbose verbose?
                   #:inspection-serials inspection-serials
                   #:print-choice-log print-choice-log?
+                  #:reduction-script reduction-script
+                  #:reduction-directory reduction-directory
                   )
 
 
@@ -820,11 +847,15 @@
                  ;; Convert an AST to a string.
                  (define (ast->string root)
                    (verbose-eprintf "Converting AST to string...\n")
-                   (let ([ppr (att-value 'xsmith_render-node root)]
-                         [fmt (~? format-render-func #f)])
-                     (if fmt
-                         (fmt ppr)
-                         (format "~a\n" ppr))))
+                   (parameterize ([current-xsmith-type-constructor-thunks
+                                   (if (procedure? type-constructor-thunks-func/list)
+                                       (type-constructor-thunks-func/list)
+                                       type-constructor-thunks-func/list)])
+                     (let ([ppr (att-value 'xsmith_render-node root)]
+                           [fmt (~? format-render-func #f)])
+                       (if fmt
+                           (fmt ppr)
+                           (format "~a\n" ppr)))))
                  ;; Notify beginning of generation with seed.
                  (verbose-eprintf "Generating from seed: ~a.\n" random-input)
                  ;; Attempt to generate the AST.
@@ -842,6 +873,16 @@
                              [(λ (e) #t)
                               (λ (e) (set! error? e))])
                             (generation-thunk)))))
+                 (when reduction-script
+                   (verbose-eprintf "Reducing AST...\n")
+                   (when (not reduction-directory)
+                     (error 'xsmith "No reduction directory given with reduction script."))
+                   (reduce-ast ast
+                               ast->string
+                               reduction-script
+                               reduction-directory)
+                   ;; TODO - clean up?
+                   )
                  (define (do-error-printing #:mode [mode "generating"])
                    (when error?
                      (verbose-eprintf "Encountered an error during ~a program.\n" mode)
