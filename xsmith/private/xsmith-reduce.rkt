@@ -32,6 +32,7 @@
 
 (require
  racket/system
+ racket/port
  racket/file
  racket/class
  racr
@@ -78,7 +79,12 @@
       #:exists 'replace
       (λ () (display program-string))))
   (define (run-test-script!)
-    (parameterize ([current-directory minimization-directory])
+    (parameterize ([current-directory minimization-directory]
+                   ;; It would be better to send the output somewhere useful,
+                   ;; but without doing something the output gets put in
+                   ;; the program source of the final output...
+                   [current-output-port (open-output-nowhere)]
+                   [current-error-port (open-output-nowhere)])
       ;; Returns true if the script exits successfully, which is our test
       (system script-full-path)))
   (define (version-successful!? message)
