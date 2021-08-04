@@ -365,7 +365,7 @@ TODO - running / compiling SML
          (begin
            (unify! (replace-parametric-types-with-variables pt) t)
            (hash 'f pt))
-         (let ([new-pt (make-parametric-type-based-on t)])
+         (let ([new-pt (make-parametric-type-based-on t #:sml-hack #t)])
            (enqueue-inter-choice-transform
             (λ () (rewrite-terminal 'parametrictype n new-pt)))
            (hash 'f new-pt))))]]

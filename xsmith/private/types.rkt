@@ -2425,7 +2425,8 @@ TODO - when generating a record ref, I'll need to compare something like (record
    (list
     (structurally-recur-on-type/where-polymorphism-valid t (λ(x)x) #:collect? #t))))
 
-(define (make-parametric-type-based-on t)
+(define (make-parametric-type-based-on t
+                                       #:sml-hack [sml-hack #f])
   ;; Here we make a type that maybe has parameter types in it that
   ;; could unify with type t.
   ;; To make this simple, we are going to concretize the type first.
@@ -2444,8 +2445,21 @@ TODO - when generating a record ref, I'll need to compare something like (record
                                 (shuffle ret-types)))
     (for/or ([ret ret-types-shuffled])
       (for/or ([arg arg-types])
-        ;; TODO - must be sure the ret type is not only an argument type within a return type...  IE don't generate (list 'a -> 'a -> int), because the result type ('a -> int) is invalid (at least in SML).
-        (and (can-unify? arg ret) ret))))
+        ;; TODO - must be sure the ret type is not only an argument type within a return type...  IE don't generate (list 'a -> 'a -> int), because the result type ('a -> int) is invalid (at least in some implementations of SML).
+        (and (can-unify? arg ret)
+             (or (not sml-hack)
+                 ;; For at least some implementations of SML, parametric
+                 ;; types where there is a chain of arrows that ends
+                 ;; in a non-parametric type are rejected. So for this
+                 ;; hack I'll ensure that the type chosen to replace
+                 ;; with a parameter exists in the return type of every
+                 ;; function in the original type.
+                 (for/and ([ft function-types])
+                   (define ret (function-type-return-type ft))
+                   (define all-ret-inners (type->type-list-for-polymorphism ret))
+                   (for/or ([ret-inner all-ret-inners])
+                     (can-unify? ret-inner arg))))
+             ret))))
 
   (define replacement-choice-list
     (for/or ([ft (wrap-external-randomness
