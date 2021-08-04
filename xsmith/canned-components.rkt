@@ -24,7 +24,14 @@
  dictionary-type
 
  depth-weight
- )
+
+ current-array-length
+ current-num-effect-expressions
+ current-arg-length
+
+ random-string/ascii
+ random-string/ascii-no-null
+ random-string/ascii-no-control)
 
 (require
  xsmith
@@ -42,19 +49,48 @@
    )))
 
 
-
-
-;; TODO - all of these magic constants should be parameterizable somehow.  Eg. maybe they should be racket parameters.
-
 ;; Long arrays can sometimes create really long generation times, eg. for arrays of arrays of arrays of functions...
-(define array-max-length 6)
-(define max-effect-expressions 3)
+(define current-array-length
+  (make-parameter
+   (λ () (random 6))
+   (λ (v)
+     (cond
+       [(and (procedure? v) (procedure-arity-includes? v 0)) v]
+       [(exact-positive-integer? v) (λ () (random v))]
+       [else (raise-argument-error
+              'current-array-length
+              "(or/c exact-positive-integer? (procedure-arity-includes/c 0))"
+              v)]))))
+
+(define current-num-effect-expressions
+  (make-parameter
+   (λ () (add1 (random 3)))
+   (λ (v)
+     (cond
+       [(and (procedure? v) (procedure-arity-includes? v 0)) v]
+       [(exact-positive-integer? v) (λ () (add1 (random v)))]
+       [else (raise-argument-error
+              'current-num-effect-expressions
+              "(or/c exact-positive-integer? (procedure-arity-includes/c 0))"
+              v)]))))
+
+(define current-arg-length
+  (make-parameter
+   (λ () (random 6))
+   (λ (v)
+     (cond
+       [(and (procedure? v) (procedure-arity-includes? v 0)) v]
+       [(exact-positive-integer? v) (λ () (random v))]
+       [else (raise-argument-error
+              'current-arg-length
+              "(or/c exact-positive-integer? (procedure-arity-includes/c 0))"
+              v)]))))
+
 (define fieldname-options
   '(a b c d e f g))
 (define (random-field-name)
   (random-ref fieldname-options))
-(define (arg-length)
-  (random 6))
+
 (define variable-reference-weight 15)
 
 (define (depth-weight #:shallow [shallow-weight 1]
@@ -125,8 +161,7 @@
                                        (hash 'type t)))
                (or (product-type-inner-type-list
                     (function-type-arg-type ftype))
-                   (map (λ (x) (fresh-type-variable))
-                        (make-list (arg-length) #f))))])
+                   (build-list ((current-arg-length)) (λ (x) (fresh-type-variable)))))])
     (unify! (product-type (map (λ (x) (ast-child 'type x))
                                parameters))
             (function-type-arg-type ftype))
@@ -311,7 +346,7 @@
                                   (if (list? arg-types)
                                       (map (λ (x) (make-hole 'Expression)) arg-types)
                                       (build-list
-                                       (arg-length)
+                                       ((current-arg-length))
                                        (λ (x) (make-hole 'Expression))))))))))
                      #:prop type-info
                      [(fresh-type-variable)
@@ -505,7 +540,7 @@
                 #'((add-to-grammar
                     component
                     [LambdaWithExpression
-                     Expression ([parameters : FormalParameter * = (arg-length)]
+                     Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Expression])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
@@ -519,7 +554,7 @@
                 #'((add-to-grammar
                     component
                     [LambdaWithBlock
-                     Expression ([parameters : FormalParameter * = (arg-length)]
+                     Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Block])
                      #:prop block-user? #t
                      #:prop wont-over-deepen #t
@@ -551,7 +586,7 @@
                     [ExpressionSequence
                      Expression
                      ([effectexpressions : Expression *
-                                         = (add1 (random max-effect-expressions))]
+                                         = ((current-num-effect-expressions))]
                       [finalexpression : Expression])
                      #:prop strict-child-order? #t
                      #:prop type-info
@@ -567,7 +602,7 @@
                     component
                     [ImmutableArrayLiteral
                      Expression
-                     ([expressions : Expression * = (random array-max-length)])
+                     ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight (depth-weight)]
                     [ImmutableArraySafeReference
@@ -610,7 +645,7 @@
                     component
                     [ImmutableListLiteral
                      Expression
-                     ([expressions : Expression * = (random array-max-length)])
+                     ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight (depth-weight)
                      #:prop type-info
@@ -650,7 +685,7 @@
                     component
                     [MutableArrayLiteral
                      Expression
-                     ([expressions : Expression * = (random array-max-length)])
+                     ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
                      #:prop choice-weight (depth-weight)
                      #:prop type-info
@@ -698,7 +733,7 @@
                      #:prop wont-over-deepen #t
                      #:prop choice-weight (depth-weight)
                      #:prop fresh
-                     (let ([elem-count (random array-max-length)])
+                     (let ([elem-count ((current-array-length))])
                        (hash 'keys elem-count
                              'vals elem-count))
                      #:prop type-info
@@ -970,7 +1005,7 @@
                 #'((add-to-grammar
                     component
                     [NamedFunctionDefinition
-                     Expression ([parameters : FormalParameter * = (arg-length)]
+                     Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Block])
                      #:prop block-user? #t
                      #:prop wont-over-deepen #t

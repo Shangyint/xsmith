@@ -46,6 +46,7 @@
  racket/contract/base
  racket/dict
  (only-in racket/class send this class object?)
+ (only-in clotho random)
 
  @; if racr had scribble documentation this would provide hyperlinks
  @;racr
@@ -2032,7 +2033,7 @@ For example, a loop form where you bind a variable to each element of a given li
            [code:line #:MutableStructuralRecord boolean]
            [code:line #:MutableStructuralRecordAssignmentExpression boolean]
            [code:line #:ImmutableStructuralRecord boolean]
-           )]]{
+           [code:line #:string-literal-value string])]]{
 Extends @racket[grammar-component] with an expression language.
 All nodes added come with @racket[type-info] and other necessary properties specified, but they lack the @racket[render-node-info].
 In other words, this form gives you everything but the pretty printing for these parts of your language.
@@ -2079,6 +2080,9 @@ Type considerations:
 @item{Structural records use either @racket[(mutable (fresh-structural-record-type))] or @racket[(immutable (fresh-structural-record-type))].}
 @item{Lists use @racket[(immutable (list-type (fresh-type-variable)))]}
 ]
+
+@racket[#:string-literal-value _string-expr] can be used to customized string literal generation when @racket[#:Strings #t] is specified. @racket[_string-expr] should be an expression that evaluates to a string, such as @racket[(random-string/ascii)], @racket[(random-string/ascii-no-null)], @racket[(random-string/ascii-no-control)].
+
 }
 
 
@@ -2243,6 +2247,36 @@ Constructor for list types.
 Implemented as a @racket[generic-type?] with a covariant inner type.
 The canned components only use this wrapped in @racket[mutable] or @racket[immutable].
 }
+
+@deftogether[(@defproc[(random-string/ascii) string?]
+              @defproc[(random-string/ascii-no-null) string?]
+              @defproc[(random-string/ascii-no-control) string?])]{
+Produces a random string where each character code point is in range 0-127, 1-127, and 32-127 respectively.
+}
+
+@defparam[current-array-length v (or/c exact-positive-integer? (-> exact-nonnegative-integer?))
+          #:value (λ () (random 6))]{
+A parameter that determines the length of a generated array and list. @racket[v] can be either a positive integer or a thunk that produces a non-negative integer. When @racket[v] is a positive integer, it is used as a limit so that the length is in range 0 to @racket[(sub1 v)]. Otherwise, when @racket[v] is a thunk, it should produce the actual length. Default value is a thunk that produces the length in range 0 to 5.
+
+The parameter can be set before calling @tt{<fuzzer-name>-command-line}. For example, to adjust @racket[somelisp] in @secref{An_Upgrade__Using_Canned_Components} so that generated list literal have length at most 2, we can write:
+
+@racketblock[
+  (module+ main
+    (parameterize ([current-array-length 3])
+      (somelisp-command-line)))
+]
+}
+
+@defparam[current-num-effect-expressions v (or/c exact-positive-integer? (-> exact-nonnegative-integer?))
+          #:value (λ () (add1 (random 3)))]{
+A parameter that determines the number of effectful expressions in @verb{ExpressionSequence}. @racket[v] can be either a positive integer or a thunk that produces a non-negative integer. When @racket[v] is a positive integer, it is used as a limit so that the number of expressions is in range 1 to @racket[v]. Otherwise, when @racket[v] is a thunk, it should produce the actual number of expressions. Default value is a thunk that produces a number in range 1 to 3.
+}
+
+@defparam[current-arg-length v (or/c exact-positive-integer? (-> exact-nonnegative-integer?))
+          #:value (λ () (random 6))]{
+A parameter that determines the length of arguments in various lambda expression (@verb{LambdaWithExpression}, @verb{LambdaWithBlock}, etc.). @racket[v] can be either a positive integer or a thunk that produces a non-negative integer. When @racket[v] is a positive integer, it is used as a limit so that the number of expressions is in range 0 to @racket[(sub1 v)]. Otherwise, when @racket[v] is a thunk, it should produce the actual length. Default value is a thunk that produces the length in range 0 to 5.
+}
+
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
