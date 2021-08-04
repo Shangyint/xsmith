@@ -675,6 +675,8 @@ TODO - running / compiling SML
 
 (define header-definitions-block*
   "
+(* Begin \"safe math\" boilerplate definitions *)
+
 fun safeSmallAdd(a, b) =
 if Int.sameSign(a, b)
 then
@@ -851,6 +853,9 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
               max-byte-char)
      ,(format "fun safeCharPred(c) = if c = chr(0) then c else Char.pred(c)")
      ;,safe-math-tests
+     "\n\n\n\n\n"
+     "(* The randomly generated program starts here! *)"
+     "\n\n\n\n\n"
      )
    "\n"))
 

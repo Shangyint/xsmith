@@ -1475,6 +1475,9 @@ def to_string(x):
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
      (text header-definitions-block)
+     (text "\n\n\n\n")
+     (text "###### Randomly generated program starts here ######")
+     (text "\n\n\n\n")
      (vb-concat
       (list*
        (text "")

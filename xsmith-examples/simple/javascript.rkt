@@ -79,6 +79,9 @@ array_safe_assignment = function(array, index, newvalue){
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
      (text header-definitions-block)
+     (text "\n\n\n\n")
+     (text "////////  Randomly generated program starts here ////////")
+     (text "\n\n\n\n")
      (vb-concat
       (list*
        (text "")

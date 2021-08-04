@@ -239,6 +239,9 @@ expression_statement_dummy_var = 0;
             header-definitions-block-1
             header-definitions-block-2
             ))
+     (text "\n\n\n\n")
+     (text "-------- Randomly generated program starts here --------")
+     (text "\n\n\n\n")
      (vb-concat
       (list*
        (text "")
