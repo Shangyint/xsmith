@@ -56,14 +56,14 @@ array_safe_reference = function(array, index, fallback){
   if (array.length == 0) {
     return fallback;
   } else {
-    return array[index % array.length];
+    return array[Math.abs(index) % array.length];
   }
 }
 array_safe_assignment = function(array, index, newvalue){
   if (array.length == 0) {
     return;
   } else {
-    array[index % array.length] = newvalue
+    array[Math.abs(index) % array.length] = newvalue
     return;
   }
 }
@@ -215,7 +215,7 @@ array_safe_assignment = function(array, index, newvalue){
               (att-value 'xsmith_render-node (ast-child 'index n))
               (text ", ")
               (att-value 'xsmith_render-node (ast-child 'newvalue n))
-              (text ")")))]
+              (text ");")))]
 
  [MutableStructuralRecordLiteral
   (λ (n)
@@ -238,7 +238,8 @@ array_safe_assignment = function(array, index, newvalue){
                    (text ".")
                    (text (format "~a" (ast-child 'fieldname n)))
                    space equals space
-                   (att-value 'xsmith_render-node (ast-child 'newvalue n))))]
+                   (att-value 'xsmith_render-node (ast-child 'newvalue n))
+                   semi))]
  )
 
 
