@@ -34,7 +34,7 @@
 (define version "2.0.3")
 (define git-commit "$Format:%h$")
 
-(define scribblings '(("scribblings/xsmith.scrbl" () (library))))
+(define scribblings '(("scribblings/xsmith.scrbl" (multi-page) (library))))
 (define deps '("base"
                "version-string-with-git-hash"
                "quickcheck"

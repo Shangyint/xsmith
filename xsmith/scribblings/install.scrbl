@@ -36,9 +36,11 @@
 
 @title{How to Install Xsmith}
 
-First, install Racket.  If your operating system's package manager doesn't have a package or you want a fresher version, @hyperlink["https://download.racket-lang.org/"]{download it}.
+First, install Racket.  If your operating system's package manager doesn't have a package or you want a fresher version, @hyperlink["https://download.racket-lang.org/"]{download it}. Make sure that @exec{racket} and @exec{raco} is in your @link["https://github.com/racket/racket/wiki/Configure-Command-Line-for-Racket"]{@envvar{PATH}}.
 
-Then run @verb{raco pkg install xsmith}.
+Then run @exec{raco pkg install xsmith} if you want to install the current release version.
+
+Alternatively, run @exec{raco pkg install https://gitlab.flux.utah.edu/xsmith/xsmith.git\?path\=xsmith} if you want to install the latest development version.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
