@@ -2251,7 +2251,7 @@ The canned components only use this wrapped in @racket[mutable] or @racket[immut
 @deftogether[(@defproc[(random-string/ascii) string?]
               @defproc[(random-string/ascii-no-null) string?]
               @defproc[(random-string/ascii-no-control) string?])]{
-Produces a random string in range 0-127, 1-127, and 32-127 respectively.
+Produces a random string where each character code point is in range 0-127, 1-127, and 32-127 respectively.
 }
 
 @defparam[current-array-length v (or/c exact-positive-integer? (-> exact-nonnegative-integer?))
