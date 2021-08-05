@@ -224,7 +224,7 @@
             (define removed-child (ast-child i list-node))
             (when (remove-predicate removed-child)
               (rewrite-delete removed-child)
-              (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size n)))
+              (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size removed-child)))
                   (begin
                     (set! had-success? #t)
                     (list-delete-loop i))
