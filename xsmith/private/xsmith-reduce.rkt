@@ -1,7 +1,7 @@
 #lang clotho
 ;; -*- mode: Racket -*-
 ;;
-;; Copyright (c) 2017-2020 The University of Utah
+;; Copyright (c) 2021 The University of Utah
 ;; All rights reserved.
 ;;
 ;; This file is part of Xsmith, a generator of highly effective fuzz testers.
@@ -91,6 +91,7 @@
     (write-min-file! (ast->string root))
     (define success? (run-test-script!))
     (when (and success? message)
+      ;; TODO - it would be nice to print updates to stderr
       (xd-printf message))
     success?)
 
@@ -99,6 +100,7 @@
   (define original-success? (version-successful!? #f))
   (when (not original-success?)
     (error 'reduce-ast "Reduction script failed for original program."))
+  ;; TODO - check that the interestingness test fails on an empty file as well (or some minimal always uninteresting file)
 
 
   #|
@@ -108,7 +110,7 @@
   * Replace node with (non-reference) atomic choice
   * Replace reference with most global, first declared definition of same type
   * Recur to children
-  * Climbing up after the recursion, search for descendant nodes of the same type, replace node with descendant (IE unwrap the critical section)
+  * TODO Climbing up after the recursion, search for descendant nodes of the same type, replace node with descendant (IE unwrap the critical section)
 
   Probably I want to just run each of those down the tree, then re-run the delete unused binder tactic until it fails to make a change.
   |#
@@ -245,8 +247,14 @@
 
   ;;; GO!
 
+  (define orig-size (ast-size root))
+
   (reduce-node root)
   (let loop ()
     (when (remove-unused-binders root)
       (loop)))
+  (define final-size (ast-size root))
+  (define size-diff (- orig-size final-size))
+  (xd-printf "reduction reduced from ~a to ~a nodes, a reduction of ~a (~a%)"
+             orig-size final-size size-diff (/ (* 1.0 final-size) orig-size))
   root)
