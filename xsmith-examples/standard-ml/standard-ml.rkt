@@ -976,7 +976,8 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
             (define inners (product-type-inner-type-list ct))
             ;; Well, there's a way to get them out.
             ;; But now I'm feeling lazy.  It's late.  I just want to get this going.
-            (text (format "fn x : ~a => \"Tuples should be printed better than this.\""))]
+            (text (format "fn x : ~a => \"Tuples should be printed better than this.\""
+                          (type->string type)))]
            [(can-unify? type (function-type (fresh-type-variable)
                                             (fresh-type-variable)))
             (text (format "fn x : ~a => \"procedure\"" (type->string type)))]
