@@ -204,7 +204,7 @@
 
 
       ;; Tactic: delete list node children
-      (delete-list-node-children n (λ (cn) #t))
+      (delete-list-node-children n (λ (x) (not (att-value '_xsmith_binder-type-field x))))
 
 
       ;; Tactic: recur to children
