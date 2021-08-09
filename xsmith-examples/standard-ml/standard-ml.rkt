@@ -353,6 +353,7 @@ TODO - running / compiling SML
   #:prop render-node-info (λ (n) (h-append (text "(* It's Polymorphin time! *) ")
                                            (render-child 'f n)))
   #:prop wont-over-deepen #t
+  #:prop feature parametric-types
   #:prop choice-weight (λ (n)
                          (if (ast-subtype? (parent-node n) 'PolymorphicFunction)
                              0
@@ -1141,7 +1142,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
   #:program-node ProgramWithSequence
   #:format-render sml-format-render
   #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n")))
-  #:features ([large-int #f])
+  #:features ([large-int #f] [parametric-types #f])
   )
 
 (module+ main (simple-sml-command-line))
