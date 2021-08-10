@@ -54,7 +54,7 @@
     "pprint"
     "racr"
     "xsmith"
-    "rosette"
+    ;"rosette"
     "clotho"
     "math-lib"
     ))
