@@ -1512,6 +1512,50 @@ Example:
 ]
 }
 
+@defform[#:kind "spec-property" #:id feature feature]{
+Can be used to specify that a given node is related to a given feature.
+The feature is given as a symbol.
+See also @racket[define-xsmith-interface-functions] and @racket[xsmith-feature-enabled?].
+If this property is provided, the node can only be generated when the feature is enabled.
+
+Example:
+@racketblock[
+(add-property
+ my-spec-component
+ feature
+ (code:comment "Only generate ListsReference nodes when the `list` feature is enabled")
+ [ListReference list])
+]
+}
+
+@defform[#:kind "spec-property" #:id reducible-list-fields reducible-list-fields]{
+Used to specify whether xsmith's reducer mode may delete elements from a list field child.
+In other words, when a node has a field with a kleene star specifying that it may have 0+ child nodes in that field, the reducer has a pass that can try to delete those nodes.
+For some nodes, the number of children is really arbitrary and it is valid to reduce them, such as for most list constructors.
+For other nodes, the number of children is variable but dependent on other aspects of the program, such as for function application nodes, tuple constructors, etc.
+
+The default value for this property is @racket[#f], meaning that no list nodes may be reduced.
+The value @racket[#t] means all list nodes may be reduced.
+Finally, a list of identifiers may be given explicitly listing the fields that may be reduced.
+
+
+Example:
+@racketblock[
+(add-to-grammar
+ my-spec-component
+ (code:comment "Don't allow the reducer to delete nodes from any field in TupleLiteral.")
+ [TupleLiteral Expression ([values : Expression *])
+               #:reducible-list-fields #f]
+ (code:comment "Do allow the reducer to delete nodes from any field in ExpressionSequence.")
+ [ExpressionSequence Expression ([e : Expression *])
+                     #:reducible-list-fields #t]
+ (code:comment "Allow the reducer to delete nodes from explicit list of fields.")
+ [ExpressionSequenceAlt Expression ([e : Expression *])
+                        #:reducible-list-fields (e)])
+]
+}
+
+
 @section{Types}
 
 These type constructors and other functions are largely useful for specifying the @racket[type-info] property.
