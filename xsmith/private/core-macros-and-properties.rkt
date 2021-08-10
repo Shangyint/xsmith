@@ -80,6 +80,7 @@
          type-info
          edit
          feature
+         reducible-list-fields
          get-node-symbol
          ;; user-added props
          prop-name ...

@@ -54,6 +54,7 @@
  render-hole-info
  edit
  feature
+ reducible-list-fields
  get-node-symbol
 
  make-lift-reference-choice-proc
@@ -233,6 +234,20 @@
        #f
        #'(λ () #t)))
     (list _xsmith_features-enabled-info)))
+
+(define-property reducible-list-fields
+  #:appends
+  (attribute _xsmith_reducible-list-fields)
+  #:transformer
+  (λ (this-prop-info)
+    (define nodes (remove-duplicates (cons #f (dict-keys this-prop-info))))
+    (define _xsmith_reducible-list-fields-info
+      (for/hash ([n nodes])
+        (syntax-parse (dict-ref this-prop-info n #'#f)
+          [#f (values n #'(λ (n) #f))]
+          [#t (values n #'(λ (n) #t))]
+          [(field:id ...) (values n #'(λ (n) '(field ...)))])))
+    (list _xsmith_reducible-list-fields-info)))
 
 (define-property choice-weight
   #:appends

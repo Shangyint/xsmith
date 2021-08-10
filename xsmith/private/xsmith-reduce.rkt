@@ -35,6 +35,7 @@
  racket/port
  racket/file
  racket/class
+ racket/match
  racr
  (submod "types.rkt" for-private)
  "core-macros-and-properties.rkt"
@@ -214,9 +215,14 @@
 
   (define (delete-list-node-children n remove-predicate)
     (define had-success? #f)
-    (let ([list-nodes (filter (λ (cn) (and (ast-node? cn)
-                                           (ast-list-node? cn)))
-                              (ast-children n))])
+    (define reducibles (att-value '_xsmith_reducible-list-fields n))
+    (let ([list-nodes
+           (filter (λ (cn) (and (ast-node? cn)
+                                (ast-list-node? cn)))
+                   (match reducibles
+                     [#t (ast-children n)]
+                     [#f '()]
+                     [(list field ...) (map (λ (f) (ast-child f n)) field)]))])
       (for ([list-node list-nodes])
         (let list-delete-loop ([i 1])
           ;; RACR uses 1-based indexing

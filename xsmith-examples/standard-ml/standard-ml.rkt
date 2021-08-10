@@ -320,6 +320,7 @@ TODO - running / compiling SML
                ;; HOWEVER, it does not support tuples of length 1!
                ;; I think I'll just allow tuples for function arguments.
                #:prop wont-over-deepen #t
+               #:prop reducible-list-fields #f
                ;; Because it's going to just be a wrapper for function arguments,
                ;; make the depth increase 0.
                #:prop depth-increase 0

@@ -324,6 +324,7 @@
                      Expression
                      ([procedure : Expression]
                       [arguments : Expression * = (create-ast-bud)])
+                     #:prop reducible-list-fields #f
                      #:prop edit
                      (λ (n)
                        (and
@@ -434,6 +435,7 @@
                      #f ([definitions : Definition *]
                          [ExpressionSequence])
                      #:prop strict-child-order? #t
+                     #:prop reducible-list-fields #t
                      #:prop type-info
                      [(fresh-type-variable)
                       (λ (n t)
@@ -542,6 +544,7 @@
                     [LambdaWithExpression
                      Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Expression])
+                     #:prop reducible-list-fields #f
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
@@ -557,6 +560,7 @@
                      Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Block])
                      #:prop block-user? #t
+                     #:prop reducible-list-fields #f
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
@@ -573,6 +577,7 @@
                      Expression ([definitions : Definition *]
                                  [body : Expression])
                      #:prop strict-child-order? #t
+                     #:prop reducible-list-fields #t
                      #:prop type-info
                      [(fresh-type-variable)
                       (λ (n t)
@@ -589,6 +594,7 @@
                                          = ((current-num-effect-expressions))]
                       [finalexpression : Expression])
                      #:prop strict-child-order? #t
+                     #:prop reducible-list-fields #t
                      #:prop type-info
                      [(fresh-type-variable)
                       (λ (n t)
@@ -604,6 +610,7 @@
                      Expression
                      ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
+                     #:prop reducible-list-fields #t
                      #:prop choice-weight (depth-weight)]
                     [ImmutableArraySafeReference
                      Expression ([array : Expression]
@@ -647,6 +654,7 @@
                      Expression
                      ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
+                     #:prop reducible-list-fields #t
                      #:prop choice-weight (depth-weight)
                      #:prop type-info
                      [(immutable (list-type (fresh-type-variable)))
@@ -687,6 +695,7 @@
                      Expression
                      ([expressions : Expression * = ((current-array-length))])
                      #:prop wont-over-deepen #t
+                     #:prop reducible-list-fields #t
                      #:prop choice-weight (depth-weight)
                      #:prop type-info
                      [(mutable (fresh-array-type))
@@ -731,6 +740,8 @@
                      ([keys : Expression *]
                       [vals : Expression *])
                      #:prop wont-over-deepen #t
+                     ;; These ideally should be reducible, but the keys and values must be reduced together.
+                     #:prop reducible-list-fields #f
                      #:prop choice-weight (depth-weight)
                      #:prop fresh
                      (let ([elem-count ((current-array-length))])
@@ -824,6 +835,7 @@
                      Expression
                      (fieldnames [expressions : Expression *])
                      #:prop wont-over-deepen #t
+                     #:prop reducible-list-fields #f
                      #:prop choice-weight (depth-weight)
                      #:prop fresh
                      (let* ([t (begin (force-type-exploration-for-node!
@@ -889,6 +901,7 @@
                     [MutableStructuralRecordLiteral
                      Expression
                      (fieldnames [expressions : Expression *])
+                     #:prop reducible-list-fields #f
                      #:prop wont-over-deepen #t
                      #:prop choice-weight (depth-weight)
                      #:prop fresh
@@ -1008,6 +1021,7 @@
                      Expression ([parameters : FormalParameter * = ((current-arg-length))]
                                  [body : Block])
                      #:prop block-user? #t
+                     #:prop reducible-list-fields #f
                      #:prop wont-over-deepen #t
                      #:prop choice-weight 1
                      #:prop fresh
@@ -1063,6 +1077,8 @@
                     [Block Statement ([definitions : Definition *]
                                       [statements : Statement * = (add1 (random 5))])
                            #:prop strict-child-order? #t
+                           ;; TODO - statements should be reducible.  I need to rearrange it so it has a final statement as a separate field.
+                           #:prop reducible-list-fields (definitions)
                            #:prop depth-increase
                            ;; Many nodes have blocks as children to
                            ;; implicitly have multiple statements and
@@ -1100,6 +1116,7 @@
                      #f ([definitions : Definition *]
                          [Block])
                      #:prop block-user? #t
+                     #:prop reducible-list-fields #t
                      #:prop strict-child-order? #t
                      #:prop type-info
                      [(fresh-type-variable)
