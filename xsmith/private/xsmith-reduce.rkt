@@ -70,12 +70,13 @@
   (define script-full-path (path->string (path->complete-path minimization-script)))
   (make-directory* minimization-directory)
   (define min-file (build-path minimization-directory "reduction-candidate"))
+  (define last-good-min-file (build-path minimization-directory "last-good-reduction-candidate"))
 
   ;; Minimization unfortunately works via mutation, so let's just always refer to root
   (define root ast-original)
 
-  (define (write-min-file! program-string)
-    (with-output-to-file min-file
+  (define (write-file! f program-string)
+    (with-output-to-file f
       #:mode 'text
       #:exists 'replace
       (λ () (display program-string))))
@@ -89,9 +90,11 @@
       ;; Returns true if the script exits successfully, which is our test
       (system script-full-path)))
   (define (version-successful!? message)
-    (write-min-file! (ast->string root))
+    (define out-string (ast->string root))
+    (write-file! min-file out-string)
     (define success? (run-test-script!))
     (when (and success? message)
+      (write-file! last-good-min-file out-string)
       ;; TODO - it would be nice to print updates to stderr
       (xd-printf message))
     success?)

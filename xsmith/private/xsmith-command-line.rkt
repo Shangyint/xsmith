@@ -956,10 +956,11 @@
 
                  ;; Everything was successful!
                  (verbose-eprintf "Program successfully generated.\n")
-                 (display (comment-func (cons "This is a RANDOMLY GENERATED PROGRAM."
-                                              option-lines)))
+                 (display (comment-func (append (list "This is a RANDOMLY GENERATED PROGRAM.")
+                                                option-lines
+                                                (list ""))))
                  (when reduction-script
-                   (display (comment-func (list "\nThis is a REDUCED version of the original program!"))))
+                   (display (comment-func (list "" "This is a REDUCED version of the original program!"))))
                  (display (format "\n\n~a\n" program))
                  (when (non-empty-string? captured-output)
                    (display "\n")
