@@ -1144,6 +1144,7 @@ fun safeLargeIntToSmallInt(x : LargeInt.int) =
   #:format-render sml-format-render
   #:comment-wrap (λ (lines) (format "(*\n~a\n*)" (string-join lines "\n")))
   #:features ([large-int #f] [parametric-types #f])
+  #:default-max-depth 7
   )
 
 (module+ main (simple-sml-command-line))
