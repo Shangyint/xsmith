@@ -222,27 +222,41 @@
           ;; RACR uses 1-based indexing
           (when (<= i (ast-num-children list-node))
             (define removed-child (ast-child i list-node))
-            (when (remove-predicate removed-child)
-              (rewrite-delete removed-child)
-              (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size removed-child)))
-                  (begin
-                    (set! had-success? #t)
-                    (list-delete-loop i))
-                  (begin (rewrite-insert list-node i removed-child)
-                         (list-delete-loop (add1 i)))))))))
+            (if (remove-predicate removed-child)
+                (begin
+                  (rewrite-delete removed-child)
+                  (if (version-successful!? (format "Reduced: deleted node of size ~a\n" (ast-size removed-child)))
+                      (begin
+                        (set! had-success? #t)
+                        (list-delete-loop i))
+                      (begin (rewrite-insert list-node i removed-child)
+                             (list-delete-loop (add1 i)))))
+                (list-delete-loop (add1 i)))))))
     had-success?)
 
   (define (remove-unused-binders n)
-    (let/ec return!
+    (define success?
+      (delete-list-node-children
+       n
+       ;; Only delete if it's a definition node that has no references.
+       (λ (def-node)
+         (and (att-value '_xsmith_binder-type-field def-node)
+              (let ([refs (att-value
+                           'xsmith_find-descendants
+                           root
+                           (λ (cn)
+                             (define binding
+                               (and (att-value '_xsmith_is-reference-node? cn)
+                                    (att-value '_xsmith_resolve-reference cn)))
+                             (and binding (eq? (binding-ast-node binding)
+                                               def-node))))])
+                (null? refs))))))
 
-      (define success?
-        (delete-list-node-children n (λ (x) (att-value '_xsmith_binder-type-field x))))
+    (define descendant-successes
+      (for/list ([cn (filter ast-node? (ast-children/flat n))])
+        (remove-unused-binders cn)))
 
-      (define descendant-successes
-        (for/list ([cn (filter ast-node? (ast-children/flat n))])
-          (remove-unused-binders cn)))
-
-      (or success? (ormap (λ(x)x) descendant-successes))))
+    (or success? (ormap (λ(x)x) descendant-successes)))
 
 
   ;;; GO!
