@@ -770,19 +770,23 @@
 
            (define (generate-and-print!/xsmith-parameterized
                     #:random-source [random-input initial-random-source])
-             (parameterize ([current-xsmith-max-depth max-depth]
-                            [type-max-concretization-depth type-max-depth]
-                            [current-xsmith-features features]
-                            [xsmith-options options]
-                            [xsmith-state (make-generator-state)]
-                            [current-inspection-serials inspection-serials]
-                            [current-random-source (make-random-source random-input)])
+             (parameterize* ([current-xsmith-max-depth max-depth]
+                             [type-max-concretization-depth type-max-depth]
+                             [current-xsmith-features features]
+                             [xsmith-options options]
+                             [xsmith-state (make-generator-state)]
+                             [current-inspection-serials inspection-serials]
+                             [current-random-source (make-random-source random-input)]
+                             [current-xsmith-type-constructor-thunks
+                              (if (procedure? type-constructor-thunks-func/list)
+                                  (type-constructor-thunks-func/list)
+                                  type-constructor-thunks-func/list)])
                (let/ec abort
                  (define option-lines
                    (append
                     (if 'fuzzer-name
-                        (list (format "Fuzzer: ~a" 'fuzzer-name))
-                        (list))
+                         (list (format "Fuzzer: ~a" 'fuzzer-name))
+                         (list))
                     (list (format "Version: ~a" version-info)
                           (format "Options: ~a"
                                   (if (vector? command-line-to-print)
