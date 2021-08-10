@@ -44,12 +44,37 @@
 
 Version @xsmith-version-string
 
-@include-section["introduction.scrbl"]
+Xsmith is a library for creating fuzz testers, also known as @italic{fuzzers},
+for programming language compilers and interpreters.  In other words, Xsmith is
+a library for creating @italic{random program generators}.
+
+Xsmith implements a domain-specific language (DSL) for defining random program
+generators.  The DSL is used to specify a programming language's grammar,
+typing rules, and other information that guides generation choices.  Xsmith
+also includes utilities for creating a command-line interface for generating a
+single program or starting a web server that generates one program per request.
+
+There are example random program generators built with Xsmith.  They are in the xsmith-examples package.
+@; TODO - give a URL to the examples documentations on the web, since they are no longer in the same package.
+
+@bold{Reporting bugs.}
+@;
+Please send bug reports and fixes to
+@hyperlink["mailto:xsmith-bugs@flux.utah.edu"]{xsmith-bugs@"@"flux.utah.edu}.
+
+@bold{Getting help.}
+@;
+There is a mailing list,
+@hyperlink["mailto:xsmith-dev@flux.utah.edu"]{xsmith-dev@"@"flux.utah.edu}, for
+discussing Xsmith.  Visit
+@hyperlink["http://www.flux.utah.edu/mailman/listinfo/xsmith-dev"]{the
+xsmith-dev list management website} to subscribe.  To post messages to the
+list, you must first subscribe to the list.
+
 @include-section["install.scrbl"]
 @include-section["guide.scrbl"]
 @include-section["reference.scrbl"]
 @include-section["acknowledgments.scrbl"]
-
 @include-section["code-and-license.scrbl"]
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
