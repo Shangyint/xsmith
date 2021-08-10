@@ -278,5 +278,5 @@
   (define final-size (ast-size root))
   (define size-diff (- orig-size final-size))
   (xd-printf "reduction reduced from ~a to ~a nodes, a reduction of ~a (~a%)"
-             orig-size final-size size-diff (- 1 (/ (* 1.0 final-size) orig-size)))
+             orig-size final-size size-diff (* 100 (- 1 (/ (* 1.0 final-size) orig-size))))
   root)
