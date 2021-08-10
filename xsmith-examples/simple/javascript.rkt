@@ -244,6 +244,51 @@ array_safe_assignment = function(array, index, newvalue){
 
 
 
+(add-loop-over-container
+ javascript-comp
+ #:name ForLoopOverArray
+ #:collection-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
+ #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
+ #:body-type-constructor (λ (loop-type elem-type) loop-type)
+ #:mutable-container-access (read 'MutableArray)
+ #:loop-ast-type Statement
+ #:body-ast-type Block
+ #:bind-whole-collection? #t
+ )
+(add-property
+ javascript-comp render-node-info
+ [ForLoopOverArray
+  (λ (n)
+    (define cd (ast-child 'collection n))
+    (define collection-name (ast-child 'name cd))
+    (define index-name (fresh-var-name "index_"))
+    (define elem-name (ast-child 'name (ast-child 'elemname n)))
+    (define body (ast-child 'body n))
+    (v-append
+     (h-append (text collection-name)
+               (text " = ")
+               (att-value 'xsmith_render-node (ast-child 'Expression cd)))
+     (h-append (text (format "for (~a = 0 ; ~a < ~a.length ; ~a ++){"
+                             index-name index-name collection-name index-name))
+               ;; TODO - should I use `let` here? IE for(let i = 0; ...)?
+               (nest nest-step
+                     (v-append
+                      (text "")
+                      (text (format "~a = ~a[~a];"
+                                    elem-name
+                                    collection-name
+                                    index-name))
+                      (v-concat
+                       (append
+                        (map (λ (cn) (att-value 'xsmith_render-node cn))
+                             (ast-children (ast-child 'definitions body)))
+                        (map (λ (cn) (att-value 'xsmith_render-node cn))
+                             (ast-children (ast-child 'statements body)))))))
+               (text "}"))
+     line))])
+
+
+
 (define (type-thunks-for-concretization)
   (list
    (λ()int-type)
