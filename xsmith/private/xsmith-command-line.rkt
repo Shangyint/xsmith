@@ -1003,20 +1003,25 @@
                            (do-parameterized param-pairs
                                              (λ () (generate-and-print!/xsmith-parameterized
                                                     #:random-source random-source)))))))
-             (define on-time?
-               (sync/timeout timeout work-thread))
-             (if on-time?
-                 (display (get-output-string out))
-                 (begin
-                   ;; Instead of killing the work thread, we send a break, which will
-                   ;; cause an exception that will then give us some debugging info.
-                   ;; This is important if we think our fuzzer is in an infinite loop somewhere.
-                   (break-thread work-thread)
-                   (displayln
-                    (comment-func (list "Generation failed because timeout was exceeded.")))
-                   (sync work-thread)
-                   (displayln (comment-func (string-split (get-output-string out) "\n")))
-                   (displayln (comment-func (string-split (get-xsmith-debug-log!) "\n"))))))
+
+
+             (define (handle-break&timeout e)
+               ;; Instead of killing the work thread, we send a break, which will
+               ;; cause an exception that will then give us some debugging info.
+               ;; This is important if we think our fuzzer is in an infinite loop somewhere.
+               (break-thread work-thread)
+               (displayln
+                (comment-func (list "Generation failed because timeout was exceeded or user breaked the program.")))
+               (sync work-thread)
+               (displayln (comment-func (string-split (get-output-string out) "\n")))
+               (displayln (comment-func (string-split (get-xsmith-debug-log!) "\n"))))
+
+             (with-handlers ([exn:break? handle-break&timeout])
+               (define on-time?
+                 (sync/timeout timeout work-thread))
+               (if on-time?
+                   (display (get-output-string out))
+                   (handle-break&timeout #f))))
 
            (cond [(and server? netstring-server-path)
                   (error 'server? "--server and --netstring-server are mutually exclusive")]
