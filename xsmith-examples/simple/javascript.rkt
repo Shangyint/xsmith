@@ -270,7 +270,6 @@ array_safe_assignment = function(array, index, newvalue){
                (att-value 'xsmith_render-node (ast-child 'Expression cd)))
      (h-append (text (format "for (~a = 0 ; ~a < ~a.length ; ~a ++){"
                              index-name index-name collection-name index-name))
-               ;; TODO - should I use `let` here? IE for(let i = 0; ...)?
                (nest nest-step
                      (v-append
                       (text "")
@@ -287,6 +286,55 @@ array_safe_assignment = function(array, index, newvalue){
                (text "}"))
      line))])
 
+(add-loop-over-container
+ javascript-comp
+ #:name ForLoopToIndex
+ #:collection-type-constructor (λ (elem-type)
+                                 (unify! int-type elem-type)
+                                 int-type)
+ #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
+ #:body-type-constructor (λ (loop-type elem-type) loop-type)
+ #:loop-ast-type Statement
+ #:body-ast-type Block
+ #:bind-whole-collection? #t
+ )
+(add-property
+ javascript-comp render-node-info
+ [ForLoopToIndex
+  (λ (n)
+    (define cd (ast-child 'collection n))
+    (define collection-name (ast-child 'name cd))
+    (define index-name (fresh-var-name "index_"))
+    (define guard-name (fresh-var-name "guard_"))
+    (define elem-name (ast-child 'name (ast-child 'elemname n)))
+    (define body (ast-child 'body n))
+    (v-append
+     (h-append (text collection-name)
+               (text " = ")
+               (att-value 'xsmith_render-node (ast-child 'Expression cd)))
+     (h-append (text guard-name)
+               (text " = ")
+               ;; Let's limit these loops to 100 iterations.
+               (text (format "((Math.abs(~a) > 100) ? 100 : Math.abs(~a))"
+                             collection-name collection-name)))
+     (h-append (text (format "for (~a = 0 ; ~a < ~a ; ~a ++){"
+                             index-name index-name
+                             guard-name
+                             index-name))
+               (nest nest-step
+                     (v-append
+                      (text "")
+                      (text (format "~a = ~a;"
+                                    elem-name
+                                    index-name))
+                      (v-concat
+                       (append
+                        (map (λ (cn) (att-value 'xsmith_render-node cn))
+                             (ast-children (ast-child 'definitions body)))
+                        (map (λ (cn) (att-value 'xsmith_render-node cn))
+                             (ast-children (ast-child 'statements body)))))))
+               (text "}"))
+     line))])
 
 
 (define (type-thunks-for-concretization)
