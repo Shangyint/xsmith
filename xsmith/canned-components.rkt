@@ -1231,6 +1231,8 @@
                     #:defaults ([loop-ast-type #'Expression]))
          (~optional (~seq #:body-ast-type loop-body-ast-type)
                     #:defaults ([loop-body-ast-type #'Expression]))
+         (~optional (~seq #:mutable-container-access
+                          mutable-container-access-prop-val))
          (~optional (~seq #:bind-whole-collection? bind-whole-collection?)
                     #:defaults ([bind-whole-collection? #'#f]))
          (~optional (~seq #:collection-type-constructor
@@ -1302,6 +1304,8 @@
                   (not (att-value 'xsmith_is-hole? (ast-child 'elemname n)))
                   (λ () (rewrite-subtree (ast-child 'body n)
                                          (make-hole 'loop-body-ast-type)))))
+           (~? (~@ #:prop mutable-container-access
+                   mutable-container-access-prop-val))
            #:prop type-info
            [(λ (n) (loop-type-function (fresh-type-variable)))
             (λ (n t)
