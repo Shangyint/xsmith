@@ -250,7 +250,7 @@ array_safe_assignment = function(array, index, newvalue){
  javascript-comp
  #:name ForLoopOverArray
  #:collection-type-constructor (λ (elem-type) (mutable (array-type elem-type)))
- #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
+ #:loop-type-constructor (λ (elem-type) no-return-type)
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:mutable-container-access (read 'MutableArray)
  #:loop-ast-type Statement
@@ -294,7 +294,7 @@ array_safe_assignment = function(array, index, newvalue){
  #:collection-type-constructor (λ (elem-type)
                                  (unify! int-type elem-type)
                                  int-type)
- #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
+ #:loop-type-constructor (λ (elem-type) no-return-type)
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
  #:body-ast-type Block
