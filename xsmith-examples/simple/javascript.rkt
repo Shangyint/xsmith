@@ -103,6 +103,11 @@ safe_string_append = function(a, b){
     return a;
   }
 }
+
+// Polyfill print
+if (typeof print == \"undefined\") {
+  print = console.log;
+}
 ")
 
 (define (render-child fieldname n)
