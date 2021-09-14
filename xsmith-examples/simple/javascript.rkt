@@ -36,10 +36,7 @@
 
 
 (define nest-step 4)
-(define (binary-op-renderer op-rendered)
-  (λ (n) (h-append lparen (att-value 'xsmith_render-node (ast-child 'l n))
-                   space op-rendered space
-                   (att-value 'xsmith_render-node (ast-child 'r n)) rparen)))
+
 (add-property
  javascript-comp
  render-hole-info
@@ -49,11 +46,37 @@
   (apply h-append
          (apply-infix (h-append comma space)
                       doc-list)))
+
+(define max-safe-int (- (expt 2 53) 1))
+(define min-safe-int (- (- (expt 2 53) 1)))
+;; I'm not sure what a good boundary for string size is, but 1k seems like a reasonable starting place.
+(define max-safe-string-size (expt 2 10))
+(define header-boundary-numbers
+  (string-append
+   (format "MAX_SAFE_INT = ~a\n" max-safe-int)
+   (format "MIN_SAFE_INT = ~a\n" min-safe-int)
+   (format "MAX_SAFE_STRING_SIZE = ~a\n" max-safe-string-size)))
 (define header-definitions-block
+  ;; Javascript, being stupid, uses double precision floating point representation for all numbers, including integers.
+  ;; Thus, there is a maximum size for integers before they start becoming approximate, losing mathematical properties like reflexivity and associativity for basic operators, etc.
+  ;; Here is a nice web site that discusses the boundaries: https://www.avioconsulting.com/blog/overcoming-javascript-numeric-precision-issues
+  ;;
   ;; I want to use Math.trunc for safe_divide, but mujs apparently doesn't have it.
   ;; So let's use Math.floor instead.
   "
-safe_divide = function(a,b){return Math.floor(b == 0 ? a : a / b)}
+safe_int = function(x){
+  if (x > MAX_SAFE_INT) {
+    return MAX_SAFE_INT;
+  } else if (x < MIN_SAFE_INT){
+    return MIN_SAFE_INT;
+  } else {
+    return x;
+  }
+}
+safe_divide = function(a,b){return safe_int(Math.floor(b == 0 ? a : a / b))}
+safe_plus = function(a,b){return safe_int(a + b)}
+safe_minus = function(a,b){return safe_int(a - b)}
+safe_times = function(a,b){return safe_int(a * b)}
 array_safe_reference = function(array, index, fallback){
   if (array.length == 0) {
     return fallback;
@@ -69,8 +92,29 @@ array_safe_assignment = function(array, index, newvalue){
     return;
   }
 }
-
+safe_string_append = function(a, b){
+  // If strings grow too big, JS implementations either
+  // run out of memory, crash saying that a string was too big,
+  // or throw an exception.
+  // Let's keep strings from growing too big via appending.
+  if (a.length + b.length < MAX_SAFE_STRING_SIZE) {
+    return a + b;
+  } else {
+    return a;
+  }
+}
 ")
+
+(define (render-child fieldname n)
+  (att-value 'xsmith_render-node (ast-child fieldname n)))
+(define (binary-function-renderer name)
+  (λ (n) (h-append (text name) (text "(")
+                   (render-child 'l n) (text ", ") (render-child 'r n)
+                   (text ")"))))
+(define (binary-op-renderer op-rendered)
+  (λ (n) (h-append lparen (render-child 'l n)
+                   space op-rendered space
+                   (render-child 'r n) rparen)))
 
 (add-property
  javascript-comp
@@ -80,6 +124,7 @@ array_safe_assignment = function(array, index, newvalue){
   (λ (n)
     (define definitions (ast-children (ast-child 'definitions n)))
     (v-append
+     (text header-boundary-numbers)
      (text header-definitions-block)
      (text "\n\n\n\n")
      (text "////////  Randomly generated program starts here ////////")
@@ -176,20 +221,17 @@ array_safe_assignment = function(array, index, newvalue){
  [Or (binary-op-renderer (text "||"))]
 
  [IntLiteral (λ (n) (text (format "~a" (ast-child 'v n))))]
- [Plus (binary-op-renderer (text "+"))]
- [Minus (binary-op-renderer (text "-"))]
- [Times (binary-op-renderer (text "*"))]
+ [Plus (binary-function-renderer "safe_plus")]
+ [Minus (binary-function-renderer "safe_minus")]
+ [Times (binary-function-renderer "safe_times")]
+ [SafeDivide (binary-function-renderer "safe_divide")]
  [LessThan (binary-op-renderer (text "<"))]
  [GreaterThan (binary-op-renderer (text ">"))]
 
- [SafeDivide (λ (n) (h-append (text "safe_divide") lparen
-                              (att-value 'xsmith_render-node (ast-child 'l n))
-                              (text ",") space
-                              (att-value 'xsmith_render-node (ast-child 'r n))
-                              rparen))]
 
  [StringLiteral (λ (n) (text (format "~v" (ast-child 'v n))))]
- [StringAppend (binary-op-renderer (text "+"))]
+ ;; TODO - I've generated some programs where strings get too large.  I should wrap this with a safe wrapper to stay within some boundary.
+ [StringAppend (binary-function-renderer "safe_string_append")]
  [StringLength (λ (n) (h-append lparen
                                 (att-value 'xsmith_render-node (ast-child 'Expression n))
                                 rparen
