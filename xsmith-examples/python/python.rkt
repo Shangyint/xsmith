@@ -291,7 +291,7 @@
  python-comp
  #:name LoopOverArray
  #:collection-type-constructor (λ (elem-type) (fresh-iterator-or-iterable-or-sequence-or-array elem-type))
- #:loop-type-constructor (λ (elem-type) (fresh-maybe-return-type))
+ #:loop-type-constructor (λ (elem-type) no-return-type)
  #:body-type-constructor (λ (loop-type elem-type) loop-type)
  #:loop-ast-type Statement
  #:body-ast-type Block
