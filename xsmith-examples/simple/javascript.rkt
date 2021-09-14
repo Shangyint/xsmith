@@ -50,8 +50,10 @@
          (apply-infix (h-append comma space)
                       doc-list)))
 (define header-definitions-block
+  ;; I want to use Math.trunc for safe_divide, but mujs apparently doesn't have it.
+  ;; So let's use Math.floor instead.
   "
-safe_divide = function(a,b){return Math.trunc(b == 0 ? a : a / b)}
+safe_divide = function(a,b){return Math.floor(b == 0 ? a : a / b)}
 array_safe_reference = function(array, index, fallback){
   if (array.length == 0) {
     return fallback;
