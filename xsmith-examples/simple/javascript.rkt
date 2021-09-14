@@ -356,6 +356,7 @@ array_safe_assignment = function(array, index, newvalue){
   #:type-thunks type-thunks-for-concretization
   #:program-node ProgramWithBlock
   #:format-render javascript-format-render
+  #:default-max-depth 8
   #:comment-wrap (λ (lines) (string-join (map (λ (l) (format "// ~a" l)) lines)
                                          "\n")))
 
