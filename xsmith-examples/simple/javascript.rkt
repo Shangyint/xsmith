@@ -51,7 +51,7 @@
                       doc-list)))
 (define header-definitions-block
   "
-safe_divide = function(a,b){return b == 0 ? a : a / b}
+safe_divide = function(a,b){return Math.trunc(b == 0 ? a : a / b)}
 array_safe_reference = function(array, index, fallback){
   if (array.length == 0) {
     return fallback;
