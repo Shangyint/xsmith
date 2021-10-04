@@ -239,7 +239,7 @@ option ...)
          (code:line #:default-max-depth default-max-depth)
          (code:line #:default-type-max-depth default-type-max-depth)
          (code:line #:type-thunks type-thunks)
-         (code:line #:features ([feature-name:id feature-default-value:boolean optional-feature-docstring:string] ...))
+         (code:line #:features ([feature-name:id feature-default-value:boolean [optional-feature-docstring:string ...]] ...))
          (code:line #:extra-parameters ([parameter-name:id parameter-docstring:string parameter-expression param-converter])))
  ]]{
 Combines and compiles spec components into a generator.
@@ -1946,7 +1946,7 @@ A wrapper for RACR's @racket[att-value] function that prints trace info using @r
 
 @section{Turning Your Grammar Specification Into a Program}
 
-Use the @racket[xsmith-define-interface-functions] macro.  This section used to have more before things were rearranged.  Maybe things should be rearranged more.
+Use the @racket[define-xsmith-interface-functions] macro.  This section used to have more before things were rearranged.  Maybe things should be rearranged more.
 
 @defproc[(xsmith-feature-enabled? [feature symbol?]) boolean?]{
 Returns the value set by the user via @racket[define-xsmith-interface-functions] for the given feature.
